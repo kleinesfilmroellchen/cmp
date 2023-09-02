@@ -1,0 +1,9 @@
+[package]
+name = "client"
+description = "CMP standard game client"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+cmp = { path = "../cmp" }
+bevy = { version = "0.11.2", features = ["dynamic_linking"] }

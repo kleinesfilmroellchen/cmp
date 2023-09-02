@@ -1,0 +1,9 @@
+[package]
+name = "cmp"
+description = "CMP core game engine"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+bevy = { version = "0.11.2", features = ["dynamic_linking"] }
+winit = "0.28"
