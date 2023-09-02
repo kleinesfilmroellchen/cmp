@@ -4,6 +4,8 @@ use bevy::prelude::*;
 
 use crate::geometry::{GridPosition, WorldPosition};
 
+pub(crate) mod library;
+
 /// Static, unchanging sprite.
 #[derive(Bundle, Default)]
 pub struct StaticSprite {

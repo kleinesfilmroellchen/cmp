@@ -1,5 +1,5 @@
 //! CMP core engine.
-#![feature(duration_constants)]
+#![feature(duration_constants, let_chains)]
 #![deny(clippy::all, missing_docs)]
 
 use std::time::Duration;
@@ -61,7 +61,7 @@ fn setup_window(
 	mut icon: ResMut<WindowIcon>,
 	mut windows: Query<&mut bevy::prelude::Window, With<PrimaryWindow>>,
 ) {
-	icon.0 = asset_server.load::<Image, _>("grass.png");
+	icon.0 = asset_server.load::<Image, _>("logo-overscaled.png");
 
 	let mut window = windows.single_mut();
 	window.title = "Camping Madness Project".to_string();
