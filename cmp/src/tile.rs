@@ -17,10 +17,7 @@ pub fn spawn_test_tiles(mut commands: Commands, asset_server: Res<AssetServer>) 
 	let texture = asset_server.load("grass.png");
 	for x in -100 .. 100 {
 		for y in -100 .. 100 {
-			let sprite = StaticSprite {
-				bevy_sprite: SpriteBundle { texture: texture.clone(), ..Default::default() },
-				..Default::default()
-			};
+			let sprite = StaticSprite { bevy_sprite: SpriteBundle { texture: texture.clone(), ..Default::default() } };
 			commands.spawn(GroundTile { position: (x, y, 0).into(), sprite, ..Default::default() });
 		}
 	}

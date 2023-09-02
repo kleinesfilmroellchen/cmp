@@ -6,13 +6,15 @@ use std::time::Duration;
 
 use bevy::asset::ChangeWatcher;
 use bevy::prelude::*;
-use bevy::window::PrimaryWindow;
+use bevy::window::{PresentMode, PrimaryWindow};
 use bevy::winit::WinitWindows;
+use config::{ConfigPlugin, GameSettings};
 use input::GUIInputPlugin;
 use winit::window::Icon;
 
 use crate::geometry::{ActorPosition, GridPosition};
 
+pub(crate) mod config;
 pub(crate) mod debug;
 pub(crate) mod geometry;
 pub(crate) mod graphics;
@@ -34,13 +36,16 @@ impl Plugin for CmpPlugin {
 				})
 				.set(ImagePlugin::default_nearest()),
 		)
-		.add_plugins(GUIInputPlugin::default())
+		.add_plugins((GUIInputPlugin, ConfigPlugin))
 		.insert_resource(WindowIcon::default())
 		.add_systems(
 			Startup,
 			(graphics::initialize_graphics, debug::create_stats, setup_window, tile::spawn_test_tiles),
 		)
-		.add_systems(Update, (tile::wave_tiles, set_window_icon, debug::print_stats))
+		.add_systems(
+			Update,
+			(tile::wave_tiles, set_window_icon, debug::print_stats, apply_window_settings),
+		)
 		.add_systems(
 			PostUpdate,
 			(graphics::position_objects::<ActorPosition>, graphics::position_objects::<GridPosition>),
@@ -58,10 +63,17 @@ fn setup_window(
 ) {
 	icon.0 = asset_server.load::<Image, _>("grass.png");
 
-	for mut window in &mut windows {
-		window.title = "Camping Madness Project".to_string();
-		// Uncomment this to test maximum performance; it’s more efficient to keep VSync on.
-		// window.present_mode = bevy::window::PresentMode::AutoNoVsync;
+	let mut window = windows.single_mut();
+	window.title = "Camping Madness Project".to_string();
+}
+
+fn apply_window_settings(
+	mut windows: Query<&mut bevy::prelude::Window, With<PrimaryWindow>>,
+	settings: Res<GameSettings>,
+) {
+	let mut window = windows.single_mut();
+	if settings.is_changed() {
+		window.present_mode = if settings.use_vsync { PresentMode::AutoVsync } else { PresentMode::AutoNoVsync };
 	}
 }
 
@@ -79,8 +91,6 @@ fn set_window_icon(
 					let winit_window =
 						winit_map.windows.get(winit_map.entity_to_winit.get(&window.0).unwrap()).unwrap();
 
-					// here we use the `image` crate to load our icon data from a png file
-					// this is not a very bevy-native solution, but it will do
 					let (icon_rgba, icon_width, icon_height) = {
 						let image = images
 							.get(&window_icon.0)
