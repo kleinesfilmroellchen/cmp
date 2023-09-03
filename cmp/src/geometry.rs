@@ -15,12 +15,20 @@ pub trait WorldPosition: Component<Storage = TableStorage> {
 }
 
 /// An actor’s position is unconstrained in all three axes, and it can have non-grid-aligned values.
-#[derive(Component)]
-pub struct ActorPosition(Vec3A);
+#[derive(Component, Default)]
+pub struct ActorPosition(pub(crate) Vec3A);
 
 impl WorldPosition for ActorPosition {
 	fn position(&self) -> Vec3A {
 		self.0
+	}
+}
+
+// FIXME: Should be statically polymorphic, but dynamic polymorphism messes up Rusts's lifetimes, and static
+// polymorphism conflicts with the blanket impl<T> from the standard library.
+impl From<GridPosition> for ActorPosition {
+	fn from(value: GridPosition) -> Self {
+		Self(value.position())
 	}
 }
 

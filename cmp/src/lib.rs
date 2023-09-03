@@ -9,12 +9,13 @@ use bevy::prelude::*;
 use bevy::window::{PresentMode, PrimaryWindow};
 use bevy::winit::WinitWindows;
 use config::{ConfigPlugin, GameSettings};
+use construction::ConstructionPlugin;
+use graphics::GraphicsPlugin;
 use input::GUIInputPlugin;
 use winit::window::Icon;
 
-use crate::geometry::{ActorPosition, GridPosition};
-
 pub(crate) mod config;
+pub(crate) mod construction;
 pub(crate) mod debug;
 pub(crate) mod geometry;
 pub(crate) mod graphics;
@@ -36,20 +37,11 @@ impl Plugin for CmpPlugin {
 				})
 				.set(ImagePlugin::default_nearest()),
 		)
-		.add_plugins((GUIInputPlugin, ConfigPlugin))
+		.add_plugins((GUIInputPlugin, ConfigPlugin, GraphicsPlugin, ConstructionPlugin))
 		.insert_resource(WindowIcon::default())
-		.add_systems(
-			Startup,
-			(graphics::initialize_graphics, debug::create_stats, setup_window, tile::spawn_test_tiles),
-		)
-		.add_systems(
-			Update,
-			(tile::wave_tiles, set_window_icon, debug::print_stats, apply_window_settings),
-		)
-		.add_systems(
-			PostUpdate,
-			(graphics::position_objects::<ActorPosition>, graphics::position_objects::<GridPosition>),
-		);
+		.add_systems(Startup, (debug::create_stats, setup_window, tile::spawn_test_tiles))
+		// .add_systems(Update, tile::wave_tiles)
+		.add_systems(Update, (set_window_icon, debug::print_stats, apply_window_settings));
 	}
 }
 

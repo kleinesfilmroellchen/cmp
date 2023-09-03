@@ -2,9 +2,18 @@ use std::sync::OnceLock;
 
 use bevy::prelude::*;
 
-use crate::geometry::{GridPosition, WorldPosition};
+use crate::geometry::{ActorPosition, GridPosition, WorldPosition};
 
 pub(crate) mod library;
+
+pub struct GraphicsPlugin;
+
+impl Plugin for GraphicsPlugin {
+	fn build(&self, app: &mut App) {
+		app.add_systems(Startup, initialize_graphics)
+			.add_systems(PostUpdate, (position_objects::<ActorPosition>, position_objects::<GridPosition>));
+	}
+}
 
 /// Static, unchanging sprite.
 #[derive(Bundle, Default)]
@@ -38,6 +47,10 @@ pub fn position_objects<PositionType: WorldPosition>(mut entities: Query<(&mut T
 		let (mut bevy_transform, world_position_type) = entity;
 		let world_position = world_position_type.position();
 		let matrix = TRANSFORMATION_MATRIX.get().cloned().unwrap();
+		// The translation rounding here is about 90% of pixel-perfectness:
+		// - Make sure everything is camera-space pixel aligned (this code)
+		// - Make sure all sprite anchors fall on pixel corners (sprite initialization code)
+		// - Make sure no sprites are scaled (sprite initialization code)
 		bevy_transform.translation = (matrix * world_position).round().into();
 	}
 }
