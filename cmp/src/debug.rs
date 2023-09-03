@@ -63,7 +63,15 @@ impl StatUI {
 pub fn create_stats(mut commands: Commands) {
 	commands
 		.spawn(NodeBundle {
-			style: Style { width: Val::Percent(100.), height: Val::Percent(100.), ..default() },
+			style: Style {
+				width: Val::Percent(100.),
+				height: Val::Percent(100.),
+				display: Display::Flex,
+				position_type: PositionType::Absolute,
+				..default()
+			},
+			// Debug stats should always appear on top.
+			z_index: ZIndex::Global(1000),
 			..default()
 		})
 		.with_children(|parent| {

@@ -1,6 +1,6 @@
 use bevy::prelude::*;
-use cmp::CmpPlugin;
+use cmp::{CmpPlugin, GraphicsPlugin};
 
 fn main() {
-	App::new().add_plugins(CmpPlugin).run();
+	App::new().add_plugins((CmpPlugin, GraphicsPlugin)).run();
 }

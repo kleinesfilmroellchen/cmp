@@ -2,13 +2,13 @@ use bevy::prelude::*;
 use bevy::sprite::Anchor;
 use bevy::window::PrimaryWindow;
 
-use crate::geometry::GridPosition;
+use crate::model::GridPosition;
 use crate::graphics::{screen_to_discrete_world_space, StaticSprite};
 use crate::input::InputState;
 
-pub struct ConstructionPlugin;
+pub struct BuildPlugin;
 
-impl Plugin for ConstructionPlugin {
+impl Plugin for BuildPlugin {
 	fn build(&self, app: &mut App) {
 		app.add_event::<PerformBuild>()
 			.add_systems(Update, display_building_preview.run_if(in_state(InputState::Building)))

@@ -9,18 +9,19 @@ use bevy::prelude::*;
 use bevy::window::{PresentMode, PrimaryWindow};
 use bevy::winit::WinitWindows;
 use config::{ConfigPlugin, GameSettings};
-use construction::ConstructionPlugin;
-use graphics::GraphicsPlugin;
 use input::GUIInputPlugin;
+use ui::UIPlugin;
 use winit::window::Icon;
 
 pub(crate) mod config;
-pub(crate) mod construction;
 pub(crate) mod debug;
-pub(crate) mod geometry;
 pub(crate) mod graphics;
 pub(crate) mod input;
-pub(crate) mod tile;
+pub(crate) mod model;
+pub(crate) mod ui;
+pub mod util;
+
+pub use graphics::GraphicsPlugin;
 
 /// Base plugin for the entire core engine.
 /// FIXME: Extract the rendering into its own plugin.
@@ -35,11 +36,11 @@ impl Plugin for CmpPlugin {
 					asset_folder:      "../assets".into(),
 					watch_for_changes: Some(ChangeWatcher { delay: Duration::from_secs(3) }),
 				})
-				.set(ImagePlugin::default_nearest()),
+				.set(ImagePlugin::default_nearest()).set(AnimationPlugin),
 		)
-		.add_plugins((GUIInputPlugin, ConfigPlugin, GraphicsPlugin, ConstructionPlugin))
+		.add_plugins((GUIInputPlugin, UIPlugin, ConfigPlugin))
 		.insert_resource(WindowIcon::default())
-		.add_systems(Startup, (debug::create_stats, setup_window, tile::spawn_test_tiles))
+		.add_systems(Startup, (debug::create_stats, setup_window, model::spawn_test_tiles))
 		// .add_systems(Update, tile::wave_tiles)
 		.add_systems(Update, (set_window_icon, debug::print_stats, apply_window_settings));
 	}

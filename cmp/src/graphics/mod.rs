@@ -3,10 +3,11 @@ use std::sync::OnceLock;
 use bevy::core_pipeline::contrast_adaptive_sharpening::ContrastAdaptiveSharpeningSettings;
 use bevy::prelude::*;
 
-use crate::geometry::{ActorPosition, GridPosition, WorldPosition};
+use crate::model::{ActorPosition, GridPosition, WorldPosition};
 
 pub(crate) mod library;
 
+/// Plugin responsible for setting up a window and running and initializing graphics.
 pub struct GraphicsPlugin;
 
 impl Plugin for GraphicsPlugin {

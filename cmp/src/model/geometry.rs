@@ -93,6 +93,12 @@ impl BoundingBox for GroundBox {
 	}
 }
 
+impl From<(i32, i32)> for GroundBox {
+	fn from(value: (i32, i32)) -> Self {
+		Self(value.into())
+	}
+}
+
 /// A bounding box with compile-time fixed extents; useful for constant-size entities. This is a zero-sized type since
 /// the size information is part of the type itself.
 #[derive(Component, Default)]

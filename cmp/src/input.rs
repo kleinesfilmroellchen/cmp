@@ -27,8 +27,6 @@ impl Plugin for GUIInputPlugin {
 	}
 }
 
-const ZOOM_SPEED: f32 = 0.2;
-
 fn move_camera(
 	mut scroll_events: EventReader<MouseWheel>,
 	mouse: Res<Input<MouseButton>>,
@@ -61,6 +59,5 @@ fn move_camera(
 		if camera_projection.scale == 1. {
 			camera_projection.scale = 1.0001;
 		}
-		info!("{}", camera_projection.scale);
 	}
 }

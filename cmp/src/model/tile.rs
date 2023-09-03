@@ -1,24 +1,43 @@
 use bevy::prelude::*;
 
-use crate::geometry::{FixedBox, GridPosition};
+use super::{FixedBox, GridPosition};
 use crate::graphics::library::sprite_for_kind;
 use crate::graphics::StaticSprite;
+use crate::util::Tooltipable;
 
 /// The kinds of ground that exist; most have their own graphics.
 #[derive(Component, Clone, Copy, PartialEq, Eq)]
 pub enum GroundKind {
-	/// Grass is the default ground and considered walkable, but not very fast.
 	Grass,
-	/// Pathways increase walking speed and allow vehicles to traverse it.
 	Pathway,
-	/// Pool paths are similar to pathways, but they can only be placed in pool areas. They serve as a basement for
-	/// most objects that can only be placed inside a pool area, like pools themselves.
 	PoolPath,
 }
 
 impl Default for GroundKind {
 	fn default() -> Self {
 		Self::Grass
+	}
+}
+
+impl std::fmt::Display for GroundKind {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "{}", match self {
+			Self::Grass => "Grass",
+			Self::Pathway => "Pathway",
+			Self::PoolPath => "Pool Path",
+		})
+	}
+}
+
+impl Tooltipable for GroundKind {
+	fn description(&self) -> &'static str {
+		match self {
+			Self::Grass => "Grass is the default ground. Everyone can walk here, but not very fast.",
+			Self::Pathway => "Pathways increase walking speed and allow vehicles to traverse the site.",
+			Self::PoolPath =>
+				"Pool paths are similar to pathways, but they instead serve as the floor material of all pools. You \
+				 can therefore easily identify a pool area by this flooring.",
+		}
 	}
 }
 
@@ -69,10 +88,10 @@ pub fn spawn_test_tiles(mut commands: Commands, asset_server: Res<AssetServer>) 
 	}
 }
 
-pub fn wave_tiles(time: Res<Time>, mut tiles: Query<&mut GridPosition, With<FixedBox<1, 1, 0>>>) {
-	for mut tile in &mut tiles {
-		let position = &mut tile.0;
-		position.z =
-			((time.elapsed_seconds() + position.x as f32 / 2. + position.y as f32 / 3.).sin() * 3f32).round() as i32;
-	}
-}
+// pub fn wave_tiles(time: Res<Time>, mut tiles: Query<&mut GridPosition, With<FixedBox<1, 1, 0>>>) {
+// 	for mut tile in &mut tiles {
+// 		let position = &mut tile.0;
+// 		position.z =
+// 			((time.elapsed_seconds() + position.x as f32 / 2. + position.y as f32 / 3.).sin() * 3f32).round() as i32;
+// 	}
+// }
