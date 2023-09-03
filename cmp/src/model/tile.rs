@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use bevy::sprite::Anchor;
 
 use super::{BoundingBox, GridPosition};
 use crate::graphics::library::{anchor_for_sprite, sprite_for_kind};

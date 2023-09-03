@@ -58,3 +58,23 @@ pub fn anchor_for_sprite(sprite: &'static str) -> Anchor {
 		_ => Anchor::BottomLeft,
 	}
 }
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum FontWeight {
+	Regular,
+	Bold,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum FontStyle {
+	Regular,
+	Italic,
+}
+
+pub fn font_for(weight: FontWeight, style: FontStyle) -> String {
+	format!(
+		"CrimsonPro-{}{}.ttf",
+		if weight == FontWeight::Bold { "Bold" } else { "" },
+		if style == FontStyle::Italic { "Italic" } else { "" }
+	)
+}

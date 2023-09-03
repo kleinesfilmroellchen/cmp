@@ -3,6 +3,8 @@
 use bevy::prelude::*;
 use bevy::text::BreakLineOn;
 
+use crate::graphics::library::{FontStyle, FontWeight, font_for};
+
 /// Any property which can be linerarly interpolated with itself. Linear interpolation is a useful tool for many things
 /// in games, like animations and transitions.
 pub trait Lerpable {
@@ -78,7 +80,8 @@ struct TooltipUI;
 
 fn tooltip_style(asset_server: &AssetServer, is_body: bool) -> TextStyle {
 	TextStyle {
-		font:      asset_server.load("NotoSans-Regular.ttf"),
+		font:      asset_server
+			.load(font_for(if is_body { FontWeight::Regular } else { FontWeight::Bold }, FontStyle::Regular)),
 		font_size: if is_body { 20. } else { 30. },
 		color:     Color::WHITE,
 	}

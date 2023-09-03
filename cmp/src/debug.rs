@@ -4,6 +4,9 @@ use std::time::Duration;
 use bevy::prelude::*;
 
 use crate::config::GameSettings;
+use crate::graphics::library::FontStyle;
+use crate::graphics::library::FontWeight;
+use crate::graphics::library::font_for;
 
 // Account for up to 600fps and the 10 second metrics.
 const FRAME_TIMES_COUNT: usize = 600 * 11;
@@ -123,7 +126,7 @@ pub fn print_stats(
 				worst.as_secs_f64() * 1000.,
 			),
 			TextStyle {
-				font:      asset_server.load("NotoSans-Regular.ttf"),
+				font:      asset_server.load(font_for(FontWeight::Regular, FontStyle::Regular)),
 				font_size: 15.0,
 				color:     Color::WHITE,
 			},
