@@ -55,6 +55,12 @@ fn move_camera(
 
 	for scroll in &mut scroll_events {
 		let amount = scroll.y;
-		camera_projection.scale -= amount * ZOOM_SPEED * camera_projection.scale;
+		// Only allow power-of-two scales, since those will not cause off-by-one rendering glitches.
+		camera_projection.scale = 2.0f32.powf(camera_projection.scale.log2().round() - amount);
+		// HACK: Exact scale of 1 is very glitchy for some reason
+		if camera_projection.scale == 1. {
+			camera_projection.scale = 1.0001;
+		}
+		info!("{}", camera_projection.scale);
 	}
 }

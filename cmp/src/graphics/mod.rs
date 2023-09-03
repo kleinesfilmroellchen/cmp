@@ -1,5 +1,6 @@
 use std::sync::OnceLock;
 
+use bevy::core_pipeline::contrast_adaptive_sharpening::ContrastAdaptiveSharpeningSettings;
 use bevy::prelude::*;
 
 use crate::geometry::{ActorPosition, GridPosition, WorldPosition};
@@ -10,7 +11,8 @@ pub struct GraphicsPlugin;
 
 impl Plugin for GraphicsPlugin {
 	fn build(&self, app: &mut App) {
-		app.add_systems(Startup, initialize_graphics)
+		app.insert_resource(Msaa::default())
+			.add_systems(Startup, initialize_graphics)
 			.add_systems(PostUpdate, (position_objects::<ActorPosition>, position_objects::<GridPosition>));
 	}
 }
@@ -22,9 +24,14 @@ pub struct StaticSprite {
 	pub(crate) bevy_sprite: SpriteBundle,
 }
 
-pub fn initialize_graphics(mut commands: Commands, _asset_server: Res<AssetServer>) {
+pub fn initialize_graphics(mut commands: Commands, _asset_server: Res<AssetServer>, mut msaa: ResMut<Msaa>) {
 	let projection = OrthographicProjection { scale: 1. / 4., near: -100000., ..Default::default() };
-	commands.spawn(Camera2dBundle { projection, ..Default::default() });
+	commands.spawn((Camera2dBundle { projection, ..Default::default() }, ContrastAdaptiveSharpeningSettings {
+		enabled:             false,
+		sharpening_strength: 0.3,
+		denoise:             false,
+	}));
+	*msaa = Msaa::Off;
 }
 
 static TRANSFORMATION_MATRIX: OnceLock<Mat3> = OnceLock::new();

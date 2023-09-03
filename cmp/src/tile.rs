@@ -37,7 +37,11 @@ impl GroundTile {
 			position,
 			sprite: StaticSprite {
 				bevy_sprite: SpriteBundle {
-					sprite: Sprite { anchor: bevy::sprite::Anchor::Center, ..Default::default() },
+					sprite: Sprite {
+						anchor: bevy::sprite::Anchor::Center,
+						// flip_y: ((position.0.x % 5) >= (position.0.y % 7)) ^ (position.0.z % 3 == 0),
+						..Default::default()
+					},
 					texture: asset_server.load(sprite_for_kind(kind)),
 					..Default::default()
 				},

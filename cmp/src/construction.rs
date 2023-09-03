@@ -46,7 +46,7 @@ fn display_building_preview(
 	}
 	let cursor_position = cursor_position.unwrap();
 	// FIXME: Use ray casting + structure data to figure out the elevation under the cursor.
-	let fake_z = 3;
+	let fake_z = 0;
 	let world_position = screen_to_discrete_world_space(cursor_position, fake_z);
 	for mut preview in &mut preview {
 		*preview = world_position;
