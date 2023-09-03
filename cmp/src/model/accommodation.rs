@@ -1,6 +1,9 @@
 use bevy::prelude::*;
+use bevy::sprite::Anchor;
 
-use super::{GroundBox, Metric};
+use super::{BoundingBox, GridPosition, Metric};
+use crate::graphics::library::{anchor_for_sprite, sprite_for_accommodation};
+use crate::graphics::StaticSprite;
 use crate::util::Tooltipable;
 
 /// The different available types of accommodation.
@@ -17,14 +20,14 @@ pub enum AccommodationType {
 type Comfort = Metric<0, 10>;
 
 impl AccommodationType {
-	pub fn size(&self) -> GroundBox {
+	pub fn size(&self) -> BoundingBox {
 		match self {
-			Self::TentSite => (5, 5),
-			Self::LargeTentSite => (7, 5),
-			Self::PermanentTent => (4, 4),
-			Self::CaravanSite => (5, 5),
-			Self::MobileHome => (3, 4),
-			Self::Cottage => (3, 4),
+			Self::TentSite => (5, 5, 0),
+			Self::LargeTentSite => (7, 5, 0),
+			Self::PermanentTent => (4, 4, 0),
+			Self::CaravanSite => (5, 5, 0),
+			Self::MobileHome => (3, 4, 0),
+			Self::Cottage => (3, 4, 4),
 		}
 		.into()
 	}
@@ -37,7 +40,8 @@ impl AccommodationType {
 			Self::CaravanSite => 3,
 			Self::MobileHome => 5,
 			Self::Cottage => 6,
-		}.into()
+		}
+		.into()
 	}
 }
 
@@ -95,4 +99,31 @@ impl Tooltipable for AccommodationType {
 #[derive(Component)]
 pub struct Accommodation {
 	kind: AccommodationType,
+}
+
+/// All the data needed for an instantiated accommodation entity; more components will be added as needed.
+#[derive(Bundle)]
+pub struct AccommodationBundle {
+	accommodation: Accommodation,
+	position:      GridPosition,
+	size:          BoundingBox,
+	sprite:        StaticSprite,
+}
+
+impl AccommodationBundle {
+	pub fn new(kind: AccommodationType, position: GridPosition, asset_server: &AssetServer) -> Self {
+		let sprite = sprite_for_accommodation(kind);
+		Self {
+			position,
+			size: kind.size(),
+			sprite: StaticSprite {
+				bevy_sprite: SpriteBundle {
+					sprite: Sprite { anchor: anchor_for_sprite(sprite), ..Default::default() },
+					texture: asset_server.load(sprite),
+					..Default::default()
+				},
+			},
+			accommodation: Accommodation { kind },
+		}
+	}
 }

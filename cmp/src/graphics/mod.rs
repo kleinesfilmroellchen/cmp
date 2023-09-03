@@ -3,7 +3,7 @@ use std::sync::OnceLock;
 use bevy::core_pipeline::contrast_adaptive_sharpening::ContrastAdaptiveSharpeningSettings;
 use bevy::prelude::*;
 
-use crate::model::{ActorPosition, GridPosition, WorldPosition};
+use crate::model::{ActorPosition, BoundingBox, GridPosition, WorldPosition};
 
 pub(crate) mod library;
 
@@ -40,7 +40,10 @@ static TRANSFORMATION_MATRIX: OnceLock<Mat3> = OnceLock::new();
 const TILE_HEIGHT: f32 = 12.;
 const TILE_WIDTH: f32 = 16.;
 
-pub fn position_objects<PositionType: WorldPosition>(mut entities: Query<(&mut Transform, &PositionType)>) {
+pub fn position_objects<PositionType: WorldPosition>(
+	mut basic_entities: Query<(&mut Transform, &PositionType), Without<BoundingBox>>,
+	mut boxed_entities: Query<(&mut Transform, &PositionType, &BoundingBox)>,
+) {
 	TRANSFORMATION_MATRIX.get_or_init(|| {
 		// Our iso grid is a simple affine transform away from the real world position.
 		// We only have a small, roughly 45°-rotation to the right, then a vertical scale.
@@ -51,7 +54,7 @@ pub fn position_objects<PositionType: WorldPosition>(mut entities: Query<(&mut T
 		// Only map z onto the y and z axes. Applying it to z as well will make 2D z sorting work correctly.
 		Mat3::from_cols(x_vector, y_vector, Vec3::Y * (TILE_HEIGHT / 4.).round() + Vec3::Z)
 	});
-	for entity in &mut entities {
+	for entity in &mut basic_entities {
 		let (mut bevy_transform, world_position_type) = entity;
 		let world_position = world_position_type.position();
 		let matrix = TRANSFORMATION_MATRIX.get().cloned().unwrap();
@@ -61,15 +64,26 @@ pub fn position_objects<PositionType: WorldPosition>(mut entities: Query<(&mut T
 		// - Make sure no sprites are scaled (sprite initialization code)
 		bevy_transform.translation = (matrix * world_position).round().into();
 	}
+	for entity in &mut boxed_entities {
+		let (mut bevy_transform, world_position_type, bounding_box) = entity;
+		let world_position = world_position_type.position();
+		let matrix = TRANSFORMATION_MATRIX.get().cloned().unwrap();
+		bevy_transform.translation = (matrix * world_position).round().into();
+		// Higher objects have higher priority, and objects lower on the screen also have higher priority.
+		bevy_transform.translation.z = -world_position.x - world_position.y + bounding_box.height() as f32;
+	}
 }
 
-/// Translates from a screen pixel position back to discrete world space. Note that z needs to be provided and generally
+/// Translates from a screen pixel position back to orld space. Note that z needs to be provided and generally
 /// depends on the surface at the specific location.
-pub fn screen_to_discrete_world_space(screen_position: Vec2, z: i32) -> GridPosition {
+pub fn screen_to_world_space(screen_position: Vec2, z: f32) -> ActorPosition {
 	// The matrix is invertible, since we keep the z dimension when using it normally, so we can make use of that by
 	// synthetically re-inserting the z coordinate into the 2D screen position and getting a precise inverse transform
 	// for free.
 	let matrix = TRANSFORMATION_MATRIX.get().unwrap().inverse();
 	let screen_space_with_synthetic_z: Vec3 = (screen_position, z as f32).into();
-	GridPosition((matrix * screen_space_with_synthetic_z).round().as_ivec3())
+	// The z coordinate here is garbage; discard it and replace it with the given one.
+	let mut world_space = matrix * screen_space_with_synthetic_z;
+	world_space.z = z;
+	ActorPosition(world_space.into())
 }

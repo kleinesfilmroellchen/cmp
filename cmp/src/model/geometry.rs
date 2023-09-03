@@ -15,8 +15,14 @@ pub trait WorldPosition: Component<Storage = TableStorage> {
 }
 
 /// An actor’s position is unconstrained in all three axes, and it can have non-grid-aligned values.
-#[derive(Component, Default)]
+#[derive(Component, Default, Clone, Copy, Debug, PartialEq)]
 pub struct ActorPosition(pub(crate) Vec3A);
+
+impl ActorPosition {
+	pub fn round(self) -> GridPosition {
+		GridPosition(self.0.round().as_ivec3())
+	}
+}
 
 impl WorldPosition for ActorPosition {
 	fn position(&self) -> Vec3A {
@@ -29,6 +35,14 @@ impl WorldPosition for ActorPosition {
 impl From<GridPosition> for ActorPosition {
 	fn from(value: GridPosition) -> Self {
 		Self(value.position())
+	}
+}
+
+impl<T: Into<Vec3>> std::ops::Sub<T> for ActorPosition {
+	type Output = Self;
+
+	fn sub(self, rhs: T) -> Self::Output {
+		Self(self.0 - Vec3A::from(rhs.into()))
 	}
 }
 
@@ -48,23 +62,53 @@ impl From<(i32, i32, i32)> for GridPosition {
 	}
 }
 
+impl std::ops::Sub<IVec2> for GridPosition {
+	type Output = Self;
+
+	fn sub(self, rhs: IVec2) -> Self::Output {
+		GridPosition(self.0 - IVec3::from((rhs, 0)))
+	}
+}
+
+impl std::ops::Add<IVec2> for GridPosition {
+	type Output = Self;
+
+	fn add(self, rhs: IVec2) -> Self::Output {
+		GridPosition(self.0 + IVec3::from((rhs, 0)))
+	}
+}
+
 /// A rectangular bounding box around an entity. The entity’s position is in the corner with the smallest distance to
 /// the origin, so the box extends define how far the box stretches in each positive axis direction.
-pub trait BoundingBox: Component<Storage = TableStorage> {
+
+#[derive(Component, Clone, Copy, PartialEq, Eq)]
+pub struct BoundingBox(IVec3);
+impl BoundingBox {
 	/// Returns the box’s extents in world space. The extents define how large the entity is along each axis. Extents
 	/// are used for various purposes, but most importantly, they are used to determine static entity collisions and
 	/// intersections, such as for construction.
 	///
 	/// Extents use integer vectors, since the collision mechanics for boxes are snapped to the grid.
-	fn extents(&self) -> IVec3;
+	pub const fn extents(&self) -> IVec3 {
+		self.0
+	}
+
+	pub const fn height(&self) -> i32 {
+		self.0.z
+	}
+
+	pub const fn with_height(mut self, new_height: i32) -> Self {
+		self.0.z = new_height;
+		self
+	}
 
 	/// Returns whether the other box object intersects this box object. For this, each box’s position must be supplied.
 	///
 	/// This is a lower-level API used by various high-level entity bundle collision functions.
-	fn intersects(
+	pub fn intersects(
 		&self,
 		position: &dyn WorldPosition,
-		other: &dyn BoundingBox,
+		other: BoundingBox,
 		other_position: &dyn WorldPosition,
 	) -> bool {
 		let axis_intersects = |own_start, own_end, other_start, other_end| {
@@ -81,31 +125,28 @@ pub trait BoundingBox: Component<Storage = TableStorage> {
 			&& axis_intersects(own_start.y, own_end.y, other_start.y, other_end.y)
 			&& axis_intersects(own_start.z, own_end.z, other_start.z, other_end.z)
 	}
-}
 
-/// A bounding box on the ground which has no height.
-#[derive(Component)]
-pub struct GroundBox(IVec2);
-
-impl BoundingBox for GroundBox {
-	fn extents(&self) -> IVec3 {
-		(self.0.x, self.0.y, 0).into()
+	pub const fn fixed<const X: i32, const Y: i32, const Z: i32>() -> Self {
+		Self(IVec3 { x: X, y: Y, z: Z })
 	}
 }
 
-impl From<(i32, i32)> for GroundBox {
+impl From<(i32, i32)> for BoundingBox {
 	fn from(value: (i32, i32)) -> Self {
+		Self(IVec3::from((value.into(), 0)))
+	}
+}
+
+impl From<(i32, i32, i32)> for BoundingBox {
+	fn from(value: (i32, i32, i32)) -> Self {
 		Self(value.into())
 	}
 }
 
-/// A bounding box with compile-time fixed extents; useful for constant-size entities. This is a zero-sized type since
-/// the size information is part of the type itself.
-#[derive(Component, Default)]
-pub struct FixedBox<const X: i32, const Y: i32, const Z: i32>;
+impl std::ops::Div<i32> for BoundingBox {
+	type Output = IVec3;
 
-impl<const X: i32, const Y: i32, const Z: i32> BoundingBox for FixedBox<X, Y, Z> {
-	fn extents(&self) -> IVec3 {
-		(X, Y, Z).into()
+	fn div(self, rhs: i32) -> Self::Output {
+		self.0 / rhs
 	}
 }

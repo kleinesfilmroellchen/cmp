@@ -5,6 +5,7 @@ pub mod geometry;
 pub mod tile;
 
 pub use accommodation::*;
+use bevy::prelude::*;
 pub use geometry::*;
 pub use tile::*;
 
@@ -42,7 +43,6 @@ impl Tooltipable for Buildable {
 	}
 }
 
-// FIXME: Use reflection for this.
 pub const ALL_BUILDABLES: [Buildable; 3] = [Buildable::Pathway, Buildable::PoolArea, Buildable::Cottage];
 
 impl Buildable {
@@ -52,6 +52,25 @@ impl Buildable {
 			Self::PoolArea => BuildMenu::Pool,
 			Self::Cottage => BuildMenu::Accommodation,
 		}
+	}
+
+	pub fn size(&self) -> BoundingBox {
+		match self {
+			Self::Pathway => (1, 1).into(),
+			Self::PoolArea => (1, 1).into(),
+			Self::Cottage => AccommodationType::Cottage.size(),
+		}
+		.into()
+	}
+
+	pub fn spawn_entity(&self, commands: &mut Commands, position: GridPosition, asset_server: &AssetServer) {
+		match self {
+			Self::Pathway => commands.spawn(GroundTile::new(GroundKind::Pathway, position, asset_server)),
+			// FIXME: not accurately modeled!
+			Self::PoolArea => commands.spawn(GroundTile::new(GroundKind::PoolPath, position, asset_server)),
+			Self::Cottage =>
+				commands.spawn(AccommodationBundle::new(AccommodationType::Cottage, position, asset_server)),
+		};
 	}
 }
 

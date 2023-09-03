@@ -5,6 +5,7 @@ use build::BuildPlugin;
 
 use self::controls::{BuildMenuContainer, ALL_BUILD_MENUS};
 use crate::graphics::library::{logo_for_build_menu, logo_for_buildable};
+use crate::input::InputState;
 use crate::model::ALL_BUILDABLES;
 use crate::util::{Lerpable, Tooltip, TooltipPlugin};
 
@@ -19,7 +20,10 @@ impl Plugin for UIPlugin {
 			.add_event::<controls::CloseBuildMenus>()
 			.add_systems(Startup, initialize_ui)
 			.add_systems(Update, (transition_button_interaction, animate_button, update_build_menu_state))
-			.add_systems(Update, handle_build_menu_button_press);
+			.add_systems(
+				Update,
+				(on_build_menu_button_press, on_start_build_preview.after(on_build_menu_button_press)),
+			);
 	}
 }
 
@@ -295,6 +299,7 @@ fn initialize_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
 											ButtonAnimations::new(background_color, &style),
 											ButtonBundle { style, background_color, ..Default::default() },
 											Tooltip::from(buildable),
+											controls::StartBuildButton(*buildable),
 										))
 										.with_children(|button| {
 											button.spawn(ImageBundle {
@@ -333,13 +338,27 @@ fn animate_button(
 	}
 }
 
-fn handle_build_menu_button_press(
+fn on_build_menu_button_press(
 	mut interacted_button: Query<(&Interaction, &controls::BuildMenuButton), (Changed<Interaction>, With<Button>)>,
 	mut open_menu_event: EventWriter<controls::OpenBuildMenu>,
 ) {
 	for (interaction, button_kind) in &mut interacted_button {
 		if interaction == &Interaction::Pressed {
 			open_menu_event.send(controls::OpenBuildMenu(button_kind.0));
+		}
+	}
+}
+
+fn on_start_build_preview(
+	mut interacted_button: Query<(&Interaction, &controls::StartBuildButton), (Changed<Interaction>, With<Button>)>,
+	mut start_preview_event: EventWriter<build::StartBuildPreview>,
+	current_state: ResMut<State<InputState>>,
+	mut state: ResMut<NextState<InputState>>,
+) {
+	for (interaction, button_kind) in &mut interacted_button {
+		if interaction == &Interaction::Pressed && *current_state != InputState::Building {
+			start_preview_event.send(build::StartBuildPreview { buildable: button_kind.0 });
+			state.set(InputState::Building);
 		}
 	}
 }

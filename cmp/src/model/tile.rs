@@ -1,7 +1,8 @@
 use bevy::prelude::*;
+use bevy::sprite::Anchor;
 
-use super::{FixedBox, GridPosition};
-use crate::graphics::library::sprite_for_kind;
+use super::{BoundingBox, GridPosition};
+use crate::graphics::library::{anchor_for_sprite, sprite_for_kind};
 use crate::graphics::StaticSprite;
 use crate::util::Tooltipable;
 
@@ -42,31 +43,32 @@ impl Tooltipable for GroundKind {
 }
 
 /// A single tile on the ground defining its size.
-#[derive(Bundle, Default)]
+#[derive(Bundle)]
 pub struct GroundTile {
 	position: GridPosition,
-	bounds:   FixedBox<1, 1, 0>,
+	bounds:   BoundingBox,
 	sprite:   StaticSprite,
 	kind:     GroundKind,
 }
 
 impl GroundTile {
-	fn new(kind: GroundKind, position: GridPosition, asset_server: &Res<AssetServer>) -> Self {
+	pub fn new(kind: GroundKind, position: GridPosition, asset_server: &AssetServer) -> Self {
+		let sprite = sprite_for_kind(kind);
 		GroundTile {
 			position,
 			sprite: StaticSprite {
 				bevy_sprite: SpriteBundle {
 					sprite: Sprite {
-						anchor: bevy::sprite::Anchor::Center,
+						anchor: anchor_for_sprite(sprite),
 						// flip_y: ((position.0.x % 5) >= (position.0.y % 7)) ^ (position.0.z % 3 == 0),
 						..Default::default()
 					},
-					texture: asset_server.load(sprite_for_kind(kind)),
+					texture: asset_server.load(sprite),
 					..Default::default()
 				},
 			},
 			kind,
-			..Default::default()
+			bounds: BoundingBox::fixed::<1, 1, 0>(),
 		}
 	}
 }

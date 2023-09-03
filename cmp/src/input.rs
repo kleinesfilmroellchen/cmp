@@ -23,16 +23,22 @@ pub struct GUIInputPlugin;
 
 impl Plugin for GUIInputPlugin {
 	fn build(&self, app: &mut App) {
-		app.add_state::<InputState>().add_systems(Update, move_camera.run_if(in_state(InputState::Idle)));
+		app.add_state::<InputState>().insert_resource(LastScreenPosition::default()).add_systems(
+			Update,
+			(move_camera.run_if(in_state(InputState::Idle)), fix_camera.run_if(not(in_state(InputState::Idle)))),
+		);
 	}
 }
+
+#[derive(Resource, Default)]
+struct LastScreenPosition(Option<Vec2>);
 
 fn move_camera(
 	mut scroll_events: EventReader<MouseWheel>,
 	mouse: Res<Input<MouseButton>>,
 	window: Query<&Window, With<PrimaryWindow>>,
 	mut camera_q: Query<(&Camera, &mut OrthographicProjection, &mut Transform, &GlobalTransform)>,
-	mut last_screen_position: Local<Option<Vec2>>,
+	mut last_screen_position: ResMut<LastScreenPosition>,
 ) {
 	let window = window.single();
 	let (camera, mut camera_projection, mut camera_transform, camera_global_transform) = camera_q.single_mut();
@@ -41,14 +47,14 @@ fn move_camera(
 		let current_world_position =
 			camera.viewport_to_world(camera_global_transform, current_screen_position).unwrap().origin.truncate();
 
-		if let Some(last_screen_position) = *last_screen_position && mouse.pressed(MouseButton::Left) {
+		if let Some(last_screen_position) = last_screen_position.0 && mouse.pressed(MouseButton::Left) {
 			let last_world_position =
 				camera.viewport_to_world(camera_global_transform, last_screen_position).unwrap().origin.truncate();
 			let delta = last_world_position - current_world_position;
 			camera_transform.translation += Vec3::from((delta, 0.));
 		}
 
-		*last_screen_position = if mouse.pressed(MouseButton::Left) { Some(current_screen_position) } else { None };
+		last_screen_position.0 = if mouse.pressed(MouseButton::Left) { Some(current_screen_position) } else { None };
 	}
 
 	for scroll in &mut scroll_events {
@@ -60,4 +66,9 @@ fn move_camera(
 			camera_projection.scale = 1.0001;
 		}
 	}
+}
+
+fn fix_camera(mut last_screen_position: ResMut<LastScreenPosition>) {
+	// Prevents large screen jumps due to a press registering "across" the input mode change.
+	last_screen_position.0 = None;
 }
