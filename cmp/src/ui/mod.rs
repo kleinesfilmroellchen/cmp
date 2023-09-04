@@ -280,6 +280,9 @@ fn initialize_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
 									..Default::default()
 								},
 								BuildMenuContainer(menu_type),
+								// Make the menu background receive and block mouse clicks, e.g. to prevent accidental
+								// building.
+								Interaction::None,
 							))
 							.with_children(|build_menu| {
 								// May be a little slow to iterate all buildable types each time, but we only do it once
@@ -356,7 +359,8 @@ fn on_start_build_preview(
 	mut state: ResMut<NextState<InputState>>,
 ) {
 	for (interaction, button_kind) in &mut interacted_button {
-		if interaction == &Interaction::Pressed && *current_state != InputState::Building {
+		// Only start building if we're doing nothing or already building.
+		if interaction == &Interaction::Pressed && [InputState::Building, InputState::Idle].contains(&current_state) {
 			start_preview_event.send(build::StartBuildPreview { buildable: button_kind.0 });
 			state.set(InputState::Building);
 		}

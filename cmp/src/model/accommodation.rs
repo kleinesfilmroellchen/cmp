@@ -1,13 +1,14 @@
-use bevy::prelude::*;
-use bevy::sprite::Anchor;
+use std::num::NonZeroU32;
 
-use super::{BoundingBox, GridPosition, Metric};
+use bevy::prelude::*;
+
+use super::{BoundingBox, GridBox, GridPosition, Metric};
 use crate::graphics::library::{anchor_for_sprite, sprite_for_accommodation};
 use crate::graphics::StaticSprite;
 use crate::util::Tooltipable;
 
 /// The different available types of accommodation.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AccommodationType {
 	TentSite,
 	LargeTentSite,
@@ -98,15 +99,18 @@ impl Tooltipable for AccommodationType {
 /// A proper accommodation for guests; essentially an instance of [`AccommodationType`].
 #[derive(Component)]
 pub struct Accommodation {
-	kind: AccommodationType,
+	/// When the kind is [`None`], the accommodation type is unassigned and this accommodation is not functional.
+	kind:         Option<AccommodationType>,
+	/// How many of the same accommodation are available here. This value rarely goes beyond 1 except for specific
+	/// accommodation types.
+	multiplicity: NonZeroU32,
 }
 
 /// All the data needed for an instantiated accommodation entity; more components will be added as needed.
 #[derive(Bundle)]
 pub struct AccommodationBundle {
 	accommodation: Accommodation,
-	position:      GridPosition,
-	size:          BoundingBox,
+	space:         GridBox,
 	sprite:        StaticSprite,
 }
 
@@ -114,16 +118,16 @@ impl AccommodationBundle {
 	pub fn new(kind: AccommodationType, position: GridPosition, asset_server: &AssetServer) -> Self {
 		let sprite = sprite_for_accommodation(kind);
 		Self {
-			position,
-			size: kind.size(),
-			sprite: StaticSprite {
+			space:         GridBox::new(position - (kind.size() / 2).truncate(), kind.size()),
+			sprite:        StaticSprite {
 				bevy_sprite: SpriteBundle {
 					sprite: Sprite { anchor: anchor_for_sprite(sprite), ..Default::default() },
 					texture: asset_server.load(sprite),
 					..Default::default()
 				},
 			},
-			accommodation: Accommodation { kind },
+			// FIXME: Don't automatically assign a kind!
+			accommodation: Accommodation { kind: Some(kind), multiplicity: NonZeroU32::MIN },
 		}
 	}
 }

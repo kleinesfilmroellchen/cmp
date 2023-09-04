@@ -1,15 +1,18 @@
 //! CMP core engine.
-#![feature(duration_constants, let_chains)]
+#![feature(duration_constants, let_chains, generators, generator_trait, iter_from_generator)]
 #![deny(clippy::all, missing_docs)]
+#![allow(clippy::type_complexity)]
 
 use std::time::Duration;
 
 use bevy::asset::ChangeWatcher;
+use bevy::log::{Level, LogPlugin};
 use bevy::prelude::*;
 use bevy::window::{PresentMode, PrimaryWindow};
 use bevy::winit::WinitWindows;
 use config::{ConfigPlugin, GameSettings};
 use input::GUIInputPlugin;
+use model::GroundTileCleanupNeeded;
 use ui::UIPlugin;
 use winit::window::Icon;
 
@@ -36,13 +39,22 @@ impl Plugin for CmpPlugin {
 					asset_folder:      "../assets".into(),
 					watch_for_changes: Some(ChangeWatcher { delay: Duration::from_secs(3) }),
 				})
-				.set(ImagePlugin::default_nearest()).set(AnimationPlugin),
+				.set(ImagePlugin::default_nearest()).set(AnimationPlugin)
+				.set(LogPlugin {
+					#[cfg(debug_assertions)]
+					level: Level::TRACE,
+					#[cfg(not(debug_assertions))]
+					level: Level::INFO,
+					filter: "info,cmp=trace,wgpu=error,bevy=warn".into(),
+				}),
 		)
 		.add_plugins((GUIInputPlugin, UIPlugin, ConfigPlugin))
 		.insert_resource(WindowIcon::default())
 		.add_systems(Startup, (debug::create_stats, setup_window, model::spawn_test_tiles))
 		// .add_systems(Update, tile::wave_tiles)
-		.add_systems(Update, (set_window_icon, debug::print_stats, apply_window_settings));
+		.add_systems(Update, (set_window_icon, debug::print_stats, apply_window_settings))
+		.add_event::<GroundTileCleanupNeeded>()
+		.add_systems(PostUpdate, model::cleanup_ground_tiles);
 	}
 }
 

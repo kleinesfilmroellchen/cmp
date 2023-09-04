@@ -5,7 +5,7 @@ use bevy::sprite::Anchor;
 use crate::model::{AccommodationType, Buildable, GroundKind};
 use crate::ui::controls::BuildMenu;
 
-pub fn sprite_for_kind(kind: GroundKind) -> &'static str {
+pub fn sprite_for_ground(kind: GroundKind) -> &'static str {
 	match kind {
 		GroundKind::Grass => "grass.png",
 		GroundKind::Pathway => "gravel.png",
@@ -23,17 +23,17 @@ pub fn logo_for_build_menu(menu: BuildMenu) -> &'static str {
 
 pub fn logo_for_buildable(buildable: Buildable) -> &'static str {
 	match buildable {
-		Buildable::Pathway => "gravel.png",
+		Buildable::Ground(kind) => sprite_for_ground(kind),
+		Buildable::BasicAccommodation(kind) => sprite_for_accommodation(kind),
 		Buildable::PoolArea => "pool.png",
-		Buildable::Cottage => "caravan.png",
 	}
 }
 
 pub fn sprite_for_buildable(buildable: Buildable) -> &'static str {
 	match buildable {
-		Buildable::Pathway => "gravel.png",
+		Buildable::Ground(kind) => sprite_for_ground(kind),
+		Buildable::BasicAccommodation(kind) => sprite_for_accommodation(kind),
 		Buildable::PoolArea => "pool.png",
-		Buildable::Cottage => "caravan.png",
 	}
 }
 
@@ -48,14 +48,14 @@ pub fn sprite_for_accommodation(kind: AccommodationType) -> &'static str {
 	}
 }
 
-/// The anchors must always be on the bottom left of the bottom left world-space (isometric) tile. For simple 1x1 tiles,
-/// this is the bottom left of the sprite, but for other tiles, a more complex computation is in order. This needs to be
-/// updated to keep in sync with graphics.
+/// The anchors must always be on the bottom left (in world space!) of the bottom left world-space (isometric) tile. For
+/// simple 1x1 tiles, this is the bottom center of the sprite, but for other tiles, a more complex computation is in
+/// order. This needs to be updated to keep in sync with graphics.
 pub fn anchor_for_sprite(sprite: &'static str) -> Anchor {
 	match sprite {
-		"grass.png" | "gravel.png" | "pool.png" => Anchor::BottomLeft,
-		"caravan.png" => Anchor::Custom((-4. / 40., -0.5).into()),
-		_ => Anchor::BottomLeft,
+		"grass.png" | "gravel.png" | "pool.png" => Anchor::BottomCenter,
+		"caravan.png" => Anchor::Custom(((23. - 20.) / 40., -0.5).into()),
+		_ => Anchor::BottomCenter,
 	}
 }
 

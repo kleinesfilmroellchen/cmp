@@ -5,29 +5,30 @@ pub mod geometry;
 pub mod tile;
 
 pub use accommodation::*;
-use bevy::prelude::*;
 pub use geometry::*;
 pub use tile::*;
 
+use crate::ui::build::BuildMode;
 use crate::ui::controls::BuildMenu;
 use crate::util::Tooltipable;
 
 /// All build-able objects.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Buildable {
-	/// A [`GroundTile`] of type [`GroundKind::Pathway`].
-	Pathway,
+	/// A [`GroundTile`] of some [`GroundKind`].
+	Ground(GroundKind),
 	/// Demarcates the area of a pool; filled with [`GroundKind::PoolPath`].
 	PoolArea,
-	/// An [`Accommodation`] of type [`AccommodationType::Cottage`].
-	Cottage,
+	/// An [`Accommodation`] of some [`AccommodationType`]. This is a placeholder type until the proper accommodation
+	/// system is in place.
+	BasicAccommodation(AccommodationType),
 }
 
 impl std::fmt::Display for Buildable {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		write!(f, "{}", match self {
-			Self::Cottage => AccommodationType::Cottage.to_string(),
-			Self::Pathway => GroundKind::Pathway.to_string(),
+			Self::BasicAccommodation(kind) => kind.to_string(),
+			Self::Ground(kind) => kind.to_string(),
 			Self::PoolArea => "Pool Area".to_string(),
 		})
 	}
@@ -36,41 +37,43 @@ impl std::fmt::Display for Buildable {
 impl Tooltipable for Buildable {
 	fn description(&self) -> &'static str {
 		match self {
-			Self::Cottage => AccommodationType::Cottage.description(),
-			Self::Pathway => GroundKind::Pathway.description(),
+			Self::BasicAccommodation(kind) => kind.description(),
+			Self::Ground(kind) => kind.description(),
 			Self::PoolArea => "Demarcate a pool area to start building a pool.",
 		}
 	}
 }
 
-pub const ALL_BUILDABLES: [Buildable; 3] = [Buildable::Pathway, Buildable::PoolArea, Buildable::Cottage];
+pub const ALL_BUILDABLES: [Buildable; 4] = [
+	Buildable::Ground(GroundKind::Pathway),
+	Buildable::Ground(GroundKind::Grass),
+	Buildable::PoolArea,
+	Buildable::BasicAccommodation(AccommodationType::Cottage),
+];
 
 impl Buildable {
 	pub fn menu(&self) -> BuildMenu {
 		match self {
-			Self::Pathway => BuildMenu::Basics,
+			Self::Ground(_) => BuildMenu::Basics,
 			Self::PoolArea => BuildMenu::Pool,
-			Self::Cottage => BuildMenu::Accommodation,
+			Self::BasicAccommodation(_) => BuildMenu::Accommodation,
 		}
 	}
 
 	pub fn size(&self) -> BoundingBox {
 		match self {
-			Self::Pathway => (1, 1).into(),
+			Self::Ground(_) => (1, 1).into(),
 			Self::PoolArea => (1, 1).into(),
-			Self::Cottage => AccommodationType::Cottage.size(),
+			Self::BasicAccommodation(kind) => kind.size(),
 		}
-		.into()
 	}
 
-	pub fn spawn_entity(&self, commands: &mut Commands, position: GridPosition, asset_server: &AssetServer) {
+	pub fn build_mode(&self) -> BuildMode {
 		match self {
-			Self::Pathway => commands.spawn(GroundTile::new(GroundKind::Pathway, position, asset_server)),
-			// FIXME: not accurately modeled!
-			Self::PoolArea => commands.spawn(GroundTile::new(GroundKind::PoolPath, position, asset_server)),
-			Self::Cottage =>
-				commands.spawn(AccommodationBundle::new(AccommodationType::Cottage, position, asset_server)),
-		};
+			Buildable::Ground(_) => BuildMode::Line,
+			Buildable::PoolArea => BuildMode::Rect,
+			Buildable::BasicAccommodation(_) => BuildMode::Single,
+		}
 	}
 }
 

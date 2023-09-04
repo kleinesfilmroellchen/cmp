@@ -1,12 +1,12 @@
 use bevy::prelude::*;
 
 use super::{BoundingBox, GridPosition};
-use crate::graphics::library::{anchor_for_sprite, sprite_for_kind};
+use crate::graphics::library::{anchor_for_sprite, sprite_for_ground};
 use crate::graphics::StaticSprite;
 use crate::util::Tooltipable;
 
 /// The kinds of ground that exist; most have their own graphics.
-#[derive(Component, Clone, Copy, PartialEq, Eq)]
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
 pub enum GroundKind {
 	Grass,
 	Pathway,
@@ -52,7 +52,7 @@ pub struct GroundTile {
 
 impl GroundTile {
 	pub fn new(kind: GroundKind, position: GridPosition, asset_server: &AssetServer) -> Self {
-		let sprite = sprite_for_kind(kind);
+		let sprite = sprite_for_ground(kind);
 		GroundTile {
 			position,
 			sprite: StaticSprite {
@@ -85,6 +85,32 @@ pub fn spawn_test_tiles(mut commands: Commands, asset_server: Res<AssetServer>) 
 				GroundKind::Grass
 			};
 			commands.spawn(GroundTile::new(kind, (x, y, 0).into(), &asset_server));
+		}
+	}
+}
+
+#[derive(Component)]
+pub struct NewGroundTile;
+/// Various external processes invoke this event to clean up the state of the ground tiles. All tiles that overlap other
+/// tiles marked with [`NewGroundTile`] are deleted. The marker is removed so that these new tiles now become regular,
+/// old tiles.
+#[derive(Event, Default)]
+pub struct GroundTileCleanupNeeded;
+
+pub fn cleanup_ground_tiles(
+	mut event: EventReader<GroundTileCleanupNeeded>,
+	old_tiles: Query<(Entity, &GridPosition), Without<NewGroundTile>>,
+	new_tiles: Query<(Entity, &GridPosition), With<NewGroundTile>>,
+	mut commands: Commands,
+) {
+	for _ in &mut event {
+		for (new_tile, new_tile_position) in &new_tiles {
+			for (old_tile, old_tile_position) in &old_tiles {
+				if old_tile_position == new_tile_position {
+					commands.entity(old_tile).despawn_recursive();
+				}
+			}
+			commands.entity(new_tile).remove::<NewGroundTile>();
 		}
 	}
 }
