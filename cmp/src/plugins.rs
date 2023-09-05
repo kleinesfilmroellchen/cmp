@@ -1,4 +1,23 @@
 //! CMP's plugin system.
+//!
+//! A plugin must contain a function with this exact signature:
+//! ```ignore
+//! fn _bevy_create_plugin() -> *mut dyn bevy::app::Plugin;
+//! ```
+//! The plugin function is passed the exact app used for the game. Several important caveats apply:
+//! - As of bevy 0.11, `#[derive(DynamicPlugin)]` which should generate a wrapper with the above signature that
+//!   constructs and returns your plugin, is broken due to an ABI oversight in the macro. Implement it manually for the
+//!   time being.
+//! - For ABI compatibility, make sure that the plugin is compiled with the EXACT SAME bevy version as CMP itself.
+//!   Otherwise, strange errors (most likely segmentation faults) may happen. The --version option of CMP binaries will
+//!   report the bevy version in use.
+//! - bevy MUST be a dynamic dependency of the plugin, since CMP itself links bevy dynamically; this way, the engine
+//!   code is not included twice in the resulting binary and the exact same code is used everywhere.
+//! - CMP's own [`Plugin`] as well as some set of default bevy [`Plugin`]s are already loaded by the time this function
+//!   is called on any CMP plugin. You may experiment and figure out which extra default bevy plugins are loadable, but
+//!   any of them may cause a runtime panic due to duplicate plugins. The set of plugins loaded across CMP versions may
+//!   change in any way. The safest option is to only load [`Plugin`]s of your own design or from some other third-party
+//!   library.
 
 use std::sync::{Arc, Mutex};
 
@@ -69,11 +88,8 @@ impl Plugin for ExternalPlugins {
 			let mut failed = 0;
 			for plugin_path in &self.plugins {
 				let result: Result<(), bevy_dynamic_plugin::DynamicPluginLoadError> = try {
-					debug!("start load on {:?}", plugin_path);
 					let (library, plugin) = unsafe { bevy_dynamic_plugin::dynamically_load_plugin(plugin_path) }?;
-					debug!("got library, trying to add...");
 					app.add_plugins(DynamicPluginBridge(plugin));
-					debug!("added, pushing to global list");
 					plugin_libraries.push(library);
 					info!("Successfully loaded plugin {}", plugin_path.to_string_lossy());
 					successful += 1;

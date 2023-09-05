@@ -20,7 +20,7 @@ use bevy::log::{Level, LogPlugin};
 use bevy::prelude::*;
 use bevy::window::{PresentMode, PrimaryWindow};
 use bevy::winit::WinitWindows;
-use config::{CommandLineArguments, ConfigPlugin, GameSettings};
+use config::{ConfigPlugin, GameSettings};
 use input::GUIInputPlugin;
 use model::GroundTileCleanupNeeded;
 use plugins::ExternalPlugins;
@@ -44,6 +44,8 @@ pub struct CmpPlugin;
 
 impl Plugin for CmpPlugin {
 	fn build(&self, app: &mut App) {
+		let args = argh::from_env();
+
 		app.add_plugins(
 			DefaultPlugins
 				.build()
@@ -60,10 +62,7 @@ impl Plugin for CmpPlugin {
 					filter: "info,cmp=trace,wgpu=error,bevy=warn".into(),
 				}),
 		)
-		.add_plugins((GUIInputPlugin, UIPlugin, ConfigPlugin, ExternalPlugins(Arc::new(CommandLineArguments {
-			settings_file: None,
-			plugins: vec!["example_mod".into()],
-		}))))
+		.add_plugins((GUIInputPlugin, UIPlugin, ConfigPlugin, ExternalPlugins(Arc::new(args))))
 		.insert_resource(WindowIcon::default())
 		.add_systems(Startup, (debug::create_stats, setup_window, model::spawn_test_tiles))
 		// .add_systems(Update, tile::wave_tiles)
