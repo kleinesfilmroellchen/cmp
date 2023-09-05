@@ -1,5 +1,6 @@
 //! Game configuration and settings management
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use argh::FromArgs;
 use bevy::prelude::*;
@@ -45,18 +46,21 @@ impl Default for GameSettings {
 const APP_NAME: &str = "cmp";
 const CONFIG_NAME: &str = "game-settings";
 
-pub struct ConfigPlugin;
+pub struct ConfigPlugin(pub Arc<CommandLineArguments>);
+
+#[derive(Resource, Deref, DerefMut)]
+pub struct CLIResource(pub Arc<CommandLineArguments>);
 
 impl Plugin for ConfigPlugin {
 	fn build(&self, app: &mut App) {
 		app.init_resource::<GameSettings>()
-			.init_resource::<CommandLineArguments>()
+			.insert_resource(CLIResource(self.0.clone()))
 			.add_systems(Startup, load_settings)
 			.add_systems(Update, (save_settings, modify_graphics_settings));
 	}
 }
 
-fn load_settings(mut settings: ResMut<GameSettings>, cli_arguments: Res<CommandLineArguments>) {
+fn load_settings(mut settings: ResMut<GameSettings>, cli_arguments: Res<CLIResource>) {
 	let maybe_config = if let Some(alternate_settings_file) = &cli_arguments.settings_file {
 		confy::load_path(alternate_settings_file)
 	} else {
@@ -69,7 +73,7 @@ fn load_settings(mut settings: ResMut<GameSettings>, cli_arguments: Res<CommandL
 	*settings = maybe_config.unwrap_or_default();
 }
 
-fn save_settings(settings: Res<GameSettings>, cli_arguments: Res<CommandLineArguments>) {
+fn save_settings(settings: Res<GameSettings>, cli_arguments: Res<CLIResource>) {
 	if settings.is_changed() {
 		let result = if let Some(alternate_settings_file) = &cli_arguments.settings_file {
 			confy::store_path(alternate_settings_file, *settings)
