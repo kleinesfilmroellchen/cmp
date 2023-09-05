@@ -68,38 +68,6 @@ impl PreviewParent {
 #[derive(Component)]
 struct PreviewChild;
 
-// #[derive(Bundle)]
-// struct PreviewParentBundle {
-// 	preview:  PreviewParent,
-// 	position: GridPosition,
-// 	size:     BoundingBox,
-// 	sprite:   StaticSprite,
-// }
-
-// impl PreviewParentBundle {
-// 	pub fn new(buildable: Buildable, asset_server: &AssetServer) -> Self {
-// 		let sprite = sprite_for_buildable(buildable);
-// 		Self {
-// 			preview:  PreviewParent::new(buildable),
-// 			position: GridPosition::default(),
-// 			// Extremely high priority.
-// 			size:     buildable.size().with_height(1000),
-// 			sprite:   StaticSprite {
-// 				bevy_sprite: SpriteBundle {
-// 					sprite: Sprite {
-// 						color: Color::Hsla { hue: 0., saturation: 1., lightness: 1., alpha: 0.4 },
-// 						anchor: anchor_for_sprite(sprite),
-// 						..Default::default()
-// 					},
-// 					visibility: Visibility::Hidden,
-// 					texture: asset_server.load(sprite),
-// 					..Default::default()
-// 				},
-// 			},
-// 		}
-// 	}
-// }
-
 /// The way the user performs building, and the way the building is previewed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BuildMode {
@@ -219,6 +187,7 @@ fn set_building_preview_start(
 }
 
 fn update_building_preview(
+	mouse: Res<Input<MouseButton>>,
 	mut commands: Commands,
 	mut preview: Query<(Entity, Option<&mut Children>, &PreviewParent, &mut Visibility)>,
 	preview_children: Query<&mut GridPosition, With<PreviewChild>>,
@@ -238,7 +207,11 @@ fn update_building_preview(
 			&mut commands,
 			&asset_server,
 		);
-		*visibility = Visibility::Visible;
+		// Make sure to delay displaying the preview until after the user releases the mouse after clicking the button.
+		// On second click, since we never set the building to invisible again, it doesn't matter.
+		if !mouse.pressed(MouseButton::Left) {
+			*visibility = Visibility::Visible;
+		}
 	}
 }
 
@@ -307,11 +280,14 @@ fn handle_build_interactions(
 	mut event: EventWriter<PerformBuild>,
 ) {
 	let any_ui_active = all_interacted.iter().any(|interaction| interaction != &Interaction::None);
-	if any_ui_active {
-		return;
-	}
 
 	for mut preview_data in &mut preview {
+		// Probably before the user released the mouse from clicking the build button.
+		if any_ui_active {
+			preview_data.start_position = preview_data.current_position;
+			return;
+		}
+
 		if mouse.just_released(MouseButton::Left) {
 			state.set(InputState::Idle);
 			event.send(PerformBuild {
