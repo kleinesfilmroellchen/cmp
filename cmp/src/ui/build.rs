@@ -6,9 +6,7 @@ use super::on_start_build_preview;
 use crate::graphics::library::{anchor_for_sprite, sprite_for_buildable};
 use crate::graphics::{screen_to_world_space, StaticSprite};
 use crate::input::InputState;
-use crate::model::{
-	AccommodationBundle, Buildable, GridPosition, GroundKind, GroundTile, GroundTileCleanupNeeded, NewGroundTile,
-};
+use crate::model::{AccommodationBundle, Buildable, GridPosition, GroundKind, GroundMap};
 
 pub struct BuildPlugin;
 
@@ -26,8 +24,7 @@ impl Plugin for BuildPlugin {
 			.add_systems(
 				Update,
 				(handle_build_interactions, set_building_preview_start, end_building)
-					.run_if(in_state(InputState::Building))
-					.before(perform_build),
+					.run_if(in_state(InputState::Building)),
 			)
 			.add_systems(Update, create_building_preview)
 			.add_systems(OnExit(InputState::Building), destroy_building_preview.after(update_building_preview))
@@ -155,7 +152,47 @@ impl BuildMode {
 					}
 				}
 			},
-			Self::Rect => {},
+			Self::Rect => {
+				let smaller_corner = start_position.min(*current_position);
+				let larger_corner = start_position.max(*current_position);
+
+				let mut parent = commands.entity(parent_entity);
+				let sprite = sprite_for_buildable(previewed);
+
+				for x in smaller_corner.x ..= larger_corner.x {
+					for y in smaller_corner.y ..= larger_corner.y {
+						if let Some((_, mut old_child_position)) = current_children.next() {
+							old_child_position.x = x;
+							old_child_position.y = y;
+						} else {
+							parent.with_children(|parent| {
+								parent.spawn((
+									PreviewChild,
+									GridPosition::from((x, y, start_position.z)),
+									// Extremely high priority.
+									previewed.size().with_height(1000),
+									StaticSprite {
+										bevy_sprite: SpriteBundle {
+											sprite: Sprite {
+												color: PREVIEW_TINT,
+												anchor: anchor_for_sprite(sprite),
+												..Default::default()
+											},
+											texture: asset_server.load(sprite),
+											..Default::default()
+										},
+									},
+								));
+							});
+						}
+					}
+				}
+
+				// Despawn all superfluous old children.
+				for (superfluous_child, _) in current_children {
+					commands.entity(superfluous_child).despawn_recursive();
+				}
+			},
 		}
 	}
 }
@@ -241,12 +278,20 @@ fn perform_build(
 	mut commands: Commands,
 	asset_server: Res<AssetServer>,
 	mut event: EventReader<PerformBuild>,
-	mut ground_event: EventWriter<GroundTileCleanupNeeded>,
+	mut ground_map: ResMut<GroundMap>,
+	mut tile_query: Query<(Entity, &GridPosition, &mut GroundKind)>,
 ) {
 	for event in &mut event {
 		// TODO: Check legality of the build action.
-		perform_build_action(event.buildable, &mut commands, event.start_position, event.end_position, &asset_server);
-		ground_event.send_default();
+		perform_build_action(
+			event.buildable,
+			&mut commands,
+			event.start_position,
+			event.end_position,
+			&asset_server,
+			&mut ground_map,
+			&mut tile_query,
+		);
 	}
 }
 
@@ -256,15 +301,28 @@ fn perform_build_action(
 	start_position: GridPosition,
 	end_position: GridPosition,
 	asset_server: &AssetServer,
+	ground_map: &mut GroundMap,
+	tile_query: &mut Query<(Entity, &GridPosition, &mut GroundKind)>,
 ) {
 	match kind {
 		Buildable::Ground(kind) =>
 			for line_element in start_position.line_to_2d(end_position) {
-				commands.spawn((GroundTile::new(kind, line_element, asset_server), NewGroundTile));
+				ground_map.set(line_element, kind, tile_query, commands, asset_server);
 			},
 		Buildable::PoolArea => {
-			// FIXME: not accurately modeled!
-			commands.spawn(GroundTile::new(GroundKind::PoolPath, start_position, asset_server));
+			let smaller_corner = start_position.min(*end_position);
+			let larger_corner = start_position.max(*end_position);
+			for x in smaller_corner.x ..= larger_corner.x {
+				for y in smaller_corner.y ..= larger_corner.y {
+					ground_map.set(
+						(x, y, start_position.z).into(),
+						GroundKind::PoolPath,
+						tile_query,
+						commands,
+						asset_server,
+					);
+				}
+			}
 		},
 		Buildable::BasicAccommodation(kind) => {
 			commands.spawn(AccommodationBundle::new(kind, start_position, asset_server));

@@ -22,7 +22,7 @@ use bevy::window::{PresentMode, PrimaryWindow};
 use bevy::winit::WinitWindows;
 use config::{CommandLineArguments, ConfigPlugin, GameSettings};
 use input::GUIInputPlugin;
-use model::GroundTileCleanupNeeded;
+use model::TileManagement;
 use plugins::ExternalPlugins;
 use ui::UIPlugin;
 use winit::window::Icon;
@@ -51,7 +51,10 @@ impl Plugin for CmpPlugin {
 				.build()
 				.set(AssetPlugin {
 					asset_folder:      "../assets".into(),
+					#[cfg(debug_assertions)]
 					watch_for_changes: Some(ChangeWatcher { delay: Duration::from_secs(3) }),
+					#[cfg(not(debug_assertions))]
+					watch_for_changes: None,
 				})
 				.set(ImagePlugin::default_nearest()).set(AnimationPlugin)
 				.set(LogPlugin {
@@ -62,13 +65,12 @@ impl Plugin for CmpPlugin {
 					filter: "info,cmp=trace,wgpu=error,bevy=warn".into(),
 				}),
 		)
-		.add_plugins((GUIInputPlugin, UIPlugin, ConfigPlugin(args.clone()), ExternalPlugins(args)))
+		// Fixed update runs every two seconds and performs slow work that can take this long.
+		.insert_resource(FixedTime::new_from_secs(2.))
+		.add_plugins((GUIInputPlugin, UIPlugin, TileManagement, ConfigPlugin(args.clone()), ExternalPlugins(args)))
 		.insert_resource(WindowIcon::default())
 		.add_systems(Startup, (debug::create_stats, setup_window, model::spawn_test_tiles))
-		// .add_systems(Update, tile::wave_tiles)
-		.add_systems(Update, (set_window_icon, debug::print_stats, apply_window_settings))
-		.add_event::<GroundTileCleanupNeeded>()
-		.add_systems(PostUpdate, model::cleanup_ground_tiles);
+		.add_systems(Update, (set_window_icon, debug::print_stats, apply_window_settings));
 	}
 }
 

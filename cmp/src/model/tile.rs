@@ -1,9 +1,18 @@
 use bevy::prelude::*;
+use bevy::utils::HashMap;
 
 use super::{BoundingBox, GridPosition};
 use crate::graphics::library::{anchor_for_sprite, sprite_for_ground};
 use crate::graphics::StaticSprite;
 use crate::util::Tooltipable;
+
+pub struct TileManagement;
+
+impl Plugin for TileManagement {
+	fn build(&self, app: &mut App) {
+		app.insert_resource(GroundMap::new()).add_systems(PostUpdate, update_ground_textures);
+	}
+}
 
 /// The kinds of ground that exist; most have their own graphics.
 #[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
@@ -72,53 +81,69 @@ impl GroundTile {
 	}
 }
 
+/// A map of all ground tiles for fast access.
+#[derive(Resource)]
+pub struct GroundMap {
+	map: HashMap<GridPosition, (Entity, GroundKind)>,
+}
+
+impl GroundMap {
+	pub fn new() -> Self {
+		Self { map: HashMap::new() }
+	}
+
+	pub fn set(
+		&mut self,
+		position: GridPosition,
+		kind: GroundKind,
+		tile_query: &mut Query<(Entity, &GridPosition, &mut GroundKind)>,
+		commands: &mut Commands,
+		asset_server: &AssetServer,
+	) {
+		if let Some((responsible_entity, old_kind)) = self.map.get_mut(&position) {
+			let (_, _, mut in_world_kind) = tile_query.get_mut(*responsible_entity).unwrap();
+			// Avoid mutation if there is no change, reducing the pressure on update_ground_textures
+			in_world_kind.set_if_neq(kind);
+			*old_kind = kind;
+		} else {
+			let new_entity = commands.spawn(GroundTile::new(kind, position, asset_server)).id();
+			self.map.entry(position).insert((new_entity, kind));
+		}
+	}
+
+	pub fn kind_of(&self, position: &GridPosition) -> Option<GroundKind> {
+		self.map.get(position).map(|(_, kind)| *kind)
+	}
+}
+
 // For testing purposes:
 
-pub fn spawn_test_tiles(mut commands: Commands, asset_server: Res<AssetServer>) {
+pub fn spawn_test_tiles(
+	mut commands: Commands,
+	mut tile_query: Query<(Entity, &GridPosition, &mut GroundKind)>,
+	mut map: ResMut<GroundMap>,
+	asset_server: Res<AssetServer>,
+) {
 	for x in -100i32 .. 100 {
 		for y in -100i32 .. 100 {
 			let kind = if x.abs() < 2 || y.abs() < 2 {
 				GroundKind::Pathway
-			} else if x > 10 {
+			} else if x > 60 && y > 60 {
 				GroundKind::PoolPath
 			} else {
 				GroundKind::Grass
 			};
-			commands.spawn(GroundTile::new(kind, (x, y, 0).into(), &asset_server));
+			map.set((x, y, 0).into(), kind, &mut tile_query, &mut commands, &asset_server);
 		}
 	}
 }
 
-#[derive(Component)]
-pub struct NewGroundTile;
-/// Various external processes invoke this event to clean up the state of the ground tiles. All tiles that overlap other
-/// tiles marked with [`NewGroundTile`] are deleted. The marker is removed so that these new tiles now become regular,
-/// old tiles.
-#[derive(Event, Default)]
-pub struct GroundTileCleanupNeeded;
-
-pub fn cleanup_ground_tiles(
-	mut event: EventReader<GroundTileCleanupNeeded>,
-	old_tiles: Query<(Entity, &GridPosition), Without<NewGroundTile>>,
-	new_tiles: Query<(Entity, &GridPosition), With<NewGroundTile>>,
-	mut commands: Commands,
+pub fn update_ground_textures(
+	mut ground_textures: Query<(&GroundKind, &mut Handle<Image>), Changed<GroundKind>>,
+	asset_server: Res<AssetServer>,
 ) {
-	for _ in &mut event {
-		for (new_tile, new_tile_position) in &new_tiles {
-			for (old_tile, old_tile_position) in &old_tiles {
-				if old_tile_position == new_tile_position {
-					commands.entity(old_tile).despawn_recursive();
-				}
-			}
-			commands.entity(new_tile).remove::<NewGroundTile>();
-		}
+	for (kind, mut texture) in &mut ground_textures {
+		let sprite = sprite_for_ground(*kind);
+		*texture = asset_server.load(sprite);
 	}
 }
-
-// pub fn wave_tiles(time: Res<Time>, mut tiles: Query<&mut GridPosition, With<FixedBox<1, 1, 0>>>) {
-// 	for mut tile in &mut tiles {
-// 		let position = &mut tile.0;
-// 		position.z =
-// 			((time.elapsed_seconds() + position.x as f32 / 2. + position.y as f32 / 3.).sin() * 3f32).round() as i32;
-// 	}
-// }

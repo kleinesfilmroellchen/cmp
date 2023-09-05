@@ -2,6 +2,7 @@
 
 pub mod accommodation;
 pub mod geometry;
+pub mod pool;
 pub mod tile;
 
 pub use accommodation::*;

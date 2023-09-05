@@ -51,25 +51,10 @@ impl<T: Into<Vec3>> std::ops::Sub<T> for ActorPosition {
 }
 
 /// A grid position can only take exact grid values.
-#[derive(Component, Default, Copy, Clone, Debug, Deref, Eq, PartialEq)]
+#[derive(Component, Default, Copy, Clone, Debug, Deref, DerefMut, Eq, PartialEq, Hash)]
 pub struct GridPosition(pub(crate) IVec3);
 
 impl GridPosition {
-	#[inline]
-	pub const fn x(&self) -> i32 {
-		self.0.x
-	}
-
-	#[inline]
-	pub const fn y(&self) -> i32 {
-		self.0.y
-	}
-
-	#[inline]
-	pub const fn z(&self) -> i32 {
-		self.0.z
-	}
-
 	/// Returns all grid positions on the straight line to `target`, effectively performing line rasterization.
 	/// FIXME: Respect the Z dimension; all positions will currently inherit the source's z height.
 	pub fn line_to_2d(self, target: Self) -> impl Iterator<Item = Self> {
@@ -331,9 +316,9 @@ impl GridBox {
 		let other_start = other.corner;
 		let other_end = other_start + other.extents.0;
 
-		axis_intersects(own_start.x(), own_end.x(), other_start.x(), other_end.x())
-			&& axis_intersects(own_start.y(), own_end.y(), other_start.y(), other_end.y())
-			&& axis_intersects(own_start.z(), own_end.z(), other_start.z(), other_end.z())
+		axis_intersects(own_start.x, own_end.x, other_start.x, other_end.x)
+			&& axis_intersects(own_start.y, own_end.y, other_start.y, other_end.y)
+			&& axis_intersects(own_start.z, own_end.z, other_start.z, other_end.z)
 	}
 
 	/// Returns the box’s extents in world space. The extents define how large the entity is along each axis. Extents

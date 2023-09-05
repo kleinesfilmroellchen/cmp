@@ -30,7 +30,7 @@ impl StatUI {
 			})
 			.last()
 			.unwrap_or((Duration::ZERO, 0));
-		total / count
+		total / count.max(1)
 	}
 
 	fn percentile(&self, average_time: Duration, percentile: f32) -> Duration {
