@@ -1,8 +1,18 @@
 //! CMP core engine.
-#![feature(duration_constants, let_chains, generators, generator_trait, iter_from_generator)]
+#![feature(
+	duration_constants,
+	let_chains,
+	generators,
+	generator_trait,
+	iter_from_generator,
+	try_blocks,
+	iter_intersperse,
+	const_trait_impl
+)]
 #![deny(clippy::all, missing_docs)]
 #![allow(clippy::type_complexity)]
 
+use std::sync::Arc;
 use std::time::Duration;
 
 use bevy::asset::ChangeWatcher;
@@ -10,9 +20,10 @@ use bevy::log::{Level, LogPlugin};
 use bevy::prelude::*;
 use bevy::window::{PresentMode, PrimaryWindow};
 use bevy::winit::WinitWindows;
-use config::{ConfigPlugin, GameSettings};
+use config::{CommandLineArguments, ConfigPlugin, GameSettings};
 use input::GUIInputPlugin;
 use model::GroundTileCleanupNeeded;
+use plugins::ExternalPlugins;
 use ui::UIPlugin;
 use winit::window::Icon;
 
@@ -21,6 +32,7 @@ pub(crate) mod debug;
 pub(crate) mod graphics;
 pub(crate) mod input;
 pub(crate) mod model;
+pub mod plugins;
 pub(crate) mod ui;
 pub mod util;
 
@@ -48,7 +60,10 @@ impl Plugin for CmpPlugin {
 					filter: "info,cmp=trace,wgpu=error,bevy=warn".into(),
 				}),
 		)
-		.add_plugins((GUIInputPlugin, UIPlugin, ConfigPlugin))
+		.add_plugins((GUIInputPlugin, UIPlugin, ConfigPlugin, ExternalPlugins(Arc::new(CommandLineArguments {
+			settings_file: None,
+			plugins: vec!["example_mod".into()],
+		}))))
 		.insert_resource(WindowIcon::default())
 		.add_systems(Startup, (debug::create_stats, setup_window, model::spawn_test_tiles))
 		// .add_systems(Update, tile::wave_tiles)
