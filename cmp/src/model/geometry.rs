@@ -146,6 +146,13 @@ impl From<(i32, i32, i32)> for GridPosition {
 	}
 }
 
+impl From<(i32, i32)> for GridPosition {
+	#[inline]
+	fn from(value: (i32, i32)) -> Self {
+		GridPosition((value.into(), 0).into())
+	}
+}
+
 impl From<IVec3> for GridPosition {
 	#[inline]
 	fn from(value: IVec3) -> Self {
@@ -192,7 +199,7 @@ impl std::ops::Add<IVec3> for GridPosition {
 /// A rectangular bounding box around an entity. The entity’s position is in the corner with the smallest distance to
 /// negative infinity on all axes, so the box extends define how far the box stretches in each positive axis direction.
 
-#[derive(Component, Clone, Copy, Debug, Default, Deref, PartialEq, Eq)]
+#[derive(Component, Clone, Copy, Debug, Default, Deref, DerefMut, PartialEq, Eq)]
 pub struct BoundingBox(pub IVec3);
 
 impl BoundingBox {
@@ -285,10 +292,30 @@ impl GridBox {
 		// corner and extent kind.
 		let first_corner = *position;
 		let second_corner = *position + *extents;
-		let smallest_corner = first_corner.min(second_corner);
-		let largest_corner = first_corner.max(second_corner);
+		Self::from_corners(first_corner.into(), second_corner.into())
+	}
+
+	pub fn from_corners(first_corner: GridPosition, second_corner: GridPosition) -> Self {
+		let smallest_corner = first_corner.min(*second_corner);
+		let largest_corner = first_corner.max(*second_corner);
 		let real_extents = largest_corner - smallest_corner;
 		Self { corner: smallest_corner.into(), extents: real_extents.into() }
+	}
+
+	pub fn smallest(&self) -> GridPosition {
+		self.corner
+	}
+
+	pub fn largest(&self) -> GridPosition {
+		self.corner + *self.extents
+	}
+
+	/// Raises or lowers the extents.
+	pub fn enlargen(&mut self, delta: IVec3) {
+		(*self.extents) += delta;
+		if self.extents.x < 0 || self.extents.y < 0 || self.extents.z < 0 {
+			*self = Self::new(self.corner, self.extents);
+		}
 	}
 
 	/// The corner must be the smallest corner on all axes, otherwise the grid box's invariants are broken and weird
@@ -302,9 +329,9 @@ impl GridBox {
 		self.extents.height()
 	}
 
-	/// Returns whether the other box object intersects this box object. For this, each box’s position must be supplied.
+	/// Returns whether the other box object intersects this box object.
 	///
-	/// This is a lower-level API used by various high-level entity bundle collision functions.
+	/// This is a lower-level API used by various high-level collision functions.
 	pub fn intersects(&self, other: GridBox) -> bool {
 		let axis_intersects = |own_start, own_end, other_start, other_end| {
 			// Either of our points is between the other’s start and end.
@@ -319,6 +346,24 @@ impl GridBox {
 		axis_intersects(own_start.x, own_end.x, other_start.x, other_end.x)
 			&& axis_intersects(own_start.y, own_end.y, other_start.y, other_end.y)
 			&& axis_intersects(own_start.z, own_end.z, other_start.z, other_end.z)
+	}
+
+	/// Returns whether the other box object intersects this box object on the xy plane.
+	///
+	/// This is a lower-level API used by various high-level collision functions.
+	pub fn intersects_2d(&self, other: GridBox) -> bool {
+		let axis_intersects = |own_start, own_end, other_start, other_end| {
+			// Either of our points is between the other’s start and end.
+			(own_start < other_end && own_start >= other_start) || (own_end < other_end && own_end >= other_start)
+		};
+
+		let own_start = self.corner;
+		let own_end = own_start + self.extents.0;
+		let other_start = other.corner;
+		let other_end = other_start + other.extents.0;
+
+		axis_intersects(own_start.x, own_end.x, other_start.x, other_end.x)
+			&& axis_intersects(own_start.y, own_end.y, other_start.y, other_end.y)
 	}
 
 	/// Returns the box’s extents in world space. The extents define how large the entity is along each axis. Extents

@@ -6,6 +6,7 @@ use super::on_start_build_preview;
 use crate::graphics::library::{anchor_for_sprite, sprite_for_buildable};
 use crate::graphics::{screen_to_world_space, StaticSprite};
 use crate::input::InputState;
+use crate::model::area::{Area, Pool};
 use crate::model::{AccommodationBundle, Buildable, GridPosition, GroundKind, GroundMap};
 
 pub struct BuildPlugin;
@@ -323,6 +324,7 @@ fn perform_build_action(
 					);
 				}
 			}
+			commands.spawn((Area::from_rect(smaller_corner.into(), larger_corner.into()), Pool));
 		},
 		Buildable::BasicAccommodation(kind) => {
 			commands.spawn(AccommodationBundle::new(kind, start_position, asset_server));

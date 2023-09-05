@@ -7,7 +7,8 @@
 	iter_from_generator,
 	try_blocks,
 	iter_intersperse,
-	const_trait_impl
+	const_trait_impl,
+	extract_if
 )]
 #![deny(clippy::all, missing_docs)]
 #![allow(clippy::type_complexity)]
@@ -23,6 +24,7 @@ use bevy::winit::WinitWindows;
 use config::{CommandLineArguments, ConfigPlugin, GameSettings};
 use input::GUIInputPlugin;
 use model::TileManagement;
+use model::area::AreaManagement;
 use plugins::ExternalPlugins;
 use ui::UIPlugin;
 use winit::window::Icon;
@@ -67,7 +69,7 @@ impl Plugin for CmpPlugin {
 		)
 		// Fixed update runs every two seconds and performs slow work that can take this long.
 		.insert_resource(FixedTime::new_from_secs(2.))
-		.add_plugins((GUIInputPlugin, UIPlugin, TileManagement, ConfigPlugin(args.clone()), ExternalPlugins(args)))
+		.add_plugins((GUIInputPlugin, UIPlugin, TileManagement, AreaManagement, ConfigPlugin(args.clone()), ExternalPlugins(args)))
 		.insert_resource(WindowIcon::default())
 		.add_systems(Startup, (debug::create_stats, setup_window, model::spawn_test_tiles))
 		.add_systems(Update, (set_window_icon, debug::print_stats, apply_window_settings));

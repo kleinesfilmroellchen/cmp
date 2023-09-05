@@ -1,8 +1,8 @@
 //! Internal world state data models and game mechanics.
 
 pub mod accommodation;
+pub mod area;
 pub mod geometry;
-pub mod pool;
 pub mod tile;
 
 pub use accommodation::*;
