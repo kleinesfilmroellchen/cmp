@@ -67,16 +67,37 @@ pub struct AreaManagement;
 
 impl Plugin for AreaManagement {
 	fn build(&self, app: &mut App) {
-		app.add_systems(FixedUpdate, update_areas::<Pool>);
+		// Add event resource manually to circumvent automatic frame-wise event cleanup.
+		app.init_resource::<Events<UpdateAreas>>().add_systems(FixedUpdate, update_areas::<Pool>);
 	}
 }
+
+#[derive(Event, Default)]
+pub struct UpdateAreas;
 
 fn update_areas<T: AreaMarker>(
 	tiles: Res<GroundMap>,
 	mut areas: Query<(Entity, &mut Area, &T)>,
 	mut commands: Commands,
+	mut update: ResMut<Events<UpdateAreas>>,
 ) {
+	if update.is_empty() {
+		return;
+	}
+	update.clear();
+
 	let mut active_areas = Vec::new();
+
+	// Perform flood fill on the areas to update them.
+	for (old_area_entity, mut area, marker) in &mut areas {
+		area.tiles.retain(|tile| tiles.kind_of(tile).is_some_and(|kind| marker.is_allowed_ground_type(kind)));
+		if area.is_empty() {
+			continue;
+		}
+
+		let remaining_tiles = area.tiles.iter();
+	}
+
 	// Shrink areas to remove tiles that are not area tiles.
 	for (area_entity, mut area, marker) in &mut areas {
 		area.tiles.retain(|tile| tiles.kind_of(tile).is_some_and(|kind| marker.is_allowed_ground_type(kind)));

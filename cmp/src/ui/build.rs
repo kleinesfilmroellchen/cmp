@@ -6,7 +6,7 @@ use super::on_start_build_preview;
 use crate::graphics::library::{anchor_for_sprite, sprite_for_buildable};
 use crate::graphics::{screen_to_world_space, StaticSprite};
 use crate::input::InputState;
-use crate::model::area::{Area, Pool};
+use crate::model::area::{Area, Pool, UpdateAreas};
 use crate::model::{AccommodationBundle, Buildable, GridPosition, GroundKind, GroundMap};
 
 pub struct BuildPlugin;
@@ -281,6 +281,7 @@ fn perform_build(
 	mut event: EventReader<PerformBuild>,
 	mut ground_map: ResMut<GroundMap>,
 	mut tile_query: Query<(Entity, &GridPosition, &mut GroundKind)>,
+	mut area_update_event: EventWriter<UpdateAreas>,
 ) {
 	for event in &mut event {
 		// TODO: Check legality of the build action.
@@ -292,6 +293,7 @@ fn perform_build(
 			&asset_server,
 			&mut ground_map,
 			&mut tile_query,
+			&mut area_update_event,
 		);
 	}
 }
@@ -304,6 +306,7 @@ fn perform_build_action(
 	asset_server: &AssetServer,
 	ground_map: &mut GroundMap,
 	tile_query: &mut Query<(Entity, &GridPosition, &mut GroundKind)>,
+	area_update_event: &mut EventWriter<UpdateAreas>,
 ) {
 	match kind {
 		Buildable::Ground(kind) =>
@@ -325,6 +328,7 @@ fn perform_build_action(
 				}
 			}
 			commands.spawn((Area::from_rect(smaller_corner.into(), larger_corner.into()), Pool));
+			area_update_event.send_default();
 		},
 		Buildable::BasicAccommodation(kind) => {
 			commands.spawn(AccommodationBundle::new(kind, start_position, asset_server));
