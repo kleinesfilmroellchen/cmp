@@ -320,6 +320,7 @@ impl GridBox {
 
 	/// The corner must be the smallest corner on all axes, otherwise the grid box's invariants are broken and weird
 	/// behavior may result.
+	#[allow(unused)]
 	pub unsafe fn from_raw(corner: GridPosition, extents: BoundingBox) -> Self {
 		Self { corner, extents }
 	}
@@ -332,6 +333,7 @@ impl GridBox {
 	/// Returns whether the other box object intersects this box object.
 	///
 	/// This is a lower-level API used by various high-level collision functions.
+	#[allow(unused)]
 	pub fn intersects(&self, other: GridBox) -> bool {
 		let axis_intersects = |own_start, own_end, other_start, other_end| {
 			// Either of our points is between the other’s start and end.

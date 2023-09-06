@@ -1,4 +1,7 @@
+use std::collections::VecDeque;
+
 use bevy::prelude::*;
+use bevy::utils::{HashSet, Instant};
 use itertools::Itertools;
 
 use super::{BoundingBox, GridBox, GridPosition, GroundKind, GroundMap};
@@ -7,14 +10,14 @@ use super::{BoundingBox, GridBox, GridPosition, GroundKind, GroundMap};
 /// important region. For example, pools and accommodations are fundamentally areas.
 #[derive(Component, Clone, Debug)]
 pub struct Area {
-	tiles: Vec<GridPosition>,
+	tiles: HashSet<GridPosition>,
 	// A bounding box for intersection acceleration.
 	aabb:  GridBox,
 }
 
 impl Default for Area {
 	fn default() -> Self {
-		Self { tiles: Vec::new(), aabb: GridBox::new(GridPosition::default(), BoundingBox::fixed::<0, 0, 0>()) }
+		Self { tiles: HashSet::new(), aabb: GridBox::new(GridPosition::default(), BoundingBox::fixed::<0, 0, 0>()) }
 	}
 }
 
@@ -29,21 +32,20 @@ impl Area {
 		Self { tiles, aabb }
 	}
 
-	fn from_overlapping(old_areas: impl IntoIterator<Item = Area>) -> Self {
-		let mut new =
-			Self { tiles: old_areas.into_iter().flat_map(|area| area.tiles).collect(), aabb: GridBox::default() };
-		new.recompute_bounds();
-		new
-	}
-
 	fn recompute_bounds(&mut self) {
 		let (smallest_x, largest_x) = self.tiles.iter().map(|tile| tile.x).minmax().into_option().unwrap_or((0, 0));
 		let (smallest_y, largest_y) = self.tiles.iter().map(|tile| tile.y).minmax().into_option().unwrap_or((0, 0));
 		self.aabb = GridBox::from_corners((smallest_x, smallest_y, 0).into(), (largest_x + 1, largest_y + 1, 0).into());
 	}
 
+	#[allow(unused)]
 	fn is_empty(&self) -> bool {
 		self.tiles.is_empty()
+	}
+
+	#[allow(unused)]
+	fn contains(&self, position: &GridPosition) -> bool {
+		self.tiles.contains(position)
 	}
 }
 
@@ -54,7 +56,7 @@ trait AreaMarker: Component {
 }
 
 /// Marker for pool areas.
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct Pool;
 
 impl AreaMarker for Pool {
@@ -75,65 +77,100 @@ impl Plugin for AreaManagement {
 #[derive(Event, Default)]
 pub struct UpdateAreas;
 
-fn update_areas<T: AreaMarker>(
+#[derive(Component)]
+pub struct DebugAreaText;
+
+fn update_areas<T: AreaMarker + Default>(
 	tiles: Res<GroundMap>,
 	mut areas: Query<(Entity, &mut Area, &T)>,
 	mut commands: Commands,
 	mut update: ResMut<Events<UpdateAreas>>,
+	old_area_markers: Query<Entity, With<DebugAreaText>>,
+	// debugging
+	// asset_server: Res<AssetServer>,
 ) {
+	let start = Instant::now();
 	if update.is_empty() {
 		return;
 	}
 	update.clear();
 
-	let mut active_areas = Vec::new();
+	old_area_markers.for_each(|x| commands.entity(x).despawn());
 
 	// Perform flood fill on the areas to update them.
-	for (old_area_entity, mut area, marker) in &mut areas {
-		area.tiles.retain(|tile| tiles.kind_of(tile).is_some_and(|kind| marker.is_allowed_ground_type(kind)));
-		if area.is_empty() {
-			continue;
-		}
-
-		let remaining_tiles = area.tiles.iter();
+	let mut remaining_tiles = HashSet::<GridPosition>::new();
+	for (_, area, marker) in &areas {
+		remaining_tiles.extend(
+			area.tiles
+				.iter()
+				.filter(|tile| tiles.kind_of(tile).is_some_and(|kind| marker.is_allowed_ground_type(kind))),
+		);
 	}
 
-	// Shrink areas to remove tiles that are not area tiles.
-	for (area_entity, mut area, marker) in &mut areas {
-		area.tiles.retain(|tile| tiles.kind_of(tile).is_some_and(|kind| marker.is_allowed_ground_type(kind)));
-		area.recompute_bounds();
-		if area.is_empty() {
-			commands.entity(area_entity).despawn_recursive();
-		} else {
-			active_areas.push((area_entity, area, marker));
+	let mut new_areas = Vec::new();
+	let mut active_area = Area::default();
+	let mut adjacent_tiles = VecDeque::new();
+	adjacent_tiles.push_front(*remaining_tiles.iter().next().unwrap());
+	while !remaining_tiles.is_empty() {
+		// No more adjacent tiles; start new area.
+		if adjacent_tiles.is_empty() {
+			active_area.recompute_bounds();
+			new_areas.push(active_area);
+			active_area = Area::default();
+			// Extract an arbitrary new tile to start the next area.
+			adjacent_tiles.push_front(*remaining_tiles.iter().next().unwrap());
+		}
+		let next_tile = adjacent_tiles.pop_back().unwrap();
+		let did_remove = remaining_tiles.remove(&next_tile);
+		#[cfg(debug_assertions)]
+		if !did_remove {
+			debug!("BUG! {:?} wasn’t a remaining tile, but it was in the queue!", next_tile);
+		}
+		active_area.tiles.insert(next_tile);
+		for delta in [(-1, 0), (1, 0), (0, 1), (0, -1)] {
+			let new_tile = next_tile + IVec2::from(delta);
+			// Not a queued tile already, but we need to handle it.
+			if !adjacent_tiles.contains(&new_tile) && remaining_tiles.contains(&new_tile) {
+				adjacent_tiles.push_front(new_tile);
+			}
 		}
 	}
+	new_areas.push(active_area);
+	let computation_time = Instant::now() - start;
 
-	// Merge overlapping areas.
-	// FIXME: Type shouldn't be necessary; rust-analyzer can deduce it just fine.
-	let mut areas_to_merge: Vec<(Area, _)> = Vec::new();
+	debug!("after area unification, {} areas remain (in {:?})", new_areas.len(), computation_time);
 
-	for (id, area, _) in &active_areas {
-		let overlapping_areas = areas_to_merge
-			.extract_if(|(other_area, _)| area.aabb.intersects_2d(other_area.aabb))
-			.map(|(other_area, _)| other_area)
-			.chain(Some((**area).clone()))
-			.collect::<Vec<_>>();
-		let new_area = Area::from_overlapping(overlapping_areas);
-		areas_to_merge.push((new_area, id));
-	}
+	// debugging
+	// for (i, area) in new_areas.iter().enumerate() {
+	// 	for tile in &area.tiles {
+	// 		commands.spawn((
+	// 			*tile + IVec3::new(0, 0, 3),
+	// 			Text2dBundle {
+	// 				text: Text::from_section(format!("{}", i), TextStyle {
+	// 					font:      asset_server.load(font_for(FontWeight::Regular, FontStyle::Regular)),
+	// 					font_size: 16.,
+	// 					color:     Color::RED,
+	// 				}),
+	// 				text_anchor: bevy::sprite::Anchor::BottomCenter,
+	// 				visibility: Visibility::Visible,
+	// 				..default()
+	// 			},
+	// 			DebugAreaText,
+	// 		));
+	// 	}
+	// }
 
-	debug!("{}", areas_to_merge.len());
-
-	let now_deleted_areas = active_areas.iter().filter_map(|(old_area, ..)| {
-		if !areas_to_merge.iter().any(|(_, area)| *area == old_area) {
-			Some(*old_area)
-		} else {
-			None
+	for result in new_areas.into_iter().zip_longest(areas.iter_mut()) {
+		match result {
+			itertools::EitherOrBoth::Both(new, (_, mut old_area, _)) => {
+				*old_area = new;
+			},
+			itertools::EitherOrBoth::Left(new) => {
+				commands.spawn((new, T::default()));
+			},
+			itertools::EitherOrBoth::Right((old_entity, ..)) => {
+				commands.entity(old_entity).despawn();
+			},
 		}
-	});
-
-	for area_to_delete in now_deleted_areas {
-		commands.entity(area_to_delete).despawn_recursive();
 	}
 }

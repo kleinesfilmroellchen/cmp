@@ -309,10 +309,13 @@ fn perform_build_action(
 	area_update_event: &mut EventWriter<UpdateAreas>,
 ) {
 	match kind {
-		Buildable::Ground(kind) =>
+		Buildable::Ground(kind) => {
 			for line_element in start_position.line_to_2d(end_position) {
 				ground_map.set(line_element, kind, tile_query, commands, asset_server);
-			},
+			}
+			// Either we or the tiles we overwrote might be part of areas.
+			area_update_event.send_default();
+		},
 		Buildable::PoolArea => {
 			let smaller_corner = start_position.min(*end_position);
 			let larger_corner = start_position.max(*end_position);

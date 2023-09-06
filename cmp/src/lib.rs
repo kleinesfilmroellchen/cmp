@@ -8,7 +8,8 @@
 	try_blocks,
 	iter_intersperse,
 	const_trait_impl,
-	extract_if
+	extract_if,
+	exact_size_is_empty
 )]
 #![deny(clippy::all, missing_docs)]
 #![allow(clippy::type_complexity)]
