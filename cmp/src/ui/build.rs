@@ -11,7 +11,8 @@ use crate::graphics::{screen_to_world_space, StaticSprite};
 use crate::input::InputState;
 use crate::model::area::{Area, ImmutableArea, Pool, UpdateAreas};
 use crate::model::{
-	Accommodation, AccommodationBuildingBundle, Buildable, BuildableType, GridBox, GridPosition, GroundKind, GroundMap,
+	Accommodation, AccommodationBuildingBundle, AccommodationBundle, Buildable, BuildableType, GridBox, GridPosition,
+	GroundKind, GroundMap,
 };
 
 pub struct BuildPlugin;
@@ -342,15 +343,7 @@ fn perform_accommodation_site_build(
 			&mut commands,
 			&asset_server,
 		);
-		commands.spawn((
-			Area::from_rect(event.start_position, event.end_position),
-			Accommodation::default(),
-			// Make various graphical children of the accommodation area (borders, trees, buildings) visible.
-			GlobalTransform::default(),
-			Transform::default(),
-			ComputedVisibility::default(),
-			Visibility::Visible,
-		));
+		commands.spawn(AccommodationBundle::new(event.start_position, event.end_position));
 		area_update_event.send_default();
 	}
 	event.clear();

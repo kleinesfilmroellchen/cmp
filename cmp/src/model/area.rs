@@ -86,6 +86,13 @@ impl Area {
 	pub fn fits(&self, aabb: &GridBox) -> bool {
 		aabb.floor_positions().all(|grid_position| self.contains(&grid_position))
 	}
+
+	pub fn instantiate_borders(&self, ground_map: &mut GroundMap) {
+		for position in &self.tiles {
+			let (entity, kind) = ground_map.get(position).unwrap();
+			todo!();
+		}
+	}
 }
 
 /// Stores an area's data, but makes it not participate in area combination anymore.

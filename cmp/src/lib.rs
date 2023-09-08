@@ -11,7 +11,7 @@
 	adt_const_params,
 )]
 #![deny(clippy::all, missing_docs)]
-#![allow(clippy::type_complexity, incomplete_features)]
+#![allow(clippy::type_complexity, incomplete_features, clippy::too_many_arguments)]
 
 use std::sync::Arc;
 use std::time::Duration;

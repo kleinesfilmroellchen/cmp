@@ -108,6 +108,17 @@ impl GroundMap {
 		commands: &mut Commands,
 		asset_server: &AssetServer,
 	) {
+		self.set_impl(position, kind, tile_query, commands, asset_server);
+	}
+
+	fn set_impl(
+		&mut self,
+		position: GridPosition,
+		kind: GroundKind,
+		tile_query: &mut Query<(Entity, &GridPosition, &mut GroundKind)>,
+		commands: &mut Commands,
+		asset_server: &AssetServer,
+	) {
 		if let Some((responsible_entity, old_kind)) = self.map.get_mut(&position) {
 			let (_, _, mut in_world_kind) = tile_query.get_mut(*responsible_entity).unwrap();
 			// Avoid mutation if there is no change, reducing the pressure on update_ground_textures
@@ -132,13 +143,18 @@ impl GroundMap {
 		let larger_corner = start_position.max(*end_position);
 		for x in smaller_corner.x ..= larger_corner.x {
 			for y in smaller_corner.y ..= larger_corner.y {
-				self.set((x, y, start_position.z).into(), kind, tile_query, commands, asset_server);
+				let position = (x, y, start_position.z).into();
+				self.set_impl(position, kind, tile_query, commands, asset_server);
 			}
 		}
 	}
 
 	pub fn kind_of(&self, position: &GridPosition) -> Option<GroundKind> {
 		self.map.get(position).map(|(_, kind)| *kind)
+	}
+
+	pub fn get(&self, position: &GridPosition) -> Option<(Entity, GroundKind)> {
+		self.map.get(position).cloned()
 	}
 }
 

@@ -2,7 +2,7 @@ use std::marker::ConstParamTy;
 
 use bevy::prelude::*;
 
-use super::area::{AreaMarker, ImmutableArea};
+use super::area::{AreaMarker, ImmutableArea, Area};
 use super::{BoundingBox, GridBox, GridPosition, GroundKind, GroundMap, Metric};
 use crate::graphics::library::{anchor_for_sprite, sprite_for_accommodation};
 use crate::graphics::StaticSprite;
@@ -131,6 +131,30 @@ impl Accommodation {
 	}
 }
 
+#[derive(Bundle)]
+pub struct AccommodationBundle {
+	area:                Area,
+	accommodation:       Accommodation,
+	global_transform:    GlobalTransform,
+	transform:           Transform,
+	computed_visibility: ComputedVisibility,
+	visibility:          Visibility,
+}
+
+impl AccommodationBundle {
+	pub fn new(start_position: GridPosition, end_position: GridPosition) -> Self {
+		Self {
+			area:                Area::from_rect(start_position, end_position),
+			accommodation:       Accommodation::default(),
+			// Make various graphical children of the accommodation area (borders, trees, buildings) visible.
+			global_transform:    GlobalTransform::default(),
+			transform:           Transform::default(),
+			computed_visibility: ComputedVisibility::default(),
+			visibility:          Visibility::Visible,
+		}
+	}
+}
+
 #[derive(Component)]
 pub struct AccommodationBuilding;
 
@@ -185,7 +209,7 @@ pub fn update_built_accommodations(
 			// 1. Area doesn't provide enough tiles for the accommodation type.
 			// 2. Accommodation building is not physically on the area anymore.
 			// 3. Area is discontinuous (for simplification purposes, this always deletes the entire pitch).
-			
+
 			if area.is_empty() | area.is_discontinuous() {
 				should_destroy = true;
 			} else {
