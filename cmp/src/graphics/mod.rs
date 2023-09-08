@@ -30,6 +30,11 @@ pub struct StaticSprite {
 	pub(crate) bevy_sprite: SpriteBundle,
 }
 
+/// Sprite representing a border of a larger area, such as a fence.
+#[derive(Bundle)]
+pub struct BorderSprite {
+}
+
 pub fn initialize_graphics(mut commands: Commands, _asset_server: Res<AssetServer>, mut msaa: ResMut<Msaa>) {
 	let projection = OrthographicProjection { scale: 1. / 4., near: -100000., ..Default::default() };
 	commands.spawn((Camera2dBundle { projection, ..Default::default() }, ContrastAdaptiveSharpeningSettings {

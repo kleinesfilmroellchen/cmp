@@ -8,12 +8,19 @@ version.workspace = true
 crate-type = ["dylib"]
 
 [dependencies]
+# The Bevy game engine.
 bevy = { version = "0.11.2", features = ["dynamic_linking"] }
+# Bevy dynamic plugin support, used for first-class modding support in CMP.
 bevy_dynamic_plugin = "0.11.2"
+libloading = "0.8"
+# Direct access to Bevy's windowing library winit for some functionality such as setting a window logo.
 winit = "0.28"
+# Simple loading and saving of game settings in a cross-platform way.
 confy = "0.5.1"
-argh = "0.1.12"
-itertools = "0.11.0"
+# Setting and game state serialization/deserialization from and to disk.
 serde = { version = "1.0.188", features = ["derive"] }
 serde_derive = "1.0.188"
-libloading = "0.8"
+# CLI Arguments for the various executables.
+argh = "0.1.12"
+# Iteration utilities for internal functionality.
+itertools = "0.11.0"

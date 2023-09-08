@@ -10,6 +10,7 @@ pub fn sprite_for_ground(kind: GroundKind) -> &'static str {
 		GroundKind::Grass => "grass.png",
 		GroundKind::Pathway => "gravel.png",
 		GroundKind::PoolPath => "pool.png",
+		GroundKind::Accommodation => "accommodation-site-tile.png",
 	}
 }
 
@@ -24,15 +25,17 @@ pub fn logo_for_build_menu(menu: BuildMenu) -> &'static str {
 pub fn logo_for_buildable(buildable: Buildable) -> &'static str {
 	match buildable {
 		Buildable::Ground(kind) => sprite_for_ground(kind),
-		Buildable::BasicAccommodation(kind) => sprite_for_accommodation(kind),
+		Buildable::Accommodation(kind) => sprite_for_accommodation(kind),
+		Buildable::AccommodationSite => "accommodation-logo.png",
 		Buildable::PoolArea => "pool.png",
 	}
 }
 
-pub fn sprite_for_buildable(buildable: Buildable) -> &'static str {
+pub fn preview_sprite_for_buildable(buildable: Buildable) -> &'static str {
 	match buildable {
 		Buildable::Ground(kind) => sprite_for_ground(kind),
-		Buildable::BasicAccommodation(kind) => sprite_for_accommodation(kind),
+		Buildable::Accommodation(kind) => sprite_for_accommodation(kind),
+		Buildable::AccommodationSite => "accommodation-site-tile.png",
 		Buildable::PoolArea => "pool.png",
 	}
 }
@@ -40,7 +43,6 @@ pub fn sprite_for_buildable(buildable: Buildable) -> &'static str {
 pub fn sprite_for_accommodation(kind: AccommodationType) -> &'static str {
 	match kind {
 		AccommodationType::TentSite => todo!(),
-		AccommodationType::LargeTentSite => todo!(),
 		AccommodationType::PermanentTent => todo!(),
 		AccommodationType::CaravanSite => todo!(),
 		AccommodationType::MobileHome => todo!(),

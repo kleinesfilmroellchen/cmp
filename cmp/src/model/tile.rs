@@ -1,3 +1,5 @@
+use std::marker::ConstParamTy;
+
 use bevy::prelude::*;
 use bevy::utils::HashMap;
 
@@ -15,11 +17,13 @@ impl Plugin for TileManagement {
 }
 
 /// The kinds of ground that exist; most have their own graphics.
-#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq, ConstParamTy)]
 pub enum GroundKind {
 	Grass,
 	Pathway,
 	PoolPath,
+	/// Pitch surface.
+	Accommodation,
 }
 
 impl Default for GroundKind {
@@ -34,6 +38,7 @@ impl std::fmt::Display for GroundKind {
 			Self::Grass => "Grass",
 			Self::Pathway => "Pathway",
 			Self::PoolPath => "Pool Path",
+			Self::Accommodation => "Accommodation",
 		})
 	}
 }
@@ -46,6 +51,9 @@ impl Tooltipable for GroundKind {
 			Self::PoolPath =>
 				"Pool paths are similar to pathways, but they instead serve as the floor material of all pools. You \
 				 can therefore easily identify a pool area by this flooring.",
+			Self::Accommodation =>
+				"Accommodation ground looks like grass, but behaves very differently, since it defines where an \
+				 accommodation is situated.",
 		}
 	}
 }
@@ -108,6 +116,24 @@ impl GroundMap {
 		} else {
 			let new_entity = commands.spawn(GroundTile::new(kind, position, asset_server)).id();
 			self.map.entry(position).insert((new_entity, kind));
+		}
+	}
+
+	pub fn fill_rect(
+		&mut self,
+		start_position: GridPosition,
+		end_position: GridPosition,
+		kind: GroundKind,
+		tile_query: &mut Query<(Entity, &GridPosition, &mut GroundKind)>,
+		commands: &mut Commands,
+		asset_server: &AssetServer,
+	) {
+		let smaller_corner = start_position.min(*end_position);
+		let larger_corner = start_position.max(*end_position);
+		for x in smaller_corner.x ..= larger_corner.x {
+			for y in smaller_corner.y ..= larger_corner.y {
+				self.set((x, y, start_position.z).into(), kind, tile_query, commands, asset_server);
+			}
 		}
 	}
 

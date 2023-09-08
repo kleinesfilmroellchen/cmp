@@ -1,17 +1,17 @@
-use std::num::NonZeroU32;
+use std::marker::ConstParamTy;
 
 use bevy::prelude::*;
 
-use super::{BoundingBox, GridBox, GridPosition, Metric};
+use super::area::{AreaMarker, ImmutableArea};
+use super::{BoundingBox, GridBox, GridPosition, GroundKind, GroundMap, Metric};
 use crate::graphics::library::{anchor_for_sprite, sprite_for_accommodation};
 use crate::graphics::StaticSprite;
 use crate::util::Tooltipable;
 
 /// The different available types of accommodation.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ConstParamTy)]
 pub enum AccommodationType {
 	TentSite,
-	LargeTentSite,
 	PermanentTent,
 	CaravanSite,
 	MobileHome,
@@ -21,28 +21,43 @@ pub enum AccommodationType {
 type Comfort = Metric<0, 10>;
 
 impl AccommodationType {
-	pub fn size(&self) -> BoundingBox {
+	pub const fn size(&self) -> BoundingBox {
 		match self {
-			Self::TentSite => (5, 5, 0),
-			Self::LargeTentSite => (7, 5, 0),
-			Self::PermanentTent => (4, 4, 0),
-			Self::CaravanSite => (5, 5, 0),
-			Self::MobileHome => (3, 4, 0),
-			Self::Cottage => (3, 4, 4),
+			Self::CaravanSite | Self::TentSite => BoundingBox::fixed::<1, 1, 1>(),
+			Self::PermanentTent => BoundingBox::fixed::<2, 2, 2>(),
+			Self::MobileHome => BoundingBox::fixed::<1, 2, 2>(),
+			Self::Cottage => BoundingBox::fixed::<2, 3, 3>(),
 		}
-		.into()
+	}
+
+	pub const fn required_area(&self) -> usize {
+		match self {
+			Self::CaravanSite | Self::TentSite => 5 * 5,
+			Self::PermanentTent => 4 * 4,
+			Self::MobileHome => 2 * 4,
+			Self::Cottage => 3 * 4,
+		}
 	}
 
 	pub fn comfort(&self) -> Comfort {
 		match self {
-			Self::TentSite => 1u64,
-			Self::LargeTentSite => 1,
+			Self::TentSite => 1,
 			Self::PermanentTent => 4,
 			Self::CaravanSite => 3,
 			Self::MobileHome => 5,
 			Self::Cottage => 6,
 		}
-		.into()
+		.try_into()
+		.unwrap()
+	}
+
+	/// Determines whether this accommodation type is actually a building, so that when creating it an actual building
+	/// entity must be constructed.
+	pub const fn is_real_building(&self) -> bool {
+		match self {
+			Self::CaravanSite | Self::TentSite => false,
+			Self::PermanentTent | Self::MobileHome | Self::Cottage => true,
+		}
 	}
 }
 
@@ -50,7 +65,6 @@ impl std::fmt::Display for AccommodationType {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		write!(f, "{}", match self {
 			Self::TentSite => "Tent Site",
-			Self::LargeTentSite => "Large Tent Site",
 			Self::PermanentTent => "Permanent Tent",
 			Self::CaravanSite => "Caravan Site",
 			Self::MobileHome => "Mobile Home",
@@ -67,9 +81,6 @@ impl Tooltipable for AccommodationType {
 				 patches of grass, and take almost no effort to maintain. Only the hardy tent-camping visitors will \
 				 use tent sites, however. Tent sites also take up a relatively large area in comparison to the amount \
 				 of people that can stay there.",
-			Self::LargeTentSite =>
-				"A larger tent size, suitable for five people. This tent site is not fundamentally different from the \
-				 standard one, but it provides space for larger groups of hardy campers.",
 			Self::PermanentTent =>
 				"A permanently constructed tent for five campers. Due to its construction with wooden flooring under a \
 				 cloth roof, this tent does provide better comfort than a bare camp site, though its spacial \
@@ -96,38 +107,104 @@ impl Tooltipable for AccommodationType {
 	}
 }
 
+type AccommodationMultiplicity = Metric<1, 2>;
+
 /// A proper accommodation for guests; essentially an instance of [`AccommodationType`].
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct Accommodation {
 	/// When the kind is [`None`], the accommodation type is unassigned and this accommodation is not functional.
-	kind:         Option<AccommodationType>,
+	pub kind:         Option<AccommodationType>,
 	/// How many of the same accommodation are available here. This value rarely goes beyond 1 except for specific
 	/// accommodation types.
-	multiplicity: NonZeroU32,
+	pub multiplicity: AccommodationMultiplicity,
 }
 
-/// All the data needed for an instantiated accommodation entity; more components will be added as needed.
+impl AreaMarker for Accommodation {
+	fn is_allowed_ground_type(&self, kind: super::GroundKind) -> bool {
+		kind == GroundKind::Accommodation
+	}
+}
+
+impl Accommodation {
+	pub fn required_area(&self) -> usize {
+		self.kind.map(|kind| kind.required_area() * (*self.multiplicity as usize)).unwrap_or(0)
+	}
+}
+
+#[derive(Component)]
+pub struct AccommodationBuilding;
+
 #[derive(Bundle)]
-pub struct AccommodationBundle {
-	accommodation: Accommodation,
-	space:         GridBox,
-	sprite:        StaticSprite,
+pub struct AccommodationBuildingBundle {
+	pub position: GridBox,
+	pub sprite:   StaticSprite,
+	marker:       AccommodationBuilding,
 }
 
-impl AccommodationBundle {
-	pub fn new(kind: AccommodationType, position: GridPosition, asset_server: &AssetServer) -> Self {
-		let sprite = sprite_for_accommodation(kind);
-		Self {
-			space:         GridBox::new(position - (kind.size() / 2).truncate(), kind.size()),
-			sprite:        StaticSprite {
-				bevy_sprite: SpriteBundle {
-					sprite: Sprite { anchor: anchor_for_sprite(sprite), ..Default::default() },
-					texture: asset_server.load(sprite),
-					..Default::default()
+impl AccommodationBuildingBundle {
+	pub fn new(kind: AccommodationType, position: GridPosition, asset_server: &AssetServer) -> Option<Self> {
+		if !kind.is_real_building() {
+			None
+		} else {
+			let sprite = sprite_for_accommodation(kind);
+			Some(AccommodationBuildingBundle {
+				position: GridBox::around(position, kind.size().flat()),
+				sprite:   StaticSprite {
+					bevy_sprite: SpriteBundle {
+						sprite: Sprite { anchor: anchor_for_sprite(sprite), ..Default::default() },
+						texture: asset_server.load(sprite),
+						..Default::default()
+					},
 				},
-			},
-			// FIXME: Don't automatically assign a kind!
-			accommodation: Accommodation { kind: Some(kind), multiplicity: NonZeroU32::MIN },
+				marker:   AccommodationBuilding,
+			})
 		}
+	}
+}
+
+pub struct AccommodationManagement;
+impl Plugin for AccommodationManagement {
+	fn build(&self, app: &mut App) {
+		app.add_systems(FixedUpdate, update_built_accommodations);
+	}
+}
+
+pub fn update_built_accommodations(
+	commands: ParallelCommands,
+	mut accommodations: Query<(Entity, &Accommodation, &Children, &mut ImmutableArea)>,
+	accommodation_building_children: Query<&GridBox, With<AccommodationBuilding>>,
+	ground_map: Res<GroundMap>,
+) {
+	if ground_map.is_changed() {
+		accommodations.par_iter_mut().for_each_mut(|(entity, accommodation, children, mut area)| {
+			area.retain_tiles(|tile| {
+				ground_map.kind_of(tile).is_some_and(|kind| accommodation.is_allowed_ground_type(kind))
+			});
+			let mut should_destroy = false;
+			// Check the three conditions for destroying an updated accommodation:
+			// 1. Area doesn't provide enough tiles for the accommodation type.
+			// 2. Accommodation building is not physically on the area anymore.
+			// 3. Area is discontinuous (for simplification purposes, this always deletes the entire pitch).
+			
+			if area.is_empty() | area.is_discontinuous() {
+				should_destroy = true;
+			} else {
+				// 2.
+				for child in children.iter() {
+					let child_position = accommodation_building_children.get(*child).unwrap();
+					if !area.fits(child_position) {
+						should_destroy = true;
+						break;
+					}
+				}
+				// 1.
+				if area.size() < accommodation.required_area() {
+					should_destroy = true;
+				}
+			}
+			if should_destroy {
+				commands.command_scope(|mut commands| commands.entity(entity).despawn_recursive());
+			}
+		});
 	}
 }

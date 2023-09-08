@@ -3,6 +3,7 @@
 use bevy::ecs::component::TableStorage;
 use bevy::math::Vec3A;
 use bevy::prelude::*;
+use itertools::Itertools;
 
 /// A position in world space, as opposed to screen space. There are several underlying implementations of world
 /// positions, depending on how an entity’s position is constrained.
@@ -160,6 +161,13 @@ impl From<IVec3> for GridPosition {
 	}
 }
 
+impl From<UVec3> for GridPosition {
+	#[inline]
+	fn from(value: UVec3) -> Self {
+		GridPosition(value.as_ivec3())
+	}
+}
+
 impl std::ops::Sub<IVec2> for GridPosition {
 	type Output = Self;
 
@@ -196,56 +204,67 @@ impl std::ops::Add<IVec3> for GridPosition {
 	}
 }
 
+impl std::fmt::Display for GridPosition {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "{},{},{}", self.x, self.y, self.z)
+	}
+}
+
 /// A rectangular bounding box around an entity. The entity’s position is in the corner with the smallest distance to
 /// negative infinity on all axes, so the box extends define how far the box stretches in each positive axis direction.
 
 #[derive(Component, Clone, Copy, Debug, Default, Deref, DerefMut, PartialEq, Eq)]
-pub struct BoundingBox(pub IVec3);
+pub struct BoundingBox(pub UVec3);
 
 impl BoundingBox {
 	#[inline]
-	pub const fn height(&self) -> i32 {
+	pub const fn height(&self) -> u32 {
 		self.0.z
 	}
 
 	#[inline]
-	pub const fn with_height(mut self, new_height: i32) -> Self {
+	pub const fn with_height(mut self, new_height: u32) -> Self {
 		self.0.z = new_height;
 		self
 	}
 
 	#[inline]
-	pub const fn fixed<const X: i32, const Y: i32, const Z: i32>() -> Self {
-		Self(IVec3 { x: X, y: Y, z: Z })
+	pub const fn fixed<const X: u32, const Y: u32, const Z: u32>() -> Self {
+		Self(UVec3 { x: X, y: Y, z: Z })
+	}
+
+	#[inline]
+	pub const fn flat(self) -> Self {
+		self.with_height(1)
 	}
 }
 
-impl From<(i32, i32)> for BoundingBox {
+impl From<(u32, u32)> for BoundingBox {
 	#[inline]
-	fn from(value: (i32, i32)) -> Self {
-		Self(IVec3::from((value.into(), 0)))
+	fn from(value: (u32, u32)) -> Self {
+		Self(UVec3::from((value.into(), 0)))
 	}
 }
 
-impl From<(i32, i32, i32)> for BoundingBox {
+impl From<(u32, u32, u32)> for BoundingBox {
 	#[inline]
-	fn from(value: (i32, i32, i32)) -> Self {
+	fn from(value: (u32, u32, u32)) -> Self {
 		Self(value.into())
 	}
 }
 
-impl From<IVec3> for BoundingBox {
+impl From<UVec3> for BoundingBox {
 	#[inline]
-	fn from(value: IVec3) -> Self {
+	fn from(value: UVec3) -> Self {
 		Self(value)
 	}
 }
 
-impl std::ops::Div<i32> for BoundingBox {
-	type Output = IVec3;
+impl std::ops::Div<u32> for BoundingBox {
+	type Output = UVec3;
 
 	#[inline]
-	fn div(self, rhs: i32) -> Self::Output {
+	fn div(self, rhs: u32) -> Self::Output {
 		self.0 / rhs
 	}
 }
@@ -255,10 +274,9 @@ impl std::ops::Div<i32> for BoundingBox {
 /// primarily computed between GridBox objects.
 #[derive(Component, Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct GridBox {
-	// Intentionally private fields:
 	/// Lower left corner; the point with the smallest distance to negative infinity inside the box on all axes.
-	corner:  GridPosition,
-	extents: BoundingBox,
+	pub corner: GridPosition,
+	extents:    BoundingBox,
 }
 
 impl PartialOrd for GridBox {
@@ -267,7 +285,7 @@ impl PartialOrd for GridBox {
 			Some(core::cmp::Ordering::Equal) =>
 			// Reuse the partial ordering properties of grid positions, so that the volumetrically smaller bounding
 			// box is considered less (and equal bounding boxes are considered equal).
-				GridPosition(*self.extents).partial_cmp(&GridPosition(*other.extents)),
+				GridPosition::from(*self.extents).partial_cmp(&GridPosition::from(*other.extents)),
 			ord => ord,
 		}
 	}
@@ -286,12 +304,43 @@ impl From<GridPosition> for GridBox {
 	}
 }
 
+pub trait Extent {
+	fn as_ivec3(&self) -> IVec3;
+}
+impl Extent for IVec3 {
+	#[inline]
+	fn as_ivec3(&self) -> IVec3 {
+		*self
+	}
+}
+impl Extent for UVec3 {
+	#[inline]
+	fn as_ivec3(&self) -> IVec3 {
+		self.as_ivec3()
+	}
+}
+impl Extent for BoundingBox {
+	#[inline]
+	fn as_ivec3(&self) -> IVec3 {
+		self.0.as_ivec3()
+	}
+}
+
 impl GridBox {
-	pub fn new(position: GridPosition, extents: BoundingBox) -> Self {
+	pub fn new<T: Extent>(position: GridPosition, extents: T) -> Self {
 		// Actually determine the smallest corner ("normalize" the box properties) which allows the user to provide any
 		// corner and extent kind.
 		let first_corner = *position;
-		let second_corner = *position + *extents;
+		let second_corner = *position + extents.as_ivec3() - IVec3::from((1, 1, 1));
+		Self::from_corners(first_corner.into(), second_corner.into())
+	}
+
+	/// Creates a grid box with the extents centered at the given position.
+	pub fn around(center: GridPosition, extents: BoundingBox) -> Self {
+		// Actually determine the smallest corner ("normalize" the box properties) which allows the user to provide any
+		// corner and extent kind.
+		let first_corner = *center - (extents / 2).as_ivec3();
+		let second_corner = first_corner + extents.as_ivec3() - IVec3::from((1, 1, 1));
 		Self::from_corners(first_corner.into(), second_corner.into())
 	}
 
@@ -299,23 +348,51 @@ impl GridBox {
 		let smallest_corner = first_corner.min(*second_corner);
 		let largest_corner = first_corner.max(*second_corner);
 		let real_extents = largest_corner - smallest_corner;
-		Self { corner: smallest_corner.into(), extents: real_extents.into() }
+		debug_assert!(real_extents.x >= 0 && real_extents.y >= 0 && real_extents.z >= 0);
+		Self { corner: smallest_corner.into(), extents: real_extents.as_uvec3().into() }
 	}
 
-	pub fn smallest(&self) -> GridPosition {
+	pub fn from_position(corner: GridPosition) -> Self {
+		Self::new(corner, UVec3::from((1, 1, 1)))
+	}
+
+	#[inline]
+	pub const fn smallest(&self) -> GridPosition {
 		self.corner
 	}
 
+	/// Inclusive (!) upper corner of the box.
+	#[inline]
 	pub fn largest(&self) -> GridPosition {
-		self.corner + *self.extents
+		self.corner + self.extents.as_ivec3()
+	}
+
+	#[inline]
+	#[allow(unused)]
+	pub fn center(&self) -> GridPosition {
+		self.corner + (self.extents / 2).as_ivec3()
+	}
+
+	/// Returns all positions on the floor (lowest z) of this AABB.
+	pub fn floor_positions(&self) -> impl Iterator<Item = GridPosition> + '_ {
+		(self.smallest().x ..= self.largest().x)
+			.cartesian_product(self.smallest().y ..= self.largest().y)
+			.map(|(x, y)| (x, y, self.smallest().z).into())
 	}
 
 	/// Raises or lowers the extents.
 	pub fn enlargen(&mut self, delta: IVec3) {
-		(*self.extents) += delta;
-		if self.extents.x < 0 || self.extents.y < 0 || self.extents.z < 0 {
-			*self = Self::new(self.corner, self.extents);
+		let new_extents = self.extents.as_ivec3() + delta;
+		if new_extents.x < 0 || new_extents.y < 0 || new_extents.z < 0 {
+			*self = Self::new(self.corner, new_extents);
+			return;
 		}
+		*self.extents = new_extents.as_uvec3();
+	}
+
+	pub fn with_height(mut self, new_height: u32) -> Self {
+		self.extents = self.extents.with_height(new_height);
+		self
 	}
 
 	/// The corner must be the smallest corner on all axes, otherwise the grid box's invariants are broken and weird
@@ -326,7 +403,7 @@ impl GridBox {
 	}
 
 	#[inline]
-	pub const fn height(&self) -> i32 {
+	pub const fn height(&self) -> u32 {
 		self.extents.height()
 	}
 
@@ -341,9 +418,9 @@ impl GridBox {
 		};
 
 		let own_start = self.corner;
-		let own_end = own_start + self.extents.0;
+		let own_end = own_start + self.extents.as_ivec3();
 		let other_start = other.corner;
-		let other_end = other_start + other.extents.0;
+		let other_end = other_start + other.extents.as_ivec3();
 
 		axis_intersects(own_start.x, own_end.x, other_start.x, other_end.x)
 			&& axis_intersects(own_start.y, own_end.y, other_start.y, other_end.y)
@@ -360,9 +437,9 @@ impl GridBox {
 		};
 
 		let own_start = self.corner;
-		let own_end = own_start + self.extents.0;
+		let own_end = own_start + self.extents.as_ivec3();
 		let other_start = other.corner;
-		let other_end = other_start + other.extents.0;
+		let other_end = other_start + other.extents.as_ivec3();
 
 		axis_intersects(own_start.x, own_end.x, other_start.x, other_end.x)
 			&& axis_intersects(own_start.y, own_end.y, other_start.y, other_end.y)
@@ -374,7 +451,7 @@ impl GridBox {
 	///
 	/// Extents use integer vectors, since the collision mechanics for boxes are snapped to the grid.
 	#[inline]
-	pub const fn extents(&self) -> IVec3 {
+	pub const fn extents(&self) -> UVec3 {
 		self.extents.0
 	}
 }

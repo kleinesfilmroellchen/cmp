@@ -1,20 +1,29 @@
+use std::sync::OnceLock;
+
 use bevy::prelude::*;
+use bevy::utils::thiserror::Error;
 use bevy::window::PrimaryWindow;
 use itertools::{EitherOrBoth, Itertools};
 
 use super::on_start_build_preview;
-use crate::graphics::library::{anchor_for_sprite, sprite_for_buildable};
+use crate::graphics::library::{anchor_for_sprite, preview_sprite_for_buildable};
 use crate::graphics::{screen_to_world_space, StaticSprite};
 use crate::input::InputState;
-use crate::model::area::{Area, Pool, UpdateAreas};
-use crate::model::{AccommodationBundle, Buildable, GridPosition, GroundKind, GroundMap};
+use crate::model::area::{Area, ImmutableArea, Pool, UpdateAreas};
+use crate::model::{
+	Accommodation, AccommodationBuildingBundle, Buildable, BuildableType, GridBox, GridPosition, GroundKind, GroundMap,
+};
 
 pub struct BuildPlugin;
 
 impl Plugin for BuildPlugin {
 	fn build(&self, app: &mut App) {
-		app.add_event::<PerformBuild>()
-			.add_event::<StartBuildPreview>()
+		app.add_event::<StartBuildPreview>()
+			.add_event::<PerformBuild<{ BuildableType::Ground }>>()
+			.add_event::<PerformBuild<{ BuildableType::Accommodation }>>()
+			.add_event::<PerformBuild<{ BuildableType::AccommodationSite }>>()
+			.add_event::<PerformBuild<{ BuildableType::PoolArea }>>()
+			.add_event::<BuildError>()
 			.add_systems(
 				Update,
 				update_building_preview
@@ -29,7 +38,15 @@ impl Plugin for BuildPlugin {
 			)
 			.add_systems(Update, create_building_preview)
 			.add_systems(OnExit(InputState::Building), destroy_building_preview.after(update_building_preview))
-			.add_systems(Update, perform_build);
+			.add_systems(
+				Update,
+				(
+					perform_accommodation_site_build,
+					perform_accommodation_type_build,
+					perform_ground_build,
+					perform_pool_area_build,
+				),
+			);
 	}
 }
 
@@ -38,11 +55,27 @@ pub struct StartBuildPreview {
 	pub buildable: Buildable,
 }
 
+/// The [`BuildableType`] is a static parameter on the build event so that we can determine the correct receiver system
+/// via the type system and bevy's system parameters.
 #[derive(Event)]
-struct PerformBuild {
+struct PerformBuild<const BUILDABLE: BuildableType> {
 	start_position: GridPosition,
 	end_position:   GridPosition,
 	buildable:      Buildable,
+}
+
+/// Any reason that the build could not be completed; eventually propagated to the end-user.
+#[derive(Event, Error, Debug)]
+enum BuildError {
+	#[error("There is no accommodation pitch to build on here.")]
+	NoAccommodationHere,
+	#[error("Building doesn’t have enough space to be built here.")]
+	NoSpace,
+	#[error(
+		"The pitch is too small for this accommodation; {} tiles are required but there are only {} \
+		 tiles.", .required, .actual
+	)]
+	PitchTooSmall { required: usize, actual: usize },
 }
 
 /// Component for the building preview's parent entity.
@@ -81,7 +114,7 @@ impl BuildMode {
 	fn update_preview<'a>(
 		&self,
 		PreviewParent { previewed, start_position, current_position }: PreviewParent,
-		mut current_children: impl Iterator<Item = (Entity, Mut<'a, GridPosition>)>,
+		mut current_children: impl Iterator<Item = (Entity, Mut<'a, GridBox>)>,
 		parent_entity: Entity,
 		commands: &mut Commands,
 		asset_server: &AssetServer,
@@ -91,30 +124,24 @@ impl BuildMode {
 		match self {
 			Self::Single => {
 				// Using start_position has the effect of "locking" the building where the click started.
-				let preview_position = start_position - (previewed.size() / 2).truncate();
+				let preview_position = GridBox::around(start_position, previewed.size().flat()).with_height(1000);
 				let any_child = current_children.next();
 				if let Some((_, mut existing_child)) = any_child {
 					*existing_child = preview_position;
 				} else {
-					let sprite = sprite_for_buildable(previewed);
+					let sprite = preview_sprite_for_buildable(previewed);
 					commands.entity(parent_entity).with_children(|parent| {
-						parent.spawn((
-							PreviewChild,
-							preview_position,
-							// Extremely high priority.
-							previewed.size().with_height(1000),
-							StaticSprite {
-								bevy_sprite: SpriteBundle {
-									sprite: Sprite {
-										color: PREVIEW_TINT,
-										anchor: anchor_for_sprite(sprite),
-										..Default::default()
-									},
-									texture: asset_server.load(sprite),
+						parent.spawn((PreviewChild, preview_position, StaticSprite {
+							bevy_sprite: SpriteBundle {
+								sprite: Sprite {
+									color: PREVIEW_TINT,
+									anchor: anchor_for_sprite(sprite),
 									..Default::default()
 								},
+								texture: asset_server.load(sprite),
+								..Default::default()
 							},
-						));
+						}));
 					});
 				}
 			},
@@ -122,16 +149,15 @@ impl BuildMode {
 				let required_positions = start_position.line_to_2d(current_position);
 				for element in required_positions.zip_longest(current_children) {
 					match element {
-						EitherOrBoth::Both(position, (_, mut child)) => *child = position,
+						EitherOrBoth::Both(position, (_, mut child)) => child.corner = position,
 						// Create new child.
 						EitherOrBoth::Left(position) => {
-							let sprite = sprite_for_buildable(previewed);
+							let sprite = preview_sprite_for_buildable(previewed);
 							commands.entity(parent_entity).with_children(|parent| {
 								parent.spawn((
 									PreviewChild,
-									position,
 									// Extremely high priority.
-									previewed.size().with_height(1000),
+									GridBox::new(position, previewed.size()).with_height(1000),
 									StaticSprite {
 										bevy_sprite: SpriteBundle {
 											sprite: Sprite {
@@ -158,20 +184,19 @@ impl BuildMode {
 				let larger_corner = start_position.max(*current_position);
 
 				let mut parent = commands.entity(parent_entity);
-				let sprite = sprite_for_buildable(previewed);
+				let sprite = preview_sprite_for_buildable(previewed);
 
 				for x in smaller_corner.x ..= larger_corner.x {
 					for y in smaller_corner.y ..= larger_corner.y {
 						if let Some((_, mut old_child_position)) = current_children.next() {
-							old_child_position.x = x;
-							old_child_position.y = y;
+							old_child_position.corner.x = x;
+							old_child_position.corner.y = y;
 						} else {
 							parent.with_children(|parent| {
 								parent.spawn((
 									PreviewChild,
-									GridPosition::from((x, y, start_position.z)),
 									// Extremely high priority.
-									previewed.size().with_height(1000),
+									GridBox::from_position((x, y, start_position.z).into()).with_height(1000),
 									StaticSprite {
 										bevy_sprite: SpriteBundle {
 											sprite: Sprite {
@@ -228,16 +253,19 @@ fn update_building_preview(
 	mouse: Res<Input<MouseButton>>,
 	mut commands: Commands,
 	mut preview: Query<(Entity, Option<&mut Children>, &PreviewParent, &mut Visibility)>,
-	preview_children: Query<&mut GridPosition, With<PreviewChild>>,
+	preview_children: Query<&mut GridBox, With<PreviewChild>>,
 	asset_server: Res<AssetServer>,
 ) {
 	for (parent_entity, children, preview_data, mut visibility) in &mut preview {
 		// SAFETY: We never obtain the same component twice, since the entity IDs in the iterator are distinct.
 		// Therefore, we do not alias a mutable pointer to the same component.
-		let children = children
-			.iter()
-			.flatten()
-			.map(|entity| (*entity, unsafe { preview_children.get_unchecked(*entity) }.unwrap()));
+		let children = children.iter().flatten().flat_map(|entity| {
+			if let Ok(child) = unsafe { preview_children.get_unchecked(*entity) } {
+				Some((*entity, child))
+			} else {
+				None
+			}
+		});
 		preview_data.previewed.build_mode().update_preview(
 			*preview_data,
 			children,
@@ -275,68 +303,133 @@ fn create_building_preview(
 	}
 }
 
-fn perform_build(
+fn perform_ground_build(
+	mut event: EventReader<PerformBuild<{ BuildableType::Ground }>>,
 	mut commands: Commands,
 	asset_server: Res<AssetServer>,
-	mut event: EventReader<PerformBuild>,
 	mut ground_map: ResMut<GroundMap>,
 	mut tile_query: Query<(Entity, &GridPosition, &mut GroundKind)>,
 	mut area_update_event: EventWriter<UpdateAreas>,
 ) {
 	for event in &mut event {
-		// TODO: Check legality of the build action.
-		perform_build_action(
-			event.buildable,
-			&mut commands,
-			event.start_position,
-			event.end_position,
-			&asset_server,
-			&mut ground_map,
-			&mut tile_query,
-			&mut area_update_event,
-		);
+		let kind = match event.buildable {
+			Buildable::Ground(kind) => kind,
+			_ => unreachable!(),
+		};
+		for line_element in event.start_position.line_to_2d(event.end_position) {
+			ground_map.set(line_element, kind, &mut tile_query, &mut commands, &asset_server);
+		}
+		// Either we or the tiles we overwrote might be part of areas.
+		area_update_event.send_default();
 	}
+	event.clear();
 }
 
-fn perform_build_action(
-	kind: Buildable,
-	commands: &mut Commands,
-	start_position: GridPosition,
-	end_position: GridPosition,
-	asset_server: &AssetServer,
-	ground_map: &mut GroundMap,
-	tile_query: &mut Query<(Entity, &GridPosition, &mut GroundKind)>,
-	area_update_event: &mut EventWriter<UpdateAreas>,
+fn perform_accommodation_site_build(
+	mut event: EventReader<PerformBuild<{ BuildableType::AccommodationSite }>>,
+	mut commands: Commands,
+	asset_server: Res<AssetServer>,
+	mut ground_map: ResMut<GroundMap>,
+	mut tile_query: Query<(Entity, &GridPosition, &mut GroundKind)>,
+	mut area_update_event: EventWriter<UpdateAreas>,
 ) {
-	match kind {
-		Buildable::Ground(kind) => {
-			for line_element in start_position.line_to_2d(end_position) {
-				ground_map.set(line_element, kind, tile_query, commands, asset_server);
+	for event in &mut event {
+		ground_map.fill_rect(
+			event.start_position,
+			event.end_position,
+			GroundKind::Accommodation,
+			&mut tile_query,
+			&mut commands,
+			&asset_server,
+		);
+		commands.spawn((
+			Area::from_rect(event.start_position, event.end_position),
+			Accommodation::default(),
+			// Make various graphical children of the accommodation area (borders, trees, buildings) visible.
+			GlobalTransform::default(),
+			Transform::default(),
+			ComputedVisibility::default(),
+			Visibility::Visible,
+		));
+		area_update_event.send_default();
+	}
+	event.clear();
+}
+
+fn perform_pool_area_build(
+	mut event: EventReader<PerformBuild<{ BuildableType::PoolArea }>>,
+	mut commands: Commands,
+	asset_server: Res<AssetServer>,
+	mut ground_map: ResMut<GroundMap>,
+	mut tile_query: Query<(Entity, &GridPosition, &mut GroundKind)>,
+	mut area_update_event: EventWriter<UpdateAreas>,
+) {
+	for event in &mut event {
+		ground_map.fill_rect(
+			event.start_position,
+			event.end_position,
+			GroundKind::PoolPath,
+			&mut tile_query,
+			&mut commands,
+			&asset_server,
+		);
+		commands.spawn((Area::from_rect(event.start_position, event.end_position), Pool));
+		area_update_event.send_default();
+	}
+	event.clear();
+}
+
+fn perform_accommodation_type_build(
+	mut event: EventReader<PerformBuild<{ BuildableType::Accommodation }>>,
+	mut commands: Commands,
+	asset_server: Res<AssetServer>,
+	mut accommodations: Query<(Entity, &Area, &mut Accommodation)>,
+	mut build_error: EventWriter<BuildError>,
+	mut area_update_event: EventWriter<UpdateAreas>,
+) {
+	for event in event.into_iter() {
+		let kind = match event.buildable {
+			Buildable::Accommodation(kind) => kind,
+			_ => unreachable!(),
+		};
+		let start_position = event.start_position;
+		let mut accommodation = OnceLock::new();
+		accommodations.par_iter_mut().for_each_mut(|(entity, area, accommodation_candidate)| {
+			// Perform work immediately, since only one accommodation should contain this accommodation type.
+			if area.contains(&start_position) {
+				let _ = accommodation.set((entity, area, accommodation_candidate));
 			}
-			// Either we or the tiles we overwrote might be part of areas.
-			area_update_event.send_default();
-		},
-		Buildable::PoolArea => {
-			let smaller_corner = start_position.min(*end_position);
-			let larger_corner = start_position.max(*end_position);
-			for x in smaller_corner.x ..= larger_corner.x {
-				for y in smaller_corner.y ..= larger_corner.y {
-					ground_map.set(
-						(x, y, start_position.z).into(),
-						GroundKind::PoolPath,
-						tile_query,
-						commands,
-						asset_server,
-					);
-				}
-			}
-			commands.spawn((Area::from_rect(smaller_corner.into(), larger_corner.into()), Pool));
-			area_update_event.send_default();
-		},
-		Buildable::BasicAccommodation(kind) => {
-			commands.spawn(AccommodationBundle::new(kind, start_position, asset_server));
-		},
-	};
+		});
+
+		if accommodation.get().is_none() {
+			error!("no accommodation");
+			build_error.send(BuildError::NoAccommodationHere);
+			return;
+		}
+		let (accommodation_entity, area, accommodation) = accommodation.get_mut().unwrap();
+		let accommodation_box = GridBox::around(start_position, kind.size().flat());
+		if !area.fits(&accommodation_box) {
+			error!("physical space not enough");
+			build_error.send(BuildError::NoSpace);
+			return;
+		}
+		if area.size() < kind.required_area() {
+			error!("pitch not large enough");
+			build_error.send(BuildError::PitchTooSmall { required: kind.required_area(), actual: area.size() });
+			return;
+		}
+
+		accommodation.kind = Some(kind);
+		if let Some(bundle) = AccommodationBuildingBundle::new(kind, start_position, &asset_server) {
+			commands.entity(*accommodation_entity).with_children(|parent| {
+				parent.spawn(bundle);
+			});
+		}
+
+		commands.entity(*accommodation_entity).remove::<Area>().insert(ImmutableArea((*area).clone()));
+		area_update_event.send_default();
+	}
+	event.clear();
 }
 
 fn handle_build_interactions(
@@ -344,7 +437,10 @@ fn handle_build_interactions(
 	mut state: ResMut<NextState<InputState>>,
 	mut preview: Query<&mut PreviewParent>,
 	all_interacted: Query<&Interaction, (With<Node>, Changed<Interaction>)>,
-	mut event: EventWriter<PerformBuild>,
+	mut accommodation_build_event: EventWriter<PerformBuild<{ BuildableType::Accommodation }>>,
+	mut ground_build_event: EventWriter<PerformBuild<{ BuildableType::Ground }>>,
+	mut accommodation_site_build_event: EventWriter<PerformBuild<{ BuildableType::AccommodationSite }>>,
+	mut pool_build_event: EventWriter<PerformBuild<{ BuildableType::PoolArea }>>,
 ) {
 	let any_ui_active = all_interacted.iter().any(|interaction| interaction != &Interaction::None);
 
@@ -357,11 +453,29 @@ fn handle_build_interactions(
 
 		if mouse.just_released(MouseButton::Left) {
 			state.set(InputState::Idle);
-			event.send(PerformBuild {
-				start_position: preview_data.start_position,
-				end_position:   preview_data.current_position,
-				buildable:      preview_data.previewed,
-			});
+			// Transform a "dynamic" PerformBuild instantiation into a static one.
+			match BuildableType::from(preview_data.previewed) {
+				BuildableType::Ground => ground_build_event.send(PerformBuild {
+					start_position: preview_data.start_position,
+					end_position:   preview_data.current_position,
+					buildable:      preview_data.previewed,
+				}),
+				BuildableType::PoolArea => pool_build_event.send(PerformBuild {
+					start_position: preview_data.start_position,
+					end_position:   preview_data.current_position,
+					buildable:      preview_data.previewed,
+				}),
+				BuildableType::AccommodationSite => accommodation_site_build_event.send(PerformBuild {
+					start_position: preview_data.start_position,
+					end_position:   preview_data.current_position,
+					buildable:      preview_data.previewed,
+				}),
+				BuildableType::Accommodation => accommodation_build_event.send(PerformBuild {
+					start_position: preview_data.start_position,
+					end_position:   preview_data.current_position,
+					buildable:      preview_data.previewed,
+				}),
+			}
 		}
 		// Keep start and current identical as long as the mouse is not pressed.
 		// This has the effect that it establishes the building's start corner once the user starts clicking.

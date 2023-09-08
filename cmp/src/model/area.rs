@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use bevy::utils::{HashSet, Instant};
 use itertools::Itertools;
 
-use super::{BoundingBox, GridBox, GridPosition, GroundKind, GroundMap};
+use super::{Accommodation, BoundingBox, GridBox, GridPosition, GroundKind, GroundMap};
 
 /// A continuous area on the ground, containing various tiles (often of a homogenous type) and demarcating some
 /// important region. For example, pools and accommodations are fundamentally areas.
@@ -28,30 +28,73 @@ impl Area {
 			.cartesian_product(aabb.smallest().y ..= aabb.largest().y)
 			.map(GridPosition::from)
 			.collect();
-		aabb.enlargen((1, 1, 0).into());
+		aabb.enlargen((1, 1, 1).into());
 		Self { tiles, aabb }
 	}
 
-	fn recompute_bounds(&mut self) {
+	pub fn recompute_bounds(&mut self) {
 		let (smallest_x, largest_x) = self.tiles.iter().map(|tile| tile.x).minmax().into_option().unwrap_or((0, 0));
 		let (smallest_y, largest_y) = self.tiles.iter().map(|tile| tile.y).minmax().into_option().unwrap_or((0, 0));
-		self.aabb = GridBox::from_corners((smallest_x, smallest_y, 0).into(), (largest_x + 1, largest_y + 1, 0).into());
+		self.aabb = GridBox::from_corners((smallest_x, smallest_y, 0).into(), (largest_x + 1, largest_y + 1, 1).into());
+	}
+
+	pub fn retain_tiles(&mut self, predicate: impl Fn(&GridPosition) -> bool) {
+		self.tiles.retain(predicate);
+		self.recompute_bounds();
 	}
 
 	#[allow(unused)]
-	fn is_empty(&self) -> bool {
+	#[inline]
+	pub fn is_empty(&self) -> bool {
 		self.tiles.is_empty()
 	}
 
-	#[allow(unused)]
-	fn contains(&self, position: &GridPosition) -> bool {
+	pub fn is_discontinuous(&self) -> bool {
+		if self.is_empty() {
+			return true;
+		}
+		// Flood fill to determine continuity.
+		let mut candidate_tiles = self.tiles.clone();
+		let mut nearby_tiles = VecDeque::new();
+		nearby_tiles.push_back(*candidate_tiles.iter().next().unwrap());
+		while !nearby_tiles.is_empty() {
+			let current_tile = nearby_tiles.pop_front().unwrap();
+			for neighbor in [(-1, 0), (1, 0), (0, -1), (0, 1)]
+				.map(|(x, y)| current_tile + IVec3::from((x, y, 0)))
+				.into_iter()
+				.filter(|neighbor| candidate_tiles.contains(neighbor))
+				.collect_vec()
+			{
+				nearby_tiles.push_back(neighbor);
+				candidate_tiles.remove(&neighbor);
+			}
+		}
+		// If candidates remain, we have a discontinuity.
+		!candidate_tiles.is_empty()
+	}
+
+	#[inline]
+	pub fn size(&self) -> usize {
+		self.tiles.len()
+	}
+
+	#[inline]
+	pub fn contains(&self, position: &GridPosition) -> bool {
 		self.tiles.contains(position)
+	}
+
+	pub fn fits(&self, aabb: &GridBox) -> bool {
+		aabb.floor_positions().all(|grid_position| self.contains(&grid_position))
 	}
 }
 
+/// Stores an area's data, but makes it not participate in area combination anymore.
+#[derive(Component, Debug, Deref, DerefMut)]
+pub struct ImmutableArea(pub Area);
+
 /// A marker component used with the [`Area`] component to mark the area of a specific type and to determine some
 /// type-specific area properties.
-trait AreaMarker: Component {
+pub trait AreaMarker: Component {
 	fn is_allowed_ground_type(&self, kind: GroundKind) -> bool;
 }
 
@@ -70,7 +113,9 @@ pub struct AreaManagement;
 impl Plugin for AreaManagement {
 	fn build(&self, app: &mut App) {
 		// Add event resource manually to circumvent automatic frame-wise event cleanup.
-		app.init_resource::<Events<UpdateAreas>>().add_systems(FixedUpdate, update_areas::<Pool>);
+		app.init_resource::<Events<UpdateAreas>>()
+			.add_systems(FixedUpdate, (update_areas::<Pool>, update_areas::<Accommodation>).before(clean_area_events))
+			.add_systems(FixedUpdate, clean_area_events);
 	}
 }
 
@@ -84,7 +129,7 @@ fn update_areas<T: AreaMarker + Default>(
 	tiles: Res<GroundMap>,
 	mut areas: Query<(Entity, &mut Area, &T)>,
 	mut commands: Commands,
-	mut update: ResMut<Events<UpdateAreas>>,
+	update: Res<Events<UpdateAreas>>,
 	old_area_markers: Query<Entity, With<DebugAreaText>>,
 	// debugging
 	// asset_server: Res<AssetServer>,
@@ -93,7 +138,6 @@ fn update_areas<T: AreaMarker + Default>(
 	if update.is_empty() {
 		return;
 	}
-	update.clear();
 
 	old_area_markers.for_each(|x| commands.entity(x).despawn());
 
@@ -110,7 +154,9 @@ fn update_areas<T: AreaMarker + Default>(
 	let mut new_areas = Vec::new();
 	let mut active_area = Area::default();
 	let mut adjacent_tiles = VecDeque::new();
-	adjacent_tiles.push_front(*remaining_tiles.iter().next().unwrap());
+	if !remaining_tiles.is_empty() {
+		adjacent_tiles.push_front(*remaining_tiles.iter().next().unwrap());
+	}
 	while !remaining_tiles.is_empty() {
 		// No more adjacent tiles; start new area.
 		if adjacent_tiles.is_empty() {
@@ -135,10 +181,11 @@ fn update_areas<T: AreaMarker + Default>(
 			}
 		}
 	}
+	active_area.recompute_bounds();
 	new_areas.push(active_area);
 	let computation_time = Instant::now() - start;
 
-	debug!("after area unification, {} areas remain (in {:?})", new_areas.len(), computation_time);
+	debug!("after unification, {} areas remain (in {:?})", new_areas.len(), computation_time);
 
 	// debugging
 	// for (i, area) in new_areas.iter().enumerate() {
@@ -147,7 +194,10 @@ fn update_areas<T: AreaMarker + Default>(
 	// 			*tile + IVec3::new(0, 0, 3),
 	// 			Text2dBundle {
 	// 				text: Text::from_section(format!("{}", i), TextStyle {
-	// 					font:      asset_server.load(font_for(FontWeight::Regular, FontStyle::Regular)),
+	// 					font:      asset_server.load(crate::graphics::library::font_for(
+	// 						crate::graphics::library::FontWeight::Regular,
+	// 						crate::graphics::library::FontStyle::Regular,
+	// 					)),
 	// 					font_size: 16.,
 	// 					color:     Color::RED,
 	// 				}),
@@ -169,8 +219,12 @@ fn update_areas<T: AreaMarker + Default>(
 				commands.spawn((new, T::default()));
 			},
 			itertools::EitherOrBoth::Right((old_entity, ..)) => {
-				commands.entity(old_entity).despawn();
+				commands.entity(old_entity).despawn_recursive();
 			},
 		}
 	}
+}
+
+fn clean_area_events(mut update: ResMut<Events<UpdateAreas>>) {
+	update.clear();
 }
