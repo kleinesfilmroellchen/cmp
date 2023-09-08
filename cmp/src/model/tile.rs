@@ -5,7 +5,7 @@ use bevy::utils::HashMap;
 
 use super::{BoundingBox, GridPosition};
 use crate::graphics::library::{anchor_for_sprite, sprite_for_ground};
-use crate::graphics::StaticSprite;
+use crate::graphics::{BorderKind, StaticSprite};
 use crate::util::Tooltipable;
 
 pub struct TileManagement;
@@ -54,6 +54,15 @@ impl Tooltipable for GroundKind {
 			Self::Accommodation =>
 				"Accommodation ground looks like grass, but behaves very differently, since it defines where an \
 				 accommodation is situated.",
+		}
+	}
+}
+
+impl GroundKind {
+	pub const fn border_kind(&self) -> Option<BorderKind> {
+		match self {
+			Self::Accommodation => Some(BorderKind::Accommodation),
+			Self::Grass | Self::Pathway | Self::PoolPath => None,
 		}
 	}
 }
@@ -168,23 +177,20 @@ pub fn spawn_test_tiles(
 ) {
 	for x in -100i32 .. 100 {
 		for y in -100i32 .. 100 {
-			let kind = if x.abs() < 2 || y.abs() < 2 {
-				GroundKind::Pathway
-			} else if x > 60 && y > 60 {
-				GroundKind::PoolPath
-			} else {
-				GroundKind::Grass
-			};
+			let kind = if x.abs() < 2 || y.abs() < 2 { GroundKind::Pathway } else { GroundKind::Grass };
 			map.set((x, y, 0).into(), kind, &mut tile_query, &mut commands, &asset_server);
 		}
 	}
 }
 
 pub fn update_ground_textures(
-	mut ground_textures: Query<(&GroundKind, &mut Handle<Image>), Changed<GroundKind>>,
+	mut ground_textures: Query<(Entity, &GroundKind, &mut Handle<Image>), Changed<GroundKind>>,
 	asset_server: Res<AssetServer>,
+	mut commands: Commands,
 ) {
-	for (kind, mut texture) in &mut ground_textures {
+	for (entity, kind, mut texture) in &mut ground_textures {
+		// remove any children of the old tile
+		commands.entity(entity).despawn_descendants();
 		let sprite = sprite_for_ground(*kind);
 		*texture = asset_server.load(sprite);
 	}

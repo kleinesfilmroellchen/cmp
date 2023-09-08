@@ -5,6 +5,7 @@ use bevy::utils::{HashSet, Instant};
 use itertools::Itertools;
 
 use super::{Accommodation, BoundingBox, GridBox, GridPosition, GroundKind, GroundMap};
+use crate::graphics::{BorderSides, BorderSprite, BorderTextures};
 
 /// A continuous area on the ground, containing various tiles (often of a homogenous type) and demarcating some
 /// important region. For example, pools and accommodations are fundamentally areas.
@@ -59,11 +60,8 @@ impl Area {
 		nearby_tiles.push_back(*candidate_tiles.iter().next().unwrap());
 		while !nearby_tiles.is_empty() {
 			let current_tile = nearby_tiles.pop_front().unwrap();
-			for neighbor in [(-1, 0), (1, 0), (0, -1), (0, 1)]
-				.map(|(x, y)| current_tile + IVec3::from((x, y, 0)))
-				.into_iter()
-				.filter(|neighbor| candidate_tiles.contains(neighbor))
-				.collect_vec()
+			for neighbor in
+				current_tile.neighbors().into_iter().filter(|neighbor| candidate_tiles.contains(neighbor)).collect_vec()
 			{
 				nearby_tiles.push_back(neighbor);
 				candidate_tiles.remove(&neighbor);
@@ -87,10 +85,37 @@ impl Area {
 		aabb.floor_positions().all(|grid_position| self.contains(&grid_position))
 	}
 
-	pub fn instantiate_borders(&self, ground_map: &mut GroundMap) {
+	pub fn instantiate_borders(
+		&self,
+		ground_map: &GroundMap,
+		commands: &mut Commands,
+		asset_server: &AssetServer,
+		texture_atlases: &mut Assets<TextureAtlas>,
+		border_textures: &mut BorderTextures,
+	) {
 		for position in &self.tiles {
 			let (entity, kind) = ground_map.get(position).unwrap();
-			todo!();
+			if let Some(border_kind) = kind.border_kind() {
+				let mut sides = BorderSides::all();
+				for neighbor in position.neighbors().into_iter().filter(|neighbor| {
+					self.tiles.contains(neighbor)
+						&& ground_map.kind_of(neighbor).is_some_and(|neighbor_kind| neighbor_kind == kind)
+				}) {
+					sides ^= match *(neighbor - *position) {
+						IVec3::X => BorderSides::Right,
+						IVec3::NEG_X => BorderSides::Left,
+						IVec3::Y => BorderSides::Top,
+						IVec3::NEG_Y => BorderSides::Bottom,
+						_ => unreachable!(),
+					}
+				}
+				let borders = BorderSprite::new(sides, border_kind, asset_server, texture_atlases, border_textures);
+				commands.entity(entity).despawn_descendants().with_children(|tile_parent| {
+					for border in borders {
+						tile_parent.spawn(border);
+					}
+				});
+			}
 		}
 	}
 }
@@ -180,8 +205,7 @@ fn update_areas<T: AreaMarker + Default>(
 			debug!("BUG! {:?} wasn’t a remaining tile, but it was in the queue!", next_tile);
 		}
 		active_area.tiles.insert(next_tile);
-		for delta in [(-1, 0), (1, 0), (0, 1), (0, -1)] {
-			let new_tile = next_tile + IVec2::from(delta);
+		for new_tile in next_tile.neighbors() {
 			// Not a queued tile already, but we need to handle it.
 			if !adjacent_tiles.contains(&new_tile) && remaining_tiles.contains(&new_tile) {
 				adjacent_tiles.push_front(new_tile);

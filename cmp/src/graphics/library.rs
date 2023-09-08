@@ -2,6 +2,7 @@
 
 use bevy::sprite::Anchor;
 
+use super::BorderKind;
 use crate::model::{AccommodationType, Buildable, GroundKind};
 use crate::ui::controls::BuildMenu;
 
@@ -47,6 +48,12 @@ pub fn sprite_for_accommodation(kind: AccommodationType) -> &'static str {
 		AccommodationType::CaravanSite => todo!(),
 		AccommodationType::MobileHome => todo!(),
 		AccommodationType::Cottage => "caravan.png",
+	}
+}
+
+pub fn sprite_for_border_kind(kind: BorderKind) -> &'static str {
+	match kind {
+		BorderKind::Accommodation => "accommodation-site.png",
 	}
 }
 

@@ -2,8 +2,11 @@ use std::sync::OnceLock;
 
 use bevy::core_pipeline::contrast_adaptive_sharpening::ContrastAdaptiveSharpeningSettings;
 use bevy::prelude::*;
+use bevy::utils::HashMap;
+use bitflags::bitflags;
 
-use crate::model::{ActorPosition, BoundingBox, GridBox, GridPosition, WorldPosition};
+use crate::model::area::{Area, ImmutableArea};
+use crate::model::{ActorPosition, BoundingBox, GridBox, GridPosition, GroundMap, WorldPosition};
 
 pub(crate) mod library;
 
@@ -13,13 +16,15 @@ pub struct GraphicsPlugin;
 impl Plugin for GraphicsPlugin {
 	fn build(&self, app: &mut App) {
 		app.insert_resource(Msaa::default())
+			.init_resource::<BorderTextures>()
 			.add_systems(Startup, initialize_graphics)
 			.add_systems(
 				PostUpdate,
 				(position_objects::<ActorPosition>, position_objects::<GridPosition>, position_objects::<GridBox>)
 					.before(sort_bounded_objects_by_z),
 			)
-			.add_systems(PostUpdate, sort_bounded_objects_by_z);
+			.add_systems(PostUpdate, sort_bounded_objects_by_z)
+			.add_systems(FixedUpdate, (update_area_borders, update_immutable_area_borders));
 	}
 }
 
@@ -30,9 +35,117 @@ pub struct StaticSprite {
 	pub(crate) bevy_sprite: SpriteBundle,
 }
 
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum BorderKind {
+	Accommodation,
+}
+
+#[derive(Resource, Default)]
+pub struct BorderTextures {
+	pub textures: HashMap<BorderKind, Handle<TextureAtlas>>,
+}
+
+impl BorderTextures {
+	pub fn get(
+		&mut self,
+		kind: BorderKind,
+		atlas: &mut Assets<TextureAtlas>,
+		asset_server: &AssetServer,
+	) -> Handle<TextureAtlas> {
+		self.textures
+			.entry(kind)
+			.or_insert_with(|| {
+				let sprite = library::sprite_for_border_kind(kind);
+				let image = asset_server.load(sprite);
+				atlas.add(TextureAtlas::from_grid(image, (16., 16.).into(), 4, 1, None, None))
+			})
+			.clone()
+	}
+}
+
 /// Sprite representing a border of a larger area, such as a fence.
 #[derive(Bundle)]
 pub struct BorderSprite {
+	pub sides:                BorderSides,
+	pub kind:                 BorderKind,
+	pub(crate) sprite_bundle: SpriteSheetBundle,
+	/// Used to give the sprite priority before the (flat) ground tiles.
+	pub priority:             BoundingBox,
+}
+
+bitflags! {
+	#[repr(transparent)]
+	#[derive(Component, Clone, Copy, Eq, PartialEq)]
+	pub struct BorderSides : u8 {
+		const Top = 0b0001;
+		const Right = 0b0010;
+		const Bottom = 0b0100;
+		const Left = 0b1000;
+	}
+}
+
+impl BorderSides {
+	pub fn to_sprite_index(self) -> usize {
+		match self {
+			Self::Top => 0,
+			Self::Right => 1,
+			Self::Left => 2,
+			Self::Bottom => 3,
+			_ => panic!("no single sprite index exists for combined sides"),
+		}
+	}
+}
+
+impl BorderSprite {
+	pub fn new<'a>(
+		sides: BorderSides,
+		kind: BorderKind,
+		asset_server: &'a AssetServer,
+		mut texture_atlases: &'a mut Assets<TextureAtlas>,
+		border_textures: &'a mut BorderTextures,
+	) -> impl Iterator<Item = Self> + 'a {
+		let sprite = library::sprite_for_border_kind(kind);
+		sides.iter_names().map(move |(_, side)| Self {
+			sides: side,
+			kind,
+			sprite_bundle: SpriteSheetBundle {
+				sprite: TextureAtlasSprite {
+					anchor: library::anchor_for_sprite(sprite),
+					index: side.to_sprite_index(),
+					..Default::default()
+				},
+				texture_atlas: border_textures.get(kind, texture_atlases, asset_server),
+				..Default::default()
+			},
+			priority: BoundingBox::fixed::<1, 1, 1>(),
+		})
+	}
+}
+
+fn update_area_borders(
+	ground_map: Res<GroundMap>,
+	mut commands: Commands,
+	asset_server: Res<AssetServer>,
+	mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+	mut border_textures: ResMut<BorderTextures>,
+	mut areas: Query<&mut Area, Changed<Area>>,
+) {
+	for area in &mut areas {
+		area.instantiate_borders(&ground_map, &mut commands, &asset_server, &mut texture_atlases, &mut border_textures);
+	}
+}
+
+fn update_immutable_area_borders(
+	ground_map: Res<GroundMap>,
+	mut commands: Commands,
+	asset_server: Res<AssetServer>,
+	mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+	mut border_textures: ResMut<BorderTextures>,
+	mut areas: Query<&mut ImmutableArea, Changed<ImmutableArea>>,
+) {
+	for area in &mut areas {
+		area.instantiate_borders(&ground_map, &mut commands, &asset_server, &mut texture_atlases, &mut border_textures);
+	}
 }
 
 pub fn initialize_graphics(mut commands: Commands, _asset_server: Res<AssetServer>, mut msaa: ResMut<Msaa>) {

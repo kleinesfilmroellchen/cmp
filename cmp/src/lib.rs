@@ -8,7 +8,7 @@
 	try_blocks,
 	iter_intersperse,
 	extract_if,
-	adt_const_params,
+	adt_const_params
 )]
 #![deny(clippy::all, missing_docs)]
 #![allow(clippy::type_complexity, incomplete_features, clippy::too_many_arguments)]

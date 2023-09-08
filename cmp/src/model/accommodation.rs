@@ -2,7 +2,7 @@ use std::marker::ConstParamTy;
 
 use bevy::prelude::*;
 
-use super::area::{AreaMarker, ImmutableArea, Area};
+use super::area::{Area, AreaMarker, ImmutableArea};
 use super::{BoundingBox, GridBox, GridPosition, GroundKind, GroundMap, Metric};
 use crate::graphics::library::{anchor_for_sprite, sprite_for_accommodation};
 use crate::graphics::StaticSprite;

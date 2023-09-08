@@ -112,6 +112,10 @@ impl GridPosition {
 			}
 		})
 	}
+
+	pub fn neighbors(&self) -> [GridPosition; 4] {
+		[(-1, 0), (1, 0), (0, -1), (0, 1)].map(|(x, y)| *self + IVec2::from((x, y)))
+	}
 }
 
 impl WorldPosition for GridPosition {
@@ -201,6 +205,24 @@ impl std::ops::Add<IVec3> for GridPosition {
 	#[inline]
 	fn add(self, rhs: IVec3) -> Self::Output {
 		GridPosition(self.0 + rhs)
+	}
+}
+
+impl std::ops::Sub<GridPosition> for GridPosition {
+	type Output = Self;
+
+	#[inline]
+	fn sub(self, rhs: GridPosition) -> Self::Output {
+		GridPosition(*self - *rhs)
+	}
+}
+
+impl std::ops::Add<GridPosition> for GridPosition {
+	type Output = Self;
+
+	#[inline]
+	fn add(self, rhs: GridPosition) -> Self::Output {
+		GridPosition(*self + *rhs)
 	}
 }
 
