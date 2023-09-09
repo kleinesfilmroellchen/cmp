@@ -85,6 +85,11 @@ impl Area {
 		aabb.floor_positions().all(|grid_position| self.contains(&grid_position))
 	}
 
+	#[inline]
+	pub fn tiles_iter(&self) -> impl Iterator<Item = GridPosition> + '_ {
+		self.tiles.iter().copied()
+	}
+
 	pub fn instantiate_borders(
 		&self,
 		ground_map: &GroundMap,
@@ -128,6 +133,7 @@ pub struct ImmutableArea(pub Area);
 /// type-specific area properties.
 pub trait AreaMarker: Component {
 	fn is_allowed_ground_type(&self, kind: GroundKind) -> bool;
+	fn init_new(area: Area, commands: &mut Commands);
 }
 
 /// Marker for pool areas.
@@ -137,6 +143,10 @@ pub struct Pool;
 impl AreaMarker for Pool {
 	fn is_allowed_ground_type(&self, kind: GroundKind) -> bool {
 		kind == GroundKind::PoolPath
+	}
+
+	fn init_new(area: Area, commands: &mut Commands) {
+		commands.spawn((area, Pool::default()));
 	}
 }
 
@@ -247,7 +257,7 @@ fn update_areas<T: AreaMarker + Default>(
 				*old_area = new;
 			},
 			itertools::EitherOrBoth::Left(new) => {
-				commands.spawn((new, T::default()));
+				T::init_new(new, &mut commands);
 			},
 			itertools::EitherOrBoth::Right((old_entity, ..)) => {
 				commands.entity(old_entity).despawn_recursive();

@@ -1,6 +1,7 @@
 use std::marker::ConstParamTy;
 
 use bevy::prelude::*;
+use bevy::utils::HashSet;
 
 use super::area::{Area, AreaMarker, ImmutableArea};
 use super::{BoundingBox, GridBox, GridPosition, GroundKind, GroundMap, Metric};
@@ -121,11 +122,17 @@ pub struct Accommodation {
 
 impl AreaMarker for Accommodation {
 	fn is_allowed_ground_type(&self, kind: super::GroundKind) -> bool {
-		kind == GroundKind::Accommodation
+		kind == Self::GROUND_TYPE
+	}
+
+	fn init_new(area: Area, commands: &mut Commands) {
+		commands.spawn(AccommodationBundle::from_area(area));
 	}
 }
 
 impl Accommodation {
+	pub const GROUND_TYPE: GroundKind = GroundKind::Accommodation;
+
 	pub fn required_area(&self) -> usize {
 		self.kind.map(|kind| kind.required_area() * (*self.multiplicity as usize)).unwrap_or(0)
 	}
@@ -151,6 +158,17 @@ impl AccommodationBundle {
 			transform:           Transform::default(),
 			computed_visibility: ComputedVisibility::default(),
 			visibility:          Visibility::Visible,
+		}
+	}
+
+	pub fn from_area(area: Area) -> Self {
+		Self {
+			area,
+			accommodation: Accommodation::default(),
+			global_transform: GlobalTransform::default(),
+			transform: Transform::default(),
+			computed_visibility: ComputedVisibility::default(),
+			visibility: Visibility::Visible,
 		}
 	}
 }
@@ -196,21 +214,27 @@ impl Plugin for AccommodationManagement {
 pub fn update_built_accommodations(
 	commands: ParallelCommands,
 	mut accommodations: Query<(Entity, &Accommodation, &Children, &mut ImmutableArea)>,
+	other_areas: Query<&Area>,
 	accommodation_building_children: Query<&GridBox, With<AccommodationBuilding>>,
 	ground_map: Res<GroundMap>,
 ) {
 	if ground_map.is_changed() {
+		let relevant_tiles =
+			|tile: &'_ _| ground_map.kind_of(tile).is_some_and(|kind| kind == Accommodation::GROUND_TYPE);
+		// When the player places accommodation tiles over this finalized accommodation, we have to detect that and
+		// delete the tiles from our area.
+		let foreign_area_tiles =
+			other_areas.into_iter().flat_map(|area| area.tiles_iter().filter(relevant_tiles)).collect::<HashSet<_>>();
+
 		accommodations.par_iter_mut().for_each_mut(|(entity, accommodation, children, mut area)| {
-			area.retain_tiles(|tile| {
-				ground_map.kind_of(tile).is_some_and(|kind| accommodation.is_allowed_ground_type(kind))
-			});
+			area.retain_tiles(|tile| relevant_tiles(tile) && !foreign_area_tiles.contains(tile));
 			let mut should_destroy = false;
 			// Check the three conditions for destroying an updated accommodation:
 			// 1. Area doesn't provide enough tiles for the accommodation type.
 			// 2. Accommodation building is not physically on the area anymore.
 			// 3. Area is discontinuous (for simplification purposes, this always deletes the entire pitch).
 
-			if area.is_empty() | area.is_discontinuous() {
+			if area.is_empty() || area.is_discontinuous() {
 				should_destroy = true;
 			} else {
 				// 2.
