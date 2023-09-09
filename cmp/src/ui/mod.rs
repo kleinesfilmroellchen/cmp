@@ -10,6 +10,7 @@ use crate::model::ALL_BUILDABLES;
 use crate::util::{Lerpable, Tooltip, TooltipPlugin};
 
 pub(crate) mod build;
+pub(crate) mod world_info;
 
 pub struct UIPlugin;
 
@@ -18,8 +19,9 @@ impl Plugin for UIPlugin {
 		app.add_plugins((BuildPlugin, TooltipPlugin))
 			.add_event::<controls::OpenBuildMenu>()
 			.add_event::<controls::CloseBuildMenus>()
-			.add_systems(Startup, initialize_ui)
+			.add_systems(Startup, (initialize_ui, world_info::setup_world_info))
 			.add_systems(Update, (transition_button_interaction, animate_button, update_build_menu_state))
+			.add_systems(Update, (world_info::update_world_info).run_if(in_state(InputState::Idle)))
 			.add_systems(
 				Update,
 				(on_build_menu_button_press, on_start_build_preview.after(on_build_menu_button_press)),

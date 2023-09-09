@@ -101,7 +101,7 @@ impl BorderSprite {
 		sides: BorderSides,
 		kind: BorderKind,
 		asset_server: &'a AssetServer,
-		mut texture_atlases: &'a mut Assets<TextureAtlas>,
+		texture_atlases: &'a mut Assets<TextureAtlas>,
 		border_textures: &'a mut BorderTextures,
 	) -> impl Iterator<Item = Self> + 'a {
 		let sprite = library::sprite_for_border_kind(kind);
@@ -160,8 +160,8 @@ pub fn initialize_graphics(mut commands: Commands, _asset_server: Res<AssetServe
 
 static TRANSFORMATION_MATRIX: OnceLock<Mat3> = OnceLock::new();
 
-const TILE_HEIGHT: f32 = 12.;
-const TILE_WIDTH: f32 = 16.;
+pub const TILE_HEIGHT: f32 = 12.;
+pub const TILE_WIDTH: f32 = 16.;
 
 pub fn position_objects<PositionType: WorldPosition>(
 	mut entities: Query<(&mut Transform, &PositionType), Changed<PositionType>>,

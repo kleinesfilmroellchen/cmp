@@ -6,6 +6,7 @@ use bevy::utils::HashMap;
 use super::{BoundingBox, GridPosition};
 use crate::graphics::library::{anchor_for_sprite, sprite_for_ground};
 use crate::graphics::{BorderKind, StaticSprite};
+use crate::ui::world_info::WorldInfoProperties;
 use crate::util::Tooltipable;
 
 pub struct TileManagement;
@@ -70,10 +71,11 @@ impl GroundKind {
 /// A single tile on the ground defining its size.
 #[derive(Bundle)]
 pub struct GroundTile {
-	position: GridPosition,
-	bounds:   BoundingBox,
-	sprite:   StaticSprite,
-	kind:     GroundKind,
+	position:   GridPosition,
+	bounds:     BoundingBox,
+	sprite:     StaticSprite,
+	kind:       GroundKind,
+	world_info: WorldInfoProperties,
 }
 
 impl GroundTile {
@@ -94,6 +96,7 @@ impl GroundTile {
 			},
 			kind,
 			bounds: BoundingBox::fixed::<1, 1, 0>(),
+			world_info: WorldInfoProperties::basic(kind.to_string(), kind.description().to_string()),
 		}
 	}
 }
@@ -113,7 +116,7 @@ impl GroundMap {
 		&mut self,
 		position: GridPosition,
 		kind: GroundKind,
-		tile_query: &mut Query<(Entity, &GridPosition, &mut GroundKind)>,
+		tile_query: &mut Query<(Entity, &GridPosition, &mut GroundKind, &mut WorldInfoProperties)>,
 		commands: &mut Commands,
 		asset_server: &AssetServer,
 	) {
@@ -124,14 +127,15 @@ impl GroundMap {
 		&mut self,
 		position: GridPosition,
 		kind: GroundKind,
-		tile_query: &mut Query<(Entity, &GridPosition, &mut GroundKind)>,
+		tile_query: &mut Query<(Entity, &GridPosition, &mut GroundKind, &mut WorldInfoProperties)>,
 		commands: &mut Commands,
 		asset_server: &AssetServer,
 	) {
 		if let Some((responsible_entity, old_kind)) = self.map.get_mut(&position) {
-			let (_, _, mut in_world_kind) = tile_query.get_mut(*responsible_entity).unwrap();
+			let (_, _, mut in_world_kind, mut world_info) = tile_query.get_mut(*responsible_entity).unwrap();
 			// Avoid mutation if there is no change, reducing the pressure on update_ground_textures
 			in_world_kind.set_if_neq(kind);
+			*world_info = WorldInfoProperties::basic(kind.to_string(), kind.description().to_string());
 			*old_kind = kind;
 		} else {
 			let new_entity = commands.spawn(GroundTile::new(kind, position, asset_server)).id();
@@ -144,7 +148,7 @@ impl GroundMap {
 		start_position: GridPosition,
 		end_position: GridPosition,
 		kind: GroundKind,
-		tile_query: &mut Query<(Entity, &GridPosition, &mut GroundKind)>,
+		tile_query: &mut Query<(Entity, &GridPosition, &mut GroundKind, &mut WorldInfoProperties)>,
 		commands: &mut Commands,
 		asset_server: &AssetServer,
 	) {
@@ -171,7 +175,7 @@ impl GroundMap {
 
 pub fn spawn_test_tiles(
 	mut commands: Commands,
-	mut tile_query: Query<(Entity, &GridPosition, &mut GroundKind)>,
+	mut tile_query: Query<(Entity, &GridPosition, &mut GroundKind, &mut WorldInfoProperties)>,
 	mut map: ResMut<GroundMap>,
 	asset_server: Res<AssetServer>,
 ) {

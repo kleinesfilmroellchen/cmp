@@ -10,8 +10,8 @@ use itertools::Itertools;
 ///
 /// The unit of world positions is tiles. One tile width corresponds to one world position
 pub trait WorldPosition: Component<Storage = TableStorage> {
-	/// Returns this component’s position in world space. For entities with extents other than 1, this is the center of
-	/// the larger entity.
+	/// Returns this component’s position in world space. For entities with extents other than 1, this is the bottom
+	/// left corner of the larger entity.
 	fn position(&self) -> Vec3A;
 }
 

@@ -8,7 +8,8 @@
 	try_blocks,
 	iter_intersperse,
 	extract_if,
-	adt_const_params
+	adt_const_params,
+	trivial_bounds
 )]
 #![deny(clippy::all, missing_docs)]
 #![allow(clippy::type_complexity, incomplete_features, clippy::too_many_arguments)]
@@ -39,6 +40,9 @@ pub(crate) mod ui;
 pub mod util;
 
 pub use graphics::GraphicsPlugin;
+
+/// Concurrent set implementation with the fast AHash algorithm.
+pub type DashSet<K> = dashmap::DashSet<K, std::hash::BuildHasherDefault<bevy::utils::AHasher>>;
 
 /// Base plugin for the entire core engine.
 /// FIXME: Extract the rendering into its own plugin.

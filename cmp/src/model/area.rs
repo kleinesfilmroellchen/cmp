@@ -146,7 +146,7 @@ impl AreaMarker for Pool {
 	}
 
 	fn init_new(area: Area, commands: &mut Commands) {
-		commands.spawn((area, Pool::default()));
+		commands.spawn((area, Pool));
 	}
 }
 
