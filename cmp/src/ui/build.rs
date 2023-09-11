@@ -8,7 +8,7 @@ use itertools::{EitherOrBoth, Itertools};
 use super::on_start_build_preview;
 use super::world_info::WorldInfoProperties;
 use crate::graphics::library::{anchor_for_sprite, preview_sprite_for_buildable};
-use crate::graphics::{screen_to_world_space, StaticSprite};
+use crate::graphics::{screen_to_world_space, HighPriority, StaticSprite};
 use crate::input::InputState;
 use crate::model::area::{Area, ImmutableArea, Pool, UpdateAreas};
 use crate::model::{
@@ -296,6 +296,7 @@ fn create_building_preview(
 	for event in &mut events {
 		commands.spawn((
 			PreviewParent::new(event.buildable),
+			HighPriority,
 			Visibility::Hidden,
 			// Bare minimum collection of components to make this entity and its children render.
 			Transform::default(),

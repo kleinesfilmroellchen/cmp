@@ -240,6 +240,7 @@ pub struct BoundingBox(pub UVec3);
 
 impl BoundingBox {
 	#[inline]
+	#[allow(unused)]
 	pub const fn height(&self) -> u32 {
 		self.0.z
 	}

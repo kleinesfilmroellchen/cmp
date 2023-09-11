@@ -70,11 +70,15 @@ impl Tooltipable for Buildable {
 	}
 }
 
-pub const ALL_BUILDABLES: [Buildable; 5] = [
+pub const ALL_BUILDABLES: [Buildable; 9] = [
 	Buildable::Ground(GroundKind::Pathway),
 	Buildable::Ground(GroundKind::Grass),
 	Buildable::PoolArea,
 	Buildable::AccommodationSite,
+	Buildable::Accommodation(AccommodationType::TentSite),
+	Buildable::Accommodation(AccommodationType::CaravanSite),
+	Buildable::Accommodation(AccommodationType::PermanentTent),
+	Buildable::Accommodation(AccommodationType::MobileHome),
 	Buildable::Accommodation(AccommodationType::Cottage),
 ];
 
@@ -121,8 +125,16 @@ impl<const MIN: u64, const MAX: u64> TryFrom<u64> for Metric<MIN, MAX> {
 	}
 }
 
+impl<const MIN: u64, const MAX: u64> std::fmt::Display for Metric<MIN, MAX> {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "{}", self.0)
+	}
+}
+
 impl<const MIN: u64, const MAX: u64> Metric<MIN, MAX> {
+	#[allow(unused)]
 	pub const MAX: Self = Self(MAX);
+	#[allow(unused)]
 	pub const MIN: Self = Self(MIN);
 }
 

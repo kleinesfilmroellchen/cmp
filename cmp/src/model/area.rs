@@ -6,6 +6,7 @@ use itertools::Itertools;
 
 use super::{Accommodation, BoundingBox, GridBox, GridPosition, GroundKind, GroundMap};
 use crate::graphics::{BorderSides, BorderSprite, BorderTextures};
+use crate::ui::world_info::WorldInfoProperties;
 
 /// A continuous area on the ground, containing various tiles (often of a homogenous type) and demarcating some
 /// important region. For example, pools and accommodations are fundamentally areas.
@@ -157,7 +158,7 @@ impl Plugin for AreaManagement {
 		// Add event resource manually to circumvent automatic frame-wise event cleanup.
 		app.init_resource::<Events<UpdateAreas>>()
 			.add_systems(FixedUpdate, (update_areas::<Pool>, update_areas::<Accommodation>).before(clean_area_events))
-			.add_systems(FixedUpdate, clean_area_events);
+			.add_systems(FixedUpdate, (clean_area_events, update_area_world_info));
 	}
 }
 
@@ -268,4 +269,29 @@ fn update_areas<T: AreaMarker + Default>(
 
 fn clean_area_events(mut update: ResMut<Events<UpdateAreas>>) {
 	update.clear();
+}
+
+fn update_area_world_info(
+	finalized_accommodations: Query<
+		(&WorldInfoProperties, &ImmutableArea),
+		(Without<Area>, Changed<WorldInfoProperties>),
+	>,
+	unfinalized_accommodations: Query<
+		(&WorldInfoProperties, &Area),
+		(Without<ImmutableArea>, Changed<WorldInfoProperties>),
+	>,
+	ground_map: Res<GroundMap>,
+	mut tiles: Query<&mut WorldInfoProperties, (With<GroundKind>, Without<ImmutableArea>, Without<Area>)>,
+) {
+	for (properties, area) in unfinalized_accommodations
+		.iter()
+		.chain(finalized_accommodations.iter().map(|(properties, area)| (properties, &area.0)))
+	{
+		for tile in area.tiles_iter() {
+			let (tile_entity, _) = ground_map.get(&tile).unwrap();
+			if let Ok(mut tile_properties) = tiles.get_mut(tile_entity) {
+				*tile_properties = properties.clone();
+			}
+		}
+	}
 }

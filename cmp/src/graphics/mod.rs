@@ -21,9 +21,10 @@ impl Plugin for GraphicsPlugin {
 			.add_systems(
 				PostUpdate,
 				(position_objects::<ActorPosition>, position_objects::<GridPosition>, position_objects::<GridBox>)
-					.before(sort_bounded_objects_by_z),
+					.before(sort_bounded_objects_by_z)
+					.before(move_high_priority_objects),
 			)
-			.add_systems(PostUpdate, sort_bounded_objects_by_z)
+			.add_systems(PostUpdate, (sort_bounded_objects_by_z, move_high_priority_objects))
 			.add_systems(FixedUpdate, (update_area_borders, update_immutable_area_borders));
 	}
 }
@@ -148,7 +149,7 @@ fn update_immutable_area_borders(
 	}
 }
 
-pub fn initialize_graphics(mut commands: Commands, _asset_server: Res<AssetServer>, mut msaa: ResMut<Msaa>) {
+fn initialize_graphics(mut commands: Commands, _asset_server: Res<AssetServer>, mut msaa: ResMut<Msaa>) {
 	let projection = OrthographicProjection { scale: 1. / 4., near: -100000., ..Default::default() };
 	commands.spawn((Camera2dBundle { projection, ..Default::default() }, ContrastAdaptiveSharpeningSettings {
 		enabled:             false,
@@ -158,12 +159,15 @@ pub fn initialize_graphics(mut commands: Commands, _asset_server: Res<AssetServe
 	*msaa = Msaa::Off;
 }
 
+#[derive(Clone, Copy, Debug, Default, Component)]
+pub struct HighPriority;
+
 static TRANSFORMATION_MATRIX: OnceLock<Mat3> = OnceLock::new();
 
 pub const TILE_HEIGHT: f32 = 12.;
 pub const TILE_WIDTH: f32 = 16.;
 
-pub fn position_objects<PositionType: WorldPosition>(
+fn position_objects<PositionType: WorldPosition>(
 	mut entities: Query<(&mut Transform, &PositionType), Changed<PositionType>>,
 ) {
 	TRANSFORMATION_MATRIX.get_or_init(|| {
@@ -189,20 +193,22 @@ pub fn position_objects<PositionType: WorldPosition>(
 	}
 }
 
-pub fn sort_bounded_objects_by_z(
-	mut independent_bounded_entities: Query<(&mut Transform, &BoundingBox), (Without<GridBox>, Changed<Transform>)>,
-	mut boxed_entities: Query<(&mut Transform, &GridBox), (Without<BoundingBox>, Changed<Transform>)>,
+fn sort_bounded_objects_by_z(
+	mut independent_bounded_entities: Query<&mut Transform, (With<BoundingBox>, Without<GridBox>, Changed<Transform>)>,
+	mut boxed_entities: Query<&mut Transform, (With<GridBox>, Without<BoundingBox>, Changed<Transform>)>,
 ) {
-	for (mut bevy_transform, bounding_box) in &mut independent_bounded_entities {
-		// Higher objects have higher priority, and objects lower on the screen also have higher priority.
-		bevy_transform.translation.z += bounding_box.height() as f32;
-	}
-	for (mut bevy_transform, grid_box) in &mut boxed_entities {
-		bevy_transform.translation.z += grid_box.height() as f32;
+	for mut bevy_transform in independent_bounded_entities.iter_mut().chain(boxed_entities.iter_mut()) {
+		bevy_transform.translation.z += 1.;
 	}
 }
 
-/// Translates from a screen pixel position back to orld space. Note that z needs to be provided and generally
+fn move_high_priority_objects(mut boxed_entities: Query<&mut Transform, (With<HighPriority>, Changed<Transform>)>) {
+	for mut bevy_transform in &mut boxed_entities {
+		bevy_transform.translation.z += 1000.0;
+	}
+}
+
+/// Translates from a screen pixel position back to world space. Note that z needs to be provided and generally
 /// depends on the surface at the specific location.
 pub fn screen_to_world_space(screen_position: Vec2, z: f32) -> ActorPosition {
 	// The matrix is invertible, since we keep the z dimension when using it normally, so we can make use of that by

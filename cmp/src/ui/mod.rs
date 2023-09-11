@@ -4,6 +4,7 @@ use bevy::prelude::*;
 use build::BuildPlugin;
 
 use self::controls::{BuildMenuContainer, ALL_BUILD_MENUS};
+use self::world_info::reassign_world_info;
 use crate::graphics::library::{logo_for_build_menu, logo_for_buildable};
 use crate::input::InputState;
 use crate::model::ALL_BUILDABLES;
@@ -21,7 +22,8 @@ impl Plugin for UIPlugin {
 			.add_event::<controls::CloseBuildMenus>()
 			.add_systems(Startup, (initialize_ui, world_info::setup_world_info))
 			.add_systems(Update, (transition_button_interaction, animate_button, update_build_menu_state))
-			.add_systems(Update, (world_info::update_world_info).run_if(in_state(InputState::Idle)))
+			.add_systems(Update, (world_info::reassign_world_info, world_info::update_world_info).run_if(in_state(InputState::Idle)))
+			.add_systems(Update, world_info::move_world_info.before(world_info::update_world_info))
 			.add_systems(
 				Update,
 				(on_build_menu_button_press, on_start_build_preview.after(on_build_menu_button_press)),

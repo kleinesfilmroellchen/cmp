@@ -7,6 +7,7 @@ default-members = ["client"]
 version = "0.1.0"
 description = "CMP, the Camping Madness Project game"
 edition = "2021"
+rust-version = "1.74"
 
 
 [profile.dev]

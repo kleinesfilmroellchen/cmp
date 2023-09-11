@@ -43,10 +43,10 @@ pub fn preview_sprite_for_buildable(buildable: Buildable) -> &'static str {
 
 pub fn sprite_for_accommodation(kind: AccommodationType) -> &'static str {
 	match kind {
-		AccommodationType::TentSite => todo!(),
-		AccommodationType::PermanentTent => todo!(),
-		AccommodationType::CaravanSite => todo!(),
-		AccommodationType::MobileHome => todo!(),
+		AccommodationType::TentSite => "tent-post.png",
+		AccommodationType::PermanentTent => "permanent-tent.png",
+		AccommodationType::CaravanSite => "caravan-post.png",
+		AccommodationType::MobileHome => "mobile-home.png",
 		AccommodationType::Cottage => "caravan.png",
 	}
 }

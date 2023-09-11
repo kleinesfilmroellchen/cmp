@@ -7,6 +7,7 @@ use super::area::{Area, AreaMarker, ImmutableArea};
 use super::{BoundingBox, GridBox, GridPosition, GroundKind, GroundMap, Metric};
 use crate::graphics::library::{anchor_for_sprite, sprite_for_accommodation};
 use crate::graphics::StaticSprite;
+use crate::ui::world_info::{WorldInfoProperties, WorldInfoProperty};
 use crate::util::Tooltipable;
 
 /// The different available types of accommodation.
@@ -19,7 +20,7 @@ pub enum AccommodationType {
 	Cottage,
 }
 
-type Comfort = Metric<0, 10>;
+pub type Comfort = Metric<0, 10>;
 
 impl AccommodationType {
 	pub const fn size(&self) -> BoundingBox {
@@ -136,6 +137,19 @@ impl Accommodation {
 	pub fn required_area(&self) -> usize {
 		self.kind.map(|kind| kind.required_area() * (*self.multiplicity as usize)).unwrap_or(0)
 	}
+
+	pub fn apply_properties(&self, properties: &mut WorldInfoProperties) {
+		properties.clear();
+		properties.name = "Accommodation".to_string();
+		properties.description =
+			self.kind.map_or(AccommodationBundle::info_base().description.as_str(), |x| x.description()).to_string();
+		if let Some(kind) = self.kind {
+			properties.push(WorldInfoProperty::AccommodationType(kind));
+			properties.push(WorldInfoProperty::Comfort(kind.comfort()));
+			properties.push(WorldInfoProperty::MinArea(kind.required_area()));
+		}
+		properties.push(WorldInfoProperty::Multiplicity(*self.multiplicity));
+	}
 }
 
 #[derive(Bundle)]
@@ -146,6 +160,7 @@ pub struct AccommodationBundle {
 	transform:           Transform,
 	computed_visibility: ComputedVisibility,
 	visibility:          Visibility,
+	properties:          WorldInfoProperties,
 }
 
 impl AccommodationBundle {
@@ -158,6 +173,7 @@ impl AccommodationBundle {
 			transform:           Transform::default(),
 			computed_visibility: ComputedVisibility::default(),
 			visibility:          Visibility::Visible,
+			properties:          Self::info_base(),
 		}
 	}
 
@@ -169,7 +185,17 @@ impl AccommodationBundle {
 			transform: Transform::default(),
 			computed_visibility: ComputedVisibility::default(),
 			visibility: Visibility::Visible,
+			properties: Self::info_base(),
 		}
+	}
+
+	fn info_base() -> WorldInfoProperties {
+		WorldInfoProperties::basic(
+			"Accommodation".to_string(),
+			"An accommodation, providing residency to visitors. This accommodation is unassigned and cannot house \
+			 visitors currently."
+				.to_string(),
+		)
 	}
 }
 
@@ -207,11 +233,11 @@ impl AccommodationBuildingBundle {
 pub struct AccommodationManagement;
 impl Plugin for AccommodationManagement {
 	fn build(&self, app: &mut App) {
-		app.add_systems(FixedUpdate, update_built_accommodations);
+		app.add_systems(FixedUpdate, (update_built_accommodations, update_accommodation_world_info));
 	}
 }
 
-pub fn update_built_accommodations(
+fn update_built_accommodations(
 	commands: ParallelCommands,
 	mut accommodations: Query<(Entity, &Accommodation, &Children, &mut ImmutableArea)>,
 	other_areas: Query<&Area>,
@@ -254,5 +280,13 @@ pub fn update_built_accommodations(
 				commands.command_scope(|mut commands| commands.entity(entity).despawn_recursive());
 			}
 		});
+	}
+}
+
+fn update_accommodation_world_info(
+	mut accommodations: Query<(&mut WorldInfoProperties, &Accommodation), Changed<Accommodation>>,
+) {
+	for (mut properties, accommodation) in accommodations.iter_mut() {
+		accommodation.apply_properties(&mut properties);
 	}
 }
