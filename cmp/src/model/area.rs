@@ -210,6 +210,7 @@ fn update_areas<T: AreaMarker + Default>(
 			adjacent_tiles.push_front(*remaining_tiles.iter().next().unwrap());
 		}
 		let next_tile = adjacent_tiles.pop_back().unwrap();
+		#[allow(unused)]
 		let did_remove = remaining_tiles.remove(&next_tile);
 		#[cfg(debug_assertions)]
 		if !did_remove {

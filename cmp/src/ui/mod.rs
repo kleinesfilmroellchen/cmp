@@ -4,10 +4,10 @@ use bevy::prelude::*;
 use build::BuildPlugin;
 
 use self::controls::{BuildMenuContainer, ALL_BUILD_MENUS};
-use self::world_info::reassign_world_info;
 use crate::graphics::library::{logo_for_build_menu, logo_for_buildable};
 use crate::input::InputState;
 use crate::model::ALL_BUILDABLES;
+use crate::util::physics_ease::MassDamperSystem;
 use crate::util::{Lerpable, Tooltip, TooltipPlugin};
 
 pub(crate) mod build;
@@ -22,7 +22,10 @@ impl Plugin for UIPlugin {
 			.add_event::<controls::CloseBuildMenus>()
 			.add_systems(Startup, (initialize_ui, world_info::setup_world_info))
 			.add_systems(Update, (transition_button_interaction, animate_button, update_build_menu_state))
-			.add_systems(Update, (world_info::reassign_world_info, world_info::update_world_info).run_if(in_state(InputState::Idle)))
+			.add_systems(
+				Update,
+				(world_info::reassign_world_info, world_info::update_world_info).run_if(in_state(InputState::Idle)),
+			)
 			.add_systems(Update, world_info::move_world_info.before(world_info::update_world_info))
 			.add_systems(
 				Update,
@@ -95,28 +98,24 @@ pub mod controls {
 #[derive(Component, Clone)]
 struct ButtonAnimations {
 	/// Currently playing animation.
-	target:             Interaction,
+	target:          Interaction,
 	/// Stores the original background color so that it can be restored.
-	original_color:     Color,
+	original_color:  Color,
 	/// Stores the original height of the button so that it can be restored.
-	original_height:    f32,
-	/// How far the animation has progressed, a number between 0 and 1.
-	animation_progress: f32,
-	/// Starting color of the button before the animation begun. This allows the animation to proceed from any
-	/// starting point.
-	start_color:        Color,
-	start_height:       f32,
+	original_height: f32,
+	// Physics-based easing systems:
+	height_system:   MassDamperSystem,
+	color_system:    MassDamperSystem,
 }
 
 impl ButtonAnimations {
 	pub fn new(current_color: BackgroundColor, current_style: &Style) -> Self {
 		ButtonAnimations {
-			target:             Interaction::None,
-			original_color:     current_color.0,
-			start_color:        current_color.0,
-			animation_progress: 0.,
-			start_height:       current_style.height.evaluate(0.).unwrap_or(0.),
-			original_height:    current_style.height.evaluate(0.).unwrap_or(0.),
+			target:          Interaction::None,
+			height_system:   MassDamperSystem::new(16., 20., 1.),
+			color_system:    MassDamperSystem::new(4., 4., 1.),
+			original_color:  current_color.0,
+			original_height: current_style.height.evaluate(0.).unwrap_or(0.),
 		}
 	}
 
@@ -128,12 +127,27 @@ impl ButtonAnimations {
 		}
 	}
 
+	pub fn logical_height_position_of(target: Interaction) -> f32 {
+		match target {
+			Interaction::Pressed => 1.,
+			Interaction::Hovered => 1.,
+			Interaction::None => 0.,
+		}
+	}
+
+	pub fn logical_color_position_of(target: Interaction) -> f32 {
+		match target {
+			Interaction::Pressed => 1.,
+			Interaction::Hovered => 0.,
+			Interaction::None => 0.,
+		}
+	}
+
 	/// Starts an animation that transitions to the specific interaction target.
-	pub fn start_transition_to(&mut self, target: Interaction, current_color: &BackgroundColor, current_style: &Style) {
+	pub fn start_transition_to(&mut self, target: Interaction) {
 		self.target = target;
-		self.animation_progress = 0.;
-		self.start_color = current_color.0;
-		self.start_height = current_style.height.evaluate(0.).unwrap_or(0.);
+		self.height_system.set_target(Self::logical_height_position_of(target));
+		self.color_system.set_target(Self::logical_color_position_of(target));
 	}
 
 	/// Runs the regular update of the animation, performing the button animation itself if necessary.
@@ -141,29 +155,20 @@ impl ButtonAnimations {
 		// Animation was finished and finalized before already, no need to do anything.
 		// This order of operations guarantees that we actually reach the target values without needing to set them
 		// every time.
-		if self.animation_progress >= 1. {
-			return;
-		}
 
 		let normalized_delta = time.delta().as_secs_f32() / Self::transition_time_to(self.target).as_secs_f32();
-		self.animation_progress = (self.animation_progress + normalized_delta).clamp(0., 1.);
+		self.height_system.simulate(normalized_delta);
+		self.color_system.simulate(normalized_delta);
 
-		let target_color = match self.target {
-			// FIXME: Use a proper API once available; we just want to make the color slightly darker.
-			Interaction::Pressed => {
-				let [hue, saturation, mut lightness, alpha] = self.original_color.as_hsla_f32();
-				lightness = (lightness - 0.3).clamp(0., 1.);
-				Color::hsla(hue, saturation, lightness, alpha)
-			},
-			Interaction::Hovered | Interaction::None => self.original_color,
+		let target_color = {
+			let [hue, saturation, mut lightness, alpha] = self.original_color.as_hsla_f32();
+			lightness = (lightness - 0.3).clamp(0., 1.);
+			Color::hsla(hue, saturation, lightness, alpha)
 		};
-		let target_height = match self.target {
-			Interaction::Pressed | Interaction::Hovered => self.original_height + 20.,
-			Interaction::None => self.original_height,
-		};
+		let target_height = self.original_height + 20.;
 
-		let current_color = self.start_color.lerp(&target_color, self.animation_progress);
-		let current_height = self.start_height.lerp(&target_height, self.animation_progress);
+		let current_color = self.original_color.lerp(&target_color, self.color_system.position());
+		let current_height = self.original_height.lerp(&target_height, self.height_system.position()).round_ties_even();
 		*color = BackgroundColor(current_color);
 		style.height = Val::Px(current_height);
 	}
@@ -326,13 +331,10 @@ fn initialize_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
 }
 
 fn transition_button_interaction(
-	mut button: Query<
-		(&Interaction, &mut ButtonAnimations, &BackgroundColor, &Style),
-		(Changed<Interaction>, With<Button>),
-	>,
+	mut button: Query<(&Interaction, &mut ButtonAnimations), (Changed<Interaction>, With<Button>)>,
 ) {
-	for (interaction, mut animations, color, style) in &mut button {
-		animations.start_transition_to(*interaction, color, style);
+	for (interaction, mut animations) in &mut button {
+		animations.start_transition_to(*interaction);
 	}
 }
 

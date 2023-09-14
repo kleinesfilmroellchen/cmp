@@ -1,5 +1,6 @@
 //! CMP core engine.
 #![feature(
+	test,
 	duration_constants,
 	let_chains,
 	generators,
@@ -9,10 +10,14 @@
 	iter_intersperse,
 	extract_if,
 	adt_const_params,
-	trivial_bounds
+	trivial_bounds,
+	const_fn_floating_point_arithmetic,
+	round_ties_even
 )]
 #![deny(clippy::all, missing_docs)]
 #![allow(clippy::type_complexity, incomplete_features, clippy::too_many_arguments)]
+
+extern crate test;
 
 use std::sync::Arc;
 use std::time::Duration;

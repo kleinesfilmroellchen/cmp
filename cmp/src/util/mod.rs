@@ -5,6 +5,8 @@ use bevy::text::BreakLineOn;
 
 use crate::graphics::library::{font_for, FontStyle, FontWeight};
 
+pub mod physics_ease;
+
 /// Any property which can be linerarly interpolated with itself. Linear interpolation is a useful tool for many things
 /// in games, like animations and transitions.
 pub trait Lerpable {
