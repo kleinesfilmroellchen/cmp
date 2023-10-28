@@ -425,11 +425,6 @@ impl GridBox {
 		Self { corner, extents }
 	}
 
-	#[inline]
-	pub const fn height(&self) -> u32 {
-		self.extents.height()
-	}
-
 	/// Returns whether the other box object intersects this box object.
 	///
 	/// This is a lower-level API used by various high-level collision functions.
@@ -453,6 +448,7 @@ impl GridBox {
 	/// Returns whether the other box object intersects this box object on the xy plane.
 	///
 	/// This is a lower-level API used by various high-level collision functions.
+	#[allow(unused)]
 	pub fn intersects_2d(&self, other: GridBox) -> bool {
 		let axis_intersects = |own_start, own_end, other_start, other_end| {
 			// Either of our points is between the other’s start and end.
@@ -473,6 +469,7 @@ impl GridBox {
 	/// intersections, such as for construction.
 	///
 	/// Extents use integer vectors, since the collision mechanics for boxes are snapped to the grid.
+	#[allow(unused)]
 	#[inline]
 	pub const fn extents(&self) -> UVec3 {
 		self.extents.0

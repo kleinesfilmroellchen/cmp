@@ -130,6 +130,12 @@ impl Area {
 #[derive(Component, Debug, Deref, DerefMut)]
 pub struct ImmutableArea(pub Area);
 
+impl From<ImmutableArea> for Area {
+	fn from(value: ImmutableArea) -> Self {
+		value.0
+	}
+}
+
 /// A marker component used with the [`Area`] component to mark the area of a specific type and to determine some
 /// type-specific area properties.
 pub trait AreaMarker: Component {
@@ -157,7 +163,12 @@ impl Plugin for AreaManagement {
 	fn build(&self, app: &mut App) {
 		// Add event resource manually to circumvent automatic frame-wise event cleanup.
 		app.init_resource::<Events<UpdateAreas>>()
-			.add_systems(FixedUpdate, (update_areas::<Pool>, update_areas::<Accommodation>).before(clean_area_events))
+			.add_systems(
+				FixedUpdate,
+				(update_areas::<Pool>, update_areas::<Accommodation>)
+					.before(clean_area_events)
+					.before(update_area_world_info),
+			)
 			.add_systems(FixedUpdate, (clean_area_events, update_area_world_info));
 	}
 }
@@ -175,7 +186,7 @@ fn update_areas<T: AreaMarker + Default>(
 	update: Res<Events<UpdateAreas>>,
 	old_area_markers: Query<Entity, With<DebugAreaText>>,
 	// debugging
-	// asset_server: Res<AssetServer>,
+	asset_server: Res<AssetServer>,
 ) {
 	let start = Instant::now();
 	if update.is_empty() {
@@ -231,27 +242,27 @@ fn update_areas<T: AreaMarker + Default>(
 	debug!("after unification, {} areas remain (in {:?})", new_areas.len(), computation_time);
 
 	// debugging
-	// for (i, area) in new_areas.iter().enumerate() {
-	// 	for tile in &area.tiles {
-	// 		commands.spawn((
-	// 			*tile + IVec3::new(0, 0, 3),
-	// 			Text2dBundle {
-	// 				text: Text::from_section(format!("{}", i), TextStyle {
-	// 					font:      asset_server.load(crate::graphics::library::font_for(
-	// 						crate::graphics::library::FontWeight::Regular,
-	// 						crate::graphics::library::FontStyle::Regular,
-	// 					)),
-	// 					font_size: 16.,
-	// 					color:     Color::RED,
-	// 				}),
-	// 				text_anchor: bevy::sprite::Anchor::BottomCenter,
-	// 				visibility: Visibility::Visible,
-	// 				..default()
-	// 			},
-	// 			DebugAreaText,
-	// 		));
-	// 	}
-	// }
+	for (i, area) in new_areas.iter().enumerate() {
+		for tile in &area.tiles {
+			commands.spawn((
+				*tile + IVec3::new(0, 0, 3),
+				Text2dBundle {
+					text: Text::from_section(format!("{}", i), TextStyle {
+						font:      asset_server.load(crate::graphics::library::font_for(
+							crate::graphics::library::FontWeight::Regular,
+							crate::graphics::library::FontStyle::Regular,
+						)),
+						font_size: 16.,
+						color:     Color::RED,
+					}),
+					text_anchor: bevy::sprite::Anchor::BottomCenter,
+					visibility: Visibility::Visible,
+					..default()
+				},
+				DebugAreaText,
+			));
+		}
+	}
 
 	for result in new_areas.into_iter().zip_longest(areas.iter_mut()) {
 		match result {

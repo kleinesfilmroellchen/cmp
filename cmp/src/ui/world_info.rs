@@ -34,6 +34,8 @@ pub enum WorldInfoPropertyDisplay {
 /// somewhere else.
 #[derive(Clone, Debug)]
 pub enum WorldInfoProperty {
+	/// Current area of some object.
+	Area(usize),
 	/// Minimum area of some object.
 	MinArea(usize),
 	/// Comfort level of an [`crate::model::Accommodation`].
@@ -48,6 +50,7 @@ impl WorldInfoProperty {
 	/// Short name of the property.
 	fn property_name(&self) -> String {
 		match self {
+			Self::Area(_) => "Area",
 			Self::MinArea(_) => "Minimum area",
 			Self::Comfort(_) => "Comfort",
 			Self::AccommodationType(_) => "Type",
@@ -59,7 +62,7 @@ impl WorldInfoProperty {
 	/// Formatted value of the property.
 	fn property_value(&self) -> String {
 		match self {
-			Self::MinArea(area) => format!("{}", area),
+			Self::MinArea(area) | Self::Area(area) => format!("{}i²", area),
 			Self::Comfort(comfort) => format!("{}", comfort),
 			Self::AccommodationType(kind) => kind.to_string(),
 			Self::Multiplicity(multiplicity) => format!("{}", multiplicity),
@@ -202,7 +205,9 @@ pub fn reassign_world_info(
 		// PERFORMANCE: Run distance checks in parallel, only locking the current-best node once we have something
 		// that's within the click tolerance anyways.
 		interactable_world_info_entities.par_iter_mut().for_each_mut(|(entity, node_position, mut properties)| {
-			let distance_to_cursor = node_position.translation_vec3a().distance(cursor_position).abs();
+			let mut node_position = node_position.translation_vec3a();
+			node_position.z = 0.;
+			let distance_to_cursor = node_position.distance(cursor_position).abs();
 
 			if distance_to_cursor < 2. * TILE_WIDTH {
 				let mut node_under_cursor = node_under_cursor.lock();

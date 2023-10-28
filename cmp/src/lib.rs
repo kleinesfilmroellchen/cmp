@@ -77,7 +77,7 @@ impl Plugin for CmpPlugin {
 				}),
 		)
 		// Fixed update runs every two seconds and performs slow work that can take this long.
-		.insert_resource(FixedTime::new_from_secs(2.))
+		.insert_resource(FixedTime::new_from_secs(0.5))
 		.add_plugins((GUIInputPlugin, UIPlugin, TileManagement, AccommodationManagement, AreaManagement, ConfigPlugin(args.clone()), ExternalPlugins(args)))
 		.insert_resource(WindowIcon::default())
 		.add_systems(Startup, (debug::create_stats, setup_window, model::spawn_test_tiles))

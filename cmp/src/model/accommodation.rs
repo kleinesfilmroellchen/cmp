@@ -1,9 +1,11 @@
 use std::marker::ConstParamTy;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 use bevy::prelude::*;
 use bevy::utils::HashSet;
 
-use super::area::{Area, AreaMarker, ImmutableArea};
+use super::area::{Area, AreaMarker, ImmutableArea, UpdateAreas};
 use super::{BoundingBox, GridBox, GridPosition, GroundKind, GroundMap, Metric};
 use crate::graphics::library::{anchor_for_sprite, sprite_for_accommodation};
 use crate::graphics::StaticSprite;
@@ -138,9 +140,9 @@ impl Accommodation {
 		self.kind.map(|kind| kind.required_area() * (*self.multiplicity as usize)).unwrap_or(0)
 	}
 
-	pub fn apply_properties(&self, properties: &mut WorldInfoProperties) {
+	pub fn apply_properties(&self, properties: &mut WorldInfoProperties, area: &Area) {
 		properties.clear();
-		properties.name = "Accommodation".to_string();
+		properties.name = AccommodationBundle::info_base().name;
 		properties.description =
 			self.kind.map_or(AccommodationBundle::info_base().description.as_str(), |x| x.description()).to_string();
 		if let Some(kind) = self.kind {
@@ -149,6 +151,7 @@ impl Accommodation {
 			properties.push(WorldInfoProperty::MinArea(kind.required_area()));
 		}
 		properties.push(WorldInfoProperty::Multiplicity(*self.multiplicity));
+		properties.push(WorldInfoProperty::Area(area.size()));
 	}
 }
 
@@ -233,16 +236,18 @@ impl AccommodationBuildingBundle {
 pub struct AccommodationManagement;
 impl Plugin for AccommodationManagement {
 	fn build(&self, app: &mut App) {
-		app.add_systems(FixedUpdate, (update_built_accommodations, update_accommodation_world_info));
+		app.add_systems(FixedUpdate, update_built_accommodations)
+			.add_systems(FixedUpdate, update_accommodation_world_info.after(update_built_accommodations));
 	}
 }
 
 fn update_built_accommodations(
 	commands: ParallelCommands,
-	mut accommodations: Query<(Entity, &Accommodation, &Children, &mut ImmutableArea)>,
+	mut accommodations: Query<(Entity, &mut Accommodation, &Children, &mut ImmutableArea)>,
 	other_areas: Query<&Area>,
 	accommodation_building_children: Query<&GridBox, With<AccommodationBuilding>>,
 	ground_map: Res<GroundMap>,
+	mut update: ResMut<Events<UpdateAreas>>,
 ) {
 	if ground_map.is_changed() {
 		let relevant_tiles =
@@ -252,7 +257,9 @@ fn update_built_accommodations(
 		let foreign_area_tiles =
 			other_areas.into_iter().flat_map(|area| area.tiles_iter().filter(relevant_tiles)).collect::<HashSet<_>>();
 
-		accommodations.par_iter_mut().for_each_mut(|(entity, accommodation, children, mut area)| {
+		let needs_update = Arc::new(AtomicBool::new(false));
+
+		accommodations.par_iter_mut().for_each_mut(|(entity, mut accommodation, children, mut area)| {
 			area.retain_tiles(|tile| relevant_tiles(tile) && !foreign_area_tiles.contains(tile));
 			let mut should_destroy = false;
 			// Check the three conditions for destroying an updated accommodation:
@@ -277,16 +284,38 @@ fn update_built_accommodations(
 				}
 			}
 			if should_destroy {
-				commands.command_scope(|mut commands| commands.entity(entity).despawn_recursive());
+				// Reset the accommodation type into a mutable area without a type.
+				commands.command_scope(|mut commands| {
+					let inner_area: Area = area.clone().into();
+					let mut entity_commands = commands.entity(entity);
+					entity_commands.remove::<ImmutableArea>();
+					entity_commands.insert(inner_area);
+					entity_commands.despawn_descendants();
+				});
+				accommodation.kind = None;
+				accommodation.multiplicity = AccommodationMultiplicity::default();
+				needs_update.store(true, Ordering::Release);
 			}
 		});
+
+		if needs_update.load(Ordering::Acquire) {
+			update.send_default();
+		}
 	}
 }
 
 fn update_accommodation_world_info(
-	mut accommodations: Query<(&mut WorldInfoProperties, &Accommodation), Changed<Accommodation>>,
+	mut immutable_accommodations: Query<
+		(&mut WorldInfoProperties, Ref<Accommodation>, Ref<ImmutableArea>),
+		Without<Area>,
+	>,
+	mut accommodations: Query<(&mut WorldInfoProperties, Ref<Accommodation>, Ref<Area>), Without<ImmutableArea>>,
 ) {
-	for (mut properties, accommodation) in accommodations.iter_mut() {
-		accommodation.apply_properties(&mut properties);
+	for (mut properties, accommodation, area) in accommodations.iter_mut().filter(|(_, _, a)| a.is_changed()) {
+		accommodation.apply_properties(&mut properties, &area);
+	}
+	for (mut properties, accommodation, area) in immutable_accommodations.iter_mut().filter(|(_, _, a)| a.is_changed())
+	{
+		accommodation.apply_properties(&mut properties, &area.0);
 	}
 }
