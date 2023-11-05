@@ -26,7 +26,10 @@ impl Plugin for UIPlugin {
 				Update,
 				(world_info::reassign_world_info, world_info::update_world_info).run_if(in_state(InputState::Idle)),
 			)
-			.add_systems(PostUpdate, world_info::move_world_info)
+			.add_systems(
+				Update,
+				(world_info::move_world_info, world_info::hide_world_info).before(world_info::update_world_info),
+			)
 			.add_systems(
 				Update,
 				(on_build_menu_button_press, on_start_build_preview.after(on_build_menu_button_press)),

@@ -173,6 +173,13 @@ pub fn move_world_info(
 	}
 }
 
+pub fn hide_world_info(mut world_info: Query<&mut WorldInfoUI>, input: Res<Input<KeyCode>>) {
+	let mut world_info_ui = world_info.single_mut();
+	if input.just_pressed(KeyCode::Escape) {
+		world_info_ui.attached_entity = None;
+	}
+}
+
 pub fn reassign_world_info(
 	mouse_buttons: Res<Input<MouseButton>>,
 	windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
