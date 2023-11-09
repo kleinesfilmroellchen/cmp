@@ -60,7 +60,7 @@ impl GridPosition {
 	/// FIXME: Respect the Z dimension; all positions will currently inherit the source's z height.
 	pub fn line_to_2d(self, target: Self) -> impl Iterator<Item = Self> {
 		// Relying on extra unstable features is fun! <https://rust-lang.github.io/rfcs/2033-experimental-coroutines.html>
-		std::iter::from_generator(move || {
+		std::iter::from_coroutine(move || {
 			// Bresenham's algorithm
 			if (self.y - target.y).abs() < (self.x - target.x).abs() {
 				// non-steep slopes

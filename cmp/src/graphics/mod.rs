@@ -2,6 +2,7 @@ use std::sync::OnceLock;
 
 use bevy::core_pipeline::contrast_adaptive_sharpening::ContrastAdaptiveSharpeningSettings;
 use bevy::prelude::*;
+use bevy::sprite::Anchor;
 use bevy::utils::HashMap;
 use bitflags::bitflags;
 
@@ -95,6 +96,16 @@ impl BorderSides {
 			_ => panic!("no single sprite index exists for combined sides"),
 		}
 	}
+
+	// pub fn anchor(self) -> Anchor {
+	// 	const EDGE_OFFSET: IVec2 = IVec2::new(TILE_WIDTH as i32 / 4, TILE_HEIGHT as i32 / 4);
+	// 	self.iter().map(|side| match side {
+	// 		Self::Top => 0,
+	// 		Self::Right => 1,
+	// 		Self::Left => 2,
+	// 		Self::Bottom => 3,
+	// 	})
+	// }
 }
 
 impl BorderSprite {
@@ -111,7 +122,7 @@ impl BorderSprite {
 			kind,
 			sprite_bundle: SpriteSheetBundle {
 				sprite: TextureAtlasSprite {
-					anchor: library::anchor_for_sprite(sprite),
+					anchor: library::anchor_for_sprite(sprite), //side.anchor(),
 					index: side.to_sprite_index(),
 					..Default::default()
 				},
