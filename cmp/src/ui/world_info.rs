@@ -111,7 +111,10 @@ pub fn setup_world_info(mut commands: Commands) {
 					],
 					grid_auto_columns: vec![],
 					grid_auto_rows: vec![],
-					grid_template_columns: vec![RepeatedGridTrack::auto(1), RepeatedGridTrack::fit_content_percent(1, 30.)],
+					grid_template_columns: vec![
+						RepeatedGridTrack::auto(1),
+						RepeatedGridTrack::fit_content_percent(1, 30.),
+					],
 					grid_auto_flow: GridAutoFlow::Row,
 					padding: UiRect::all(Val::Px(5.)),
 					row_gap: Val::Px(5.),

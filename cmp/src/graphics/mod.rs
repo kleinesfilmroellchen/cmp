@@ -273,7 +273,7 @@ fn move_edge_objects_in_front_of_boxes(
 			.min_by_key(|grid_box| grid_box.corner.x + grid_box.corner.y)
 		{
 			let offset = smallest_edge_box.corner.position() - own_position;
-			bevy_transform.translation.z -= (offset.x + offset.y) as f32;
+			bevy_transform.translation.z -= offset.x + offset.y;
 		}
 	});
 }

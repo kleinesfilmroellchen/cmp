@@ -45,7 +45,7 @@ impl From<GridPosition> for ActorPosition {
 impl<T: Into<Vec3A>> From<T> for ActorPosition {
 	#[inline]
 	fn from(value: T) -> Self {
-		Self(Vec3A::from(value.into()).into())
+		Self(value.into())
 	}
 }
 

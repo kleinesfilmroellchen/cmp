@@ -282,7 +282,7 @@ fn update_built_pitches(
 			if should_destroy {
 				// Reset the pitch type into a mutable area without a type.
 				commands.command_scope(|mut commands| {
-					let inner_area: Area = area.clone().into();
+					let inner_area: Area = area.clone();
 					let mut entity_commands = commands.entity(entity);
 					entity_commands.remove::<ImmutableArea>();
 					entity_commands.insert(inner_area);
