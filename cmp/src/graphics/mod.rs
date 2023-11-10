@@ -248,7 +248,6 @@ fn position_objects<PositionType: WorldPosition>(
 		// - Make sure all sprite anchors fall on pixel corners (sprite initialization code)
 		// - Make sure no sprites are scaled (sprite initialization code)
 		bevy_transform.translation = (matrix * world_position).round().into();
-		debug!("{:?}", priority);
 		bevy_transform.translation.z =
 			-world_position.x - world_position.y + priority.map(ObjectPriority::index).unwrap_or(0.);
 	}

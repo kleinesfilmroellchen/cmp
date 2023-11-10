@@ -18,7 +18,7 @@ pub fn sprite_for_ground(kind: GroundKind) -> &'static str {
 pub fn logo_for_build_menu(menu: BuildMenu) -> &'static str {
 	match menu {
 		BuildMenu::Basics => "concrete.png",
-		BuildMenu::Pitch => "caravan.png",
+		BuildMenu::Pitch => "pitch-logo.png",
 		BuildMenu::Pool => "pool.png",
 	}
 }
@@ -27,7 +27,7 @@ pub fn logo_for_buildable(buildable: Buildable) -> &'static str {
 	match buildable {
 		Buildable::Ground(kind) => sprite_for_ground(kind),
 		Buildable::PitchType(kind) => sprite_for_pitch(kind),
-		Buildable::Pitch => "pitch-logo.png",
+		Buildable::Pitch => "pitch-area-logo.png",
 		Buildable::PoolArea => "pool.png",
 	}
 }
