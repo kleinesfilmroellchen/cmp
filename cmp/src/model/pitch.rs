@@ -8,16 +8,16 @@ use bevy::utils::HashSet;
 use super::area::{Area, AreaMarker, ImmutableArea, UpdateAreas};
 use super::{BoundingBox, GridBox, GridPosition, GroundKind, GroundMap, Metric};
 use crate::graphics::library::{anchor_for_sprite, sprite_for_pitch};
-use crate::graphics::StaticSprite;
+use crate::graphics::ObjectPriority;
 use crate::ui::world_info::{WorldInfoProperties, WorldInfoProperty};
 use crate::util::Tooltipable;
 
 /// The different available types of pitch.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, ConstParamTy)]
 pub enum PitchType {
-	TentSite,
+	TentPitch,
 	PermanentTent,
-	CaravanSite,
+	CaravanPitch,
 	MobileHome,
 	Cottage,
 }
@@ -27,7 +27,7 @@ pub type Comfort = Metric<0, 10>;
 impl PitchType {
 	pub const fn size(&self) -> BoundingBox {
 		match self {
-			Self::CaravanSite | Self::TentSite => BoundingBox::fixed::<1, 1, 1>(),
+			Self::CaravanPitch | Self::TentPitch => BoundingBox::fixed::<1, 1, 1>(),
 			Self::PermanentTent => BoundingBox::fixed::<2, 2, 2>(),
 			Self::MobileHome => BoundingBox::fixed::<1, 2, 2>(),
 			Self::Cottage => BoundingBox::fixed::<2, 3, 3>(),
@@ -36,7 +36,7 @@ impl PitchType {
 
 	pub const fn required_area(&self) -> usize {
 		match self {
-			Self::CaravanSite | Self::TentSite => 5 * 5,
+			Self::CaravanPitch | Self::TentPitch => 5 * 5,
 			Self::PermanentTent => 4 * 4,
 			Self::MobileHome => 2 * 4,
 			Self::Cottage => 3 * 4,
@@ -45,9 +45,9 @@ impl PitchType {
 
 	pub fn comfort(&self) -> Comfort {
 		match self {
-			Self::TentSite => 1,
+			Self::TentPitch => 1,
 			Self::PermanentTent => 4,
-			Self::CaravanSite => 3,
+			Self::CaravanPitch => 3,
 			Self::MobileHome => 5,
 			Self::Cottage => 6,
 		}
@@ -59,7 +59,7 @@ impl PitchType {
 	/// entity must be constructed.
 	pub const fn is_real_building(&self) -> bool {
 		match self {
-			Self::CaravanSite | Self::TentSite => false,
+			Self::CaravanPitch | Self::TentPitch => false,
 			Self::PermanentTent | Self::MobileHome | Self::Cottage => true,
 		}
 	}
@@ -68,9 +68,9 @@ impl PitchType {
 impl std::fmt::Display for PitchType {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		write!(f, "{}", match self {
-			Self::TentSite => "Tent Site",
+			Self::TentPitch => "Tent Pitch",
 			Self::PermanentTent => "Permanent Tent",
-			Self::CaravanSite => "Caravan Site",
+			Self::CaravanPitch => "Caravan Pitch",
 			Self::MobileHome => "Mobile Home",
 			Self::Cottage => "Cottage",
 		})
@@ -80,33 +80,31 @@ impl std::fmt::Display for PitchType {
 impl Tooltipable for PitchType {
 	fn description(&self) -> &'static str {
 		match self {
-			Self::TentSite =>
-				"A basic tent site, suitable for a small tent and two people. Tent sites are not more than demarcated \
-				 patches of grass, and take almost no effort to maintain. Only the hardy tent-camping visitors will \
-				 use tent sites, however. Tent sites also take up a relatively large area in comparison to the amount \
-				 of people that can stay there.",
+			Self::TentPitch =>
+				"A basic tent pitch, suitable for a small tent and two people. Tent pitches are not more than \
+				 demarcated patches of grass, and take almost no effort to maintain. Only the hardy tent-camping \
+				 visitors will use tent pitches, however. Tent pitches also take up a relatively large area in \
+				 comparison to the amount of people that can stay there.",
 			Self::PermanentTent =>
 				"A permanently constructed tent for five campers. Due to its construction with wooden flooring under a \
-				 cloth roof, this tent does provide better comfort than a bare camp site, though its spacial \
-				 requirement is only a little less than the large tent site’s. It requires some more upkeep, of \
+				 cloth roof, this tent does provide better comfort than a bare tent pitch, though its spacial \
+				 requirement is only a little less than the large tent pitch’s. It requires some more upkeep, of \
 				 course, but it doesn’t need water or electricity. You can, however, connect those resources anyways, \
 				 which will mildly improve visitor satisfaction.",
-			Self::CaravanSite =>
-				"A site for two or three campers to park their caravans. As opposed to tent sites, caravan sites need \
-				 a permanent water and electricity supply for the vehicles. In turn, less hardy campers with their \
-				 caravans will show up to these pitch spots. As with tent sites, caravan sites provide ample \
+			Self::CaravanPitch =>
+				"A pitch for two or three campers to park their caravans. As opposed to tent pitches, caravan pitches \
+				 need a permanent water and electricity supply for the vehicles. In turn, less hardy campers with \
+				 their caravans will show up to these pitches. As with tent pitches, caravan pitches provide ample \
 				 space for the few visitors.",
 			Self::MobileHome =>
 				"A mobile home, the most basic form of permanent housing for four visitors. Mobile homes are parked \
 				 semi-permanently, need water and electricity, and they provide much more comfort than even a caravan. \
-				 In addition, mobile homes are parked on a rather small patch of land. However, their upkeep is \
-				 significantly more resource-intensive than the simple sites, since campers no longer bring their own \
-				 housing.",
+				 In addition, mobile homes are parked on a rather small pitch. However, their upkeep is significantly \
+				 more resource-intensive than the simple pitches, since campers no longer bring their own housing.",
 			Self::Cottage =>
 				"A basic cottage for up to six visitors. Cottages are not more than semi-permanent wooden huts set up \
-				 on a relatively small patch of land, and they can accommodate a whole group of people pretty \
-				 comfortably. Cottages require water and electricity, and will need to be maintained for visitor \
-				 satisfaction.",
+				 on a relatively small pitch, and they can accommodate a whole group of people pretty comfortably. \
+				 Cottages require water and electricity, and will need to be maintained for visitor satisfaction.",
 		}
 	}
 }
@@ -158,7 +156,7 @@ impl Pitch {
 #[derive(Bundle)]
 pub struct AccommodationBundle {
 	area:                Area,
-	pitch:       Pitch,
+	pitch:               Pitch,
 	global_transform:    GlobalTransform,
 	transform:           Transform,
 	computed_visibility: ComputedVisibility,
@@ -170,7 +168,7 @@ impl AccommodationBundle {
 	pub fn new(start_position: GridPosition, end_position: GridPosition) -> Self {
 		Self {
 			area:                Area::from_rect(start_position, end_position),
-			pitch:       Pitch::default(),
+			pitch:               Pitch::default(),
 			// Make various graphical children of the pitch area (borders, trees, buildings) visible.
 			global_transform:    GlobalTransform::default(),
 			transform:           Transform::default(),
@@ -195,8 +193,7 @@ impl AccommodationBundle {
 	fn info_base() -> WorldInfoProperties {
 		WorldInfoProperties::basic(
 			"Pitch".to_string(),
-			"An pitch, providing residency to visitors. This pitch is unassigned and cannot house \
-			 visitors currently."
+			"A pitch, providing residency to visitors. This pitch is unassigned and cannot house visitors currently."
 				.to_string(),
 		)
 	}
@@ -208,8 +205,9 @@ pub struct AccommodationBuilding;
 #[derive(Bundle)]
 pub struct AccommodationBuildingBundle {
 	pub position: GridBox,
-	pub sprite:   StaticSprite,
+	pub sprite:   SpriteBundle,
 	marker:       AccommodationBuilding,
+	priority:     ObjectPriority,
 }
 
 impl AccommodationBuildingBundle {
@@ -220,14 +218,13 @@ impl AccommodationBuildingBundle {
 			let sprite = sprite_for_pitch(kind);
 			Some(AccommodationBuildingBundle {
 				position: GridBox::around(position, kind.size().flat()),
-				sprite:   StaticSprite {
-					bevy_sprite: SpriteBundle {
-						sprite: Sprite { anchor: anchor_for_sprite(sprite), ..Default::default() },
-						texture: asset_server.load(sprite),
-						..Default::default()
-					},
+				sprite:   SpriteBundle {
+					sprite: Sprite { anchor: anchor_for_sprite(sprite), ..Default::default() },
+					texture: asset_server.load(sprite),
+					..Default::default()
 				},
 				marker:   AccommodationBuilding,
+				priority: ObjectPriority::Normal,
 			})
 		}
 	}
@@ -250,8 +247,7 @@ fn update_built_pitches(
 	mut update: ResMut<Events<UpdateAreas>>,
 ) {
 	if ground_map.is_changed() {
-		let relevant_tiles =
-			|tile: &'_ _| ground_map.kind_of(tile).is_some_and(|kind| kind == Pitch::GROUND_TYPE);
+		let relevant_tiles = |tile: &'_ _| ground_map.kind_of(tile).is_some_and(|kind| kind == Pitch::GROUND_TYPE);
 		// When the player places pitch tiles over this finalized pitch, we have to detect that and
 		// delete the tiles from our area.
 		let foreign_area_tiles =
@@ -305,17 +301,13 @@ fn update_built_pitches(
 }
 
 fn update_pitch_world_info(
-	mut immutable_pitches: Query<
-		(&mut WorldInfoProperties, Ref<Pitch>, Ref<ImmutableArea>),
-		Without<Area>,
-	>,
+	mut immutable_pitches: Query<(&mut WorldInfoProperties, Ref<Pitch>, Ref<ImmutableArea>), Without<Area>>,
 	mut pitches: Query<(&mut WorldInfoProperties, Ref<Pitch>, Ref<Area>), Without<ImmutableArea>>,
 ) {
 	for (mut properties, pitch, area) in pitches.iter_mut().filter(|(_, _, a)| a.is_changed()) {
 		pitch.apply_properties(&mut properties, &area);
 	}
-	for (mut properties, pitch, area) in immutable_pitches.iter_mut().filter(|(_, _, a)| a.is_changed())
-	{
+	for (mut properties, pitch, area) in immutable_pitches.iter_mut().filter(|(_, _, a)| a.is_changed()) {
 		pitch.apply_properties(&mut properties, &area.0);
 	}
 }

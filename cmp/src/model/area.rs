@@ -4,8 +4,9 @@ use bevy::prelude::*;
 use bevy::utils::{HashSet, Instant};
 use itertools::Itertools;
 
-use super::{Pitch, BoundingBox, GridBox, GridPosition, GroundKind, GroundMap};
-use crate::graphics::{BorderSides, BorderSprite, BorderTextures};
+use super::{BoundingBox, GridBox, GridPosition, GroundKind, GroundMap, Pitch};
+use crate::config::GameSettings;
+use crate::graphics::{BorderSides, BorderSprite, BorderTextures, ObjectPriority};
 use crate::ui::world_info::WorldInfoProperties;
 
 /// A continuous area on the ground, containing various tiles (often of a homogenous type) and demarcating some
@@ -113,7 +114,7 @@ impl Area {
 						IVec3::Y => BorderSides::Top,
 						IVec3::NEG_Y => BorderSides::Bottom,
 						_ => unreachable!(),
-					}
+					};
 				}
 				let borders = BorderSprite::new(sides, border_kind, asset_server, texture_atlases, border_textures);
 				commands.entity(entity).despawn_descendants().with_children(|tile_parent| {
@@ -165,9 +166,7 @@ impl Plugin for AreaManagement {
 		app.init_resource::<Events<UpdateAreas>>()
 			.add_systems(
 				FixedUpdate,
-				(update_areas::<Pool>, update_areas::<Pitch>)
-					.before(clean_area_events)
-					.before(update_area_world_info),
+				(update_areas::<Pool>, update_areas::<Pitch>).before(clean_area_events).before(update_area_world_info),
 			)
 			.add_systems(FixedUpdate, (clean_area_events, update_area_world_info));
 	}
@@ -187,6 +186,7 @@ fn update_areas<T: AreaMarker + Default>(
 	old_area_markers: Query<Entity, With<DebugAreaText>>,
 	// debugging
 	asset_server: Res<AssetServer>,
+	settings: Res<GameSettings>,
 ) {
 	let start = Instant::now();
 	if update.is_empty() {
@@ -221,12 +221,12 @@ fn update_areas<T: AreaMarker + Default>(
 			adjacent_tiles.push_front(*remaining_tiles.iter().next().unwrap());
 		}
 		let next_tile = adjacent_tiles.pop_back().unwrap();
-		#[allow(unused)]
+
 		let did_remove = remaining_tiles.remove(&next_tile);
-		#[cfg(debug_assertions)]
 		if !did_remove {
 			debug!("BUG! {:?} wasn’t a remaining tile, but it was in the queue!", next_tile);
 		}
+
 		active_area.tiles.insert(next_tile);
 		for new_tile in next_tile.neighbors() {
 			// Not a queued tile already, but we need to handle it.
@@ -242,32 +242,36 @@ fn update_areas<T: AreaMarker + Default>(
 	debug!("after unification, {} areas remain (in {:?})", new_areas.len(), computation_time);
 
 	// debugging
-	for (i, area) in new_areas.iter().enumerate() {
-		for tile in &area.tiles {
-			commands.spawn((
-				*tile + IVec3::new(0, 0, 3),
-				Text2dBundle {
-					text: Text::from_section(format!("{}", i), TextStyle {
-						font:      asset_server.load(crate::graphics::library::font_for(
-							crate::graphics::library::FontWeight::Regular,
-							crate::graphics::library::FontStyle::Regular,
-						)),
-						font_size: 16.,
-						color:     Color::RED,
-					}),
-					text_anchor: bevy::sprite::Anchor::BottomCenter,
-					visibility: Visibility::Visible,
-					..default()
-				},
-				DebugAreaText,
-			));
+	if settings.show_debug {
+		for (i, area) in new_areas.iter().enumerate() {
+			for tile in &area.tiles {
+				commands.spawn((
+					*tile + IVec3::new(0, 0, 3),
+					Text2dBundle {
+						text: Text::from_section(format!("{}", i), TextStyle {
+							font:      asset_server.load(crate::graphics::library::font_for(
+								crate::graphics::library::FontWeight::Regular,
+								crate::graphics::library::FontStyle::Regular,
+							)),
+							font_size: 16.,
+							color:     Color::RED,
+						}),
+						text_anchor: bevy::sprite::Anchor::BottomCenter,
+						visibility: Visibility::Visible,
+						..default()
+					},
+					DebugAreaText,
+					ObjectPriority::Overlay,
+				));
+			}
 		}
 	}
 
 	for result in new_areas.into_iter().zip_longest(areas.iter_mut()) {
 		match result {
-			itertools::EitherOrBoth::Both(new, (_, mut old_area, _)) => {
+			itertools::EitherOrBoth::Both(new, (old_entity, mut old_area, _)) => {
 				*old_area = new;
+				commands.entity(old_entity).despawn_descendants();
 			},
 			itertools::EitherOrBoth::Left(new) => {
 				T::init_new(new, &mut commands);
@@ -284,20 +288,13 @@ fn clean_area_events(mut update: ResMut<Events<UpdateAreas>>) {
 }
 
 fn update_area_world_info(
-	finalized_pitches: Query<
-		(&WorldInfoProperties, &ImmutableArea),
-		(Without<Area>, Changed<WorldInfoProperties>),
-	>,
-	unfinalized_pitches: Query<
-		(&WorldInfoProperties, &Area),
-		(Without<ImmutableArea>, Changed<WorldInfoProperties>),
-	>,
+	finalized_pitches: Query<(&WorldInfoProperties, &ImmutableArea), (Without<Area>, Changed<WorldInfoProperties>)>,
+	unfinalized_pitches: Query<(&WorldInfoProperties, &Area), (Without<ImmutableArea>, Changed<WorldInfoProperties>)>,
 	ground_map: Res<GroundMap>,
 	mut tiles: Query<&mut WorldInfoProperties, (With<GroundKind>, Without<ImmutableArea>, Without<Area>)>,
 ) {
-	for (properties, area) in unfinalized_pitches
-		.iter()
-		.chain(finalized_pitches.iter().map(|(properties, area)| (properties, &area.0)))
+	for (properties, area) in
+		unfinalized_pitches.iter().chain(finalized_pitches.iter().map(|(properties, area)| (properties, &area.0)))
 	{
 		for tile in area.tiles_iter() {
 			let (tile_entity, _) = ground_map.get(&tile).unwrap();

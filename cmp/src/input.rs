@@ -51,7 +51,9 @@ fn move_camera(
 		let current_world_position =
 			camera.viewport_to_world(camera_global_transform, current_screen_position).unwrap().origin.truncate();
 
-		if let Some(last_screen_position) = last_screen_position.0 && mouse.pressed(MouseButton::Left) {
+		if let Some(last_screen_position) = last_screen_position.0
+			&& mouse.pressed(MouseButton::Left)
+		{
 			let last_world_position =
 				camera.viewport_to_world(camera_global_transform, last_screen_position).unwrap().origin.truncate();
 			let delta = last_world_position - current_world_position;

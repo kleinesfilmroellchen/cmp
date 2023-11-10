@@ -3,7 +3,7 @@
 use bevy::sprite::Anchor;
 
 use super::BorderKind;
-use crate::model::{PitchType, Buildable, GroundKind};
+use crate::model::{Buildable, GroundKind, PitchType};
 use crate::ui::controls::BuildMenu;
 
 pub fn sprite_for_ground(kind: GroundKind) -> &'static str {
@@ -43,9 +43,9 @@ pub fn preview_sprite_for_buildable(buildable: Buildable) -> &'static str {
 
 pub fn sprite_for_pitch(kind: PitchType) -> &'static str {
 	match kind {
-		PitchType::TentSite => "tent-post.png",
+		PitchType::TentPitch => "tent-post.png",
 		PitchType::PermanentTent => "permanent-tent.png",
-		PitchType::CaravanSite => "caravan-post.png",
+		PitchType::CaravanPitch => "caravan-post.png",
 		PitchType::MobileHome => "mobile-home.png",
 		PitchType::Cottage => "caravan.png",
 	}

@@ -1,15 +1,15 @@
 //! Internal world state data models and game mechanics.
 
-pub mod pitch;
 pub mod area;
 pub mod geometry;
+pub mod pitch;
 pub mod tile;
 
 use std::marker::ConstParamTy;
 
-pub use pitch::*;
 use bevy::prelude::*;
 pub use geometry::*;
+pub use pitch::*;
 pub use tile::*;
 
 use crate::ui::build::BuildMode;
@@ -61,9 +61,8 @@ impl Tooltipable for Buildable {
 		match self {
 			Self::PitchType(kind) => kind.description(),
 			Self::Pitch =>
-				"Demarcate a new pitch site. The pitch will initially be empty and cannot take \
-				 visitors. You have to specify the kind of pitch by building an pitch on top of this \
-				 site.",
+				"Demarcate a new pitch site. The pitch will initially be empty and cannot take visitors. You have to \
+				 specify the kind of pitch by building an pitch on top of this site.",
 			Self::Ground(kind) => kind.description(),
 			Self::PoolArea => "Demarcate a pool area to start building a pool.",
 		}
@@ -75,8 +74,8 @@ pub const ALL_BUILDABLES: [Buildable; 9] = [
 	Buildable::Ground(GroundKind::Grass),
 	Buildable::PoolArea,
 	Buildable::Pitch,
-	Buildable::PitchType(PitchType::TentSite),
-	Buildable::PitchType(PitchType::CaravanSite),
+	Buildable::PitchType(PitchType::TentPitch),
+	Buildable::PitchType(PitchType::CaravanPitch),
 	Buildable::PitchType(PitchType::PermanentTent),
 	Buildable::PitchType(PitchType::MobileHome),
 	Buildable::PitchType(PitchType::Cottage),

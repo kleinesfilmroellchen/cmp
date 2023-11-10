@@ -24,10 +24,13 @@ pub struct CommandLineArguments {
 pub struct GameSettings {
 	/// Whether to enable VSync.
 	#[serde(default = "_true")]
-	pub use_vsync: bool,
+	pub use_vsync:  bool,
 	/// Whether to show a detailed FPS display in the upper left corner of the game window.
 	#[serde(default = "_false")]
-	pub show_fps:  bool,
+	pub show_fps:   bool,
+	/// Whether to show various debugging information in the world.
+	#[serde(default = "_false")]
+	pub show_debug: bool,
 }
 
 fn _true() -> bool {
@@ -39,7 +42,24 @@ fn _false() -> bool {
 
 impl Default for GameSettings {
 	fn default() -> Self {
-		Self { use_vsync: true, show_fps: false }
+		Self { use_vsync: true, show_fps: false, show_debug: false }
+	}
+}
+
+impl GameSettings {
+	pub fn from_arg_path(cli_arguments: &CLIResource) -> Self {
+		let maybe_config = if let Some(alternate_settings_file) = &cli_arguments.settings_file {
+			confy::load_path(alternate_settings_file)
+		} else {
+			confy::load(APP_NAME, CONFIG_NAME)
+		};
+		match &maybe_config {
+			Err(why) => {
+				error!("Couldn’t load game settings: {}, falling back to defaults.", why);
+				Self::default()
+			},
+			Ok(config) => *config,
+		}
 	}
 }
 
@@ -61,16 +81,7 @@ impl Plugin for ConfigPlugin {
 }
 
 fn load_settings(mut settings: ResMut<GameSettings>, cli_arguments: Res<CLIResource>) {
-	let maybe_config = if let Some(alternate_settings_file) = &cli_arguments.settings_file {
-		confy::load_path(alternate_settings_file)
-	} else {
-		confy::load(APP_NAME, CONFIG_NAME)
-	};
-	if let Err(why) = &maybe_config {
-		error!("Couldn’t load game settings: {}, falling back to defaults.", why);
-	}
-
-	*settings = maybe_config.unwrap_or_default();
+	*settings = GameSettings::from_arg_path(&cli_arguments);
 }
 
 fn save_settings(settings: Res<GameSettings>, cli_arguments: Res<CLIResource>) {

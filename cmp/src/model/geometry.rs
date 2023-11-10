@@ -382,10 +382,6 @@ impl GridBox {
 		Self { corner: smallest_corner.into(), extents: real_extents.as_uvec3().into() }
 	}
 
-	pub fn from_position(corner: GridPosition) -> Self {
-		Self::new(corner, UVec3::from((1, 1, 1)))
-	}
-
 	#[inline]
 	pub const fn smallest(&self) -> GridPosition {
 		self.corner
@@ -420,16 +416,22 @@ impl GridBox {
 		*self.extents = new_extents.as_uvec3();
 	}
 
-	pub fn with_height(mut self, new_height: u32) -> Self {
-		self.extents = self.extents.with_height(new_height);
-		self
-	}
-
 	/// The corner must be the smallest corner on all axes, otherwise the grid box's invariants are broken and weird
 	/// behavior may result.
 	#[allow(unused)]
 	pub unsafe fn from_raw(corner: GridPosition, extents: BoundingBox) -> Self {
 		Self { corner, extents }
+	}
+
+	/// Returns whether the given position is exactly on the smaller edges (negative X and negative Y) of this AABB.
+	#[inline]
+	pub fn has_on_smaller_edges(&self, position: Vec3A) -> bool {
+		let in_range = |start, end, value| value >= start && value < end;
+
+		let (start_x, start_y, _) = (*self.smallest()).into();
+		let (end_x, end_y, _) = (*self.largest() + IVec3::new(1, 1, 0)).into();
+		(position.x == start_x as f32 && in_range(start_y as f32, end_y as f32, position.y))
+			|| (position.y == start_y as f32 && in_range(start_x as f32, end_x as f32, position.x))
 	}
 
 	/// Returns whether the other box object intersects this box object.
@@ -443,9 +445,9 @@ impl GridBox {
 		};
 
 		let own_start = self.corner;
-		let own_end = own_start + self.extents.as_ivec3();
+		let own_end = self.largest();
 		let other_start = other.corner;
-		let other_end = other_start + other.extents.as_ivec3();
+		let other_end = other.largest();
 
 		axis_intersects(own_start.x, own_end.x, other_start.x, other_end.x)
 			&& axis_intersects(own_start.y, own_end.y, other_start.y, other_end.y)

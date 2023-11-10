@@ -8,7 +8,7 @@ use bevy::utils::HashMap;
 use bitflags::bitflags;
 
 use crate::model::area::{Area, ImmutableArea};
-use crate::model::{ActorPosition, BoundingBox, GridBox, GridPosition, GroundMap, WorldPosition};
+use crate::model::{ActorPosition, GridBox, GridPosition, GroundMap, WorldPosition};
 
 pub(crate) mod library;
 
@@ -23,19 +23,11 @@ impl Plugin for GraphicsPlugin {
 			.add_systems(
 				PostUpdate,
 				(position_objects::<ActorPosition>, position_objects::<GridPosition>, position_objects::<GridBox>)
-					.before(sort_bounded_objects_by_z)
-					.before(move_high_priority_objects),
+					.before(move_edge_objects_in_front_of_boxes),
 			)
-			.add_systems(PostUpdate, (sort_bounded_objects_by_z, move_high_priority_objects))
-			.add_systems(FixedUpdate, (update_area_borders, update_immutable_area_borders));
+			.add_systems(PostUpdate, move_edge_objects_in_front_of_boxes)
+			.add_systems(Update, (update_area_borders, update_immutable_area_borders));
 	}
-}
-
-/// Static, unchanging sprite.
-#[derive(Bundle, Default)]
-pub struct StaticSprite {
-	// Types enforced by Bevy so that the sprite renders. Don’t modify those manually!
-	pub(crate) bevy_sprite: SpriteBundle,
 }
 
 #[derive(Component, Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -69,11 +61,11 @@ impl BorderTextures {
 /// Sprite representing a border of a larger area, such as a fence.
 #[derive(Bundle)]
 pub struct BorderSprite {
-	pub sides:                BorderSides,
+	pub side:                 BorderSides,
 	pub kind:                 BorderKind,
 	pub(crate) sprite_bundle: SpriteSheetBundle,
 	pub offset:               ActorPosition,
-	priority:                 HighPriority,
+	priority:                 ObjectPriority,
 }
 
 bitflags! {
@@ -99,33 +91,39 @@ impl BorderSides {
 	}
 
 	pub fn tile_offset(self) -> Vec2 {
-		const EDGE_OFFSET: Vec2 = Vec2::splat(1. / 4.);
-		self.iter()
+		const BORDER_HEIGHT: f32 = 16.;
+		const BORDER_SIZE: Vec2 = Vec2::new(TILE_WIDTH, BORDER_HEIGHT);
+		// NOTE: The Bevy documentation for Anchor vectors is wrong in 0.11.
+		// The bottom left is -.5, -.5 and the top right is .5, .5.
+		(self
+			.iter()
 			.map(|side| match side {
-				Self::Top => -EDGE_OFFSET,
-				Self::Right => -EDGE_OFFSET + Vec2::X / 2.,
-				// Self::Left => -EDGE_OFFSET + Vec2::Y / 2.,
-				// Self::Bottom => EDGE_OFFSET,
+				Self::Top => Vec2::new(4., 9.),
+				Self::Right => Vec2::new(12., 9.),
+				Self::Left => Vec2::new(4., 4.),
+				Self::Bottom => Vec2::new(11., 4.),
 				_ => Vec2::ZERO,
 			})
-			.sum()
+			.sum::<Vec2>()
+			- BORDER_SIZE / 2.)
+			/ BORDER_SIZE
 	}
 
 	pub fn anchor(self) -> Anchor {
+		// Anchor::Center
 		Anchor::Custom(self.tile_offset())
 	}
 
 	pub fn world_offset(self) -> Vec3A {
 		self.iter()
 			.map(|side| match side {
-				Self::Top => Vec3A::Y,
-				Self::Right => Vec3A::X,
-				// Self::Left => Vec3A::NEG_X,
-				// Self::Bottom => Vec3A::NEG_Y,
+				Self::Top => Vec3A::new(0.5, 1., 0.),
+				Self::Right => Vec3A::new(1., 0.5, 0.),
+				Self::Left => Vec3A::new(0., 0.5, 0.),
+				Self::Bottom => Vec3A::new(0.5, 0., 0.),
 				_ => Vec3A::ZERO,
 			})
 			.sum::<Vec3A>()
-			/ 2.
 	}
 }
 
@@ -137,23 +135,20 @@ impl BorderSprite {
 		texture_atlases: &'a mut Assets<TextureAtlas>,
 		border_textures: &'a mut BorderTextures,
 	) -> impl Iterator<Item = Self> + 'a {
-		sides.iter_names().map(move |(_, side)| {
-			debug!("{:?}: {}", side, side.world_offset());
-			Self {
-				sides: side,
-				kind,
-				sprite_bundle: SpriteSheetBundle {
-					sprite: TextureAtlasSprite {
-						anchor: side.anchor(),
-						index: side.to_sprite_index(),
-						..Default::default()
-					},
-					texture_atlas: border_textures.get(kind, texture_atlases, asset_server),
+		sides.iter_names().map(move |(_, side)| Self {
+			side,
+			kind,
+			sprite_bundle: SpriteSheetBundle {
+				sprite: TextureAtlasSprite {
+					anchor: side.anchor(),
+					index: side.to_sprite_index(),
 					..Default::default()
 				},
-				offset: side.world_offset().into(),
-				priority: HighPriority,
-			}
+				texture_atlas: border_textures.get(kind, texture_atlases, asset_server),
+				..Default::default()
+			},
+			offset: side.world_offset().into(),
+			priority: ObjectPriority::Border,
 		})
 	}
 }
@@ -194,8 +189,38 @@ fn initialize_graphics(mut commands: Commands, _asset_server: Res<AssetServer>, 
 	*msaa = Msaa::Off;
 }
 
-#[derive(Clone, Copy, Debug, Default, Component)]
-pub struct HighPriority;
+/// Graphical object priorities assist in z-sorting objects at the same position.
+#[derive(Clone, Copy, Debug, Component)]
+pub enum ObjectPriority {
+	/// Ground objects have the lowest priority.
+	Ground,
+	/// Normal objects have a priority higher than ground objects so they always appear on top of ground objects on the
+	/// same tile.
+	Normal,
+	/// Tiles on borders need to be elevated since their position makes them a lower z index than they should actually
+	/// be.
+	Border,
+	/// Overlay objects use a very large z offset as to appear on top of any object, even ones that are logically in
+	/// front of them.
+	Overlay,
+}
+
+impl Default for ObjectPriority {
+	fn default() -> Self {
+		Self::Normal
+	}
+}
+
+impl ObjectPriority {
+	pub fn index(&self) -> f32 {
+		match self {
+			ObjectPriority::Ground => 0.,
+			ObjectPriority::Normal => 1.,
+			ObjectPriority::Border => 1.1,
+			ObjectPriority::Overlay => 1000.,
+		}
+	}
+}
 
 static TRANSFORMATION_MATRIX: OnceLock<Mat3> = OnceLock::new();
 
@@ -203,7 +228,7 @@ pub const TILE_HEIGHT: f32 = 12.;
 pub const TILE_WIDTH: f32 = 16.;
 
 fn position_objects<PositionType: WorldPosition>(
-	mut entities: Query<(&mut Transform, &PositionType), Changed<PositionType>>,
+	mut entities: Query<(&mut Transform, &PositionType, Option<&ObjectPriority>), Changed<PositionType>>,
 ) {
 	TRANSFORMATION_MATRIX.get_or_init(|| {
 		// Our iso grid is a simple affine transform away from the real world position.
@@ -215,8 +240,7 @@ fn position_objects<PositionType: WorldPosition>(
 		// Only map z onto the y and z axes. Applying it to z as well will make 2D z sorting work correctly.
 		Mat3::from_cols(x_vector, y_vector, Vec3::Y * (TILE_HEIGHT / 4.).round() + Vec3::Z)
 	});
-	for entity in &mut entities {
-		let (mut bevy_transform, world_position_type) = entity;
+	for (mut bevy_transform, world_position_type, priority) in &mut entities {
 		let world_position = world_position_type.position();
 		let matrix = TRANSFORMATION_MATRIX.get().cloned().unwrap();
 		// The translation rounding here is about 90% of pixel-perfectness:
@@ -224,23 +248,34 @@ fn position_objects<PositionType: WorldPosition>(
 		// - Make sure all sprite anchors fall on pixel corners (sprite initialization code)
 		// - Make sure no sprites are scaled (sprite initialization code)
 		bevy_transform.translation = (matrix * world_position).round().into();
-		bevy_transform.translation.z = -world_position.x - world_position.y;
+		debug!("{:?}", priority);
+		bevy_transform.translation.z =
+			-world_position.x - world_position.y + priority.map(ObjectPriority::index).unwrap_or(0.);
 	}
 }
 
-fn sort_bounded_objects_by_z(
-	mut independent_bounded_entities: Query<&mut Transform, (With<BoundingBox>, Without<GridBox>, Changed<Transform>)>,
-	mut boxed_entities: Query<&mut Transform, (With<GridBox>, Without<BoundingBox>, Changed<Transform>)>,
+fn move_edge_objects_in_front_of_boxes(
+	mut edge_objects: Query<(&mut Transform, &ActorPosition, Option<&Parent>), Changed<Transform>>,
+	possible_parents: Query<&GridPosition, With<Children>>,
+	boxed_entities: Query<&GridBox>,
 ) {
-	for mut bevy_transform in independent_bounded_entities.iter_mut().chain(boxed_entities.iter_mut()) {
-		bevy_transform.translation.z += 1.;
-	}
-}
+	edge_objects.par_iter_mut().for_each_mut(|(mut bevy_transform, edge_object_position, parent)| {
+		let own_position = if let Some(parent) = parent.and_then(|parent| possible_parents.get(parent.get()).ok()) {
+			parent.position() + **edge_object_position
+		} else {
+			**edge_object_position
+		};
 
-fn move_high_priority_objects(mut boxed_entities: Query<&mut Transform, (With<HighPriority>, Changed<Transform>)>) {
-	for mut bevy_transform in &mut boxed_entities {
-		bevy_transform.translation.z += 1000.0;
-	}
+		// PERFORMANCE: This is a prime optimization candidate.
+		if let Some(smallest_edge_box) = boxed_entities
+			.iter()
+			.filter(|grid_box| grid_box.has_on_smaller_edges(own_position))
+			.min_by_key(|grid_box| grid_box.corner.x + grid_box.corner.y)
+		{
+			let offset = smallest_edge_box.corner.position() - own_position;
+			bevy_transform.translation.z -= (offset.x + offset.y) as f32;
+		}
+	});
 }
 
 /// Translates from a screen pixel position back to world space. Note that z needs to be provided and generally

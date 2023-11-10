@@ -8,12 +8,12 @@ use itertools::{EitherOrBoth, Itertools};
 use super::on_start_build_preview;
 use super::world_info::WorldInfoProperties;
 use crate::graphics::library::{anchor_for_sprite, preview_sprite_for_buildable};
-use crate::graphics::{screen_to_world_space, HighPriority, StaticSprite};
+use crate::graphics::{screen_to_world_space, ObjectPriority};
 use crate::input::InputState;
 use crate::model::area::{Area, ImmutableArea, Pool, UpdateAreas};
 use crate::model::{
-	Pitch, AccommodationBuildingBundle, AccommodationBundle, Buildable, BuildableType, GridBox, GridPosition,
-	GroundKind, GroundMap,
+	AccommodationBuildingBundle, AccommodationBundle, Buildable, BuildableType, GridBox, GridPosition, GroundKind,
+	GroundMap, Pitch,
 };
 
 pub struct BuildPlugin;
@@ -42,12 +42,7 @@ impl Plugin for BuildPlugin {
 			.add_systems(OnExit(InputState::Building), destroy_building_preview.after(update_building_preview))
 			.add_systems(
 				Update,
-				(
-					perform_pitch_build,
-					perform_pitch_type_build,
-					perform_ground_build,
-					perform_pool_area_build,
-				),
+				(perform_pitch_build, perform_pitch_type_build, perform_ground_build, perform_pool_area_build),
 			);
 	}
 }
@@ -69,12 +64,12 @@ struct PerformBuild<const BUILDABLE: BuildableType> {
 /// Any reason that the build could not be completed; eventually propagated to the end-user.
 #[derive(Event, Error, Debug)]
 enum BuildError {
-	#[error("There is no pitch pitch to build on here.")]
+	#[error("There is no pitch to build on here.")]
 	NoAccommodationHere,
 	#[error("Building doesn’t have enough space to be built here.")]
 	NoSpace,
 	#[error(
-		"The pitch is too small for this pitch; {} tiles are required but there are only {} \
+		"The pitch area is too small for this pitch type; {} tiles are required but there are only {} \
 		 tiles.", .required, .actual
 	)]
 	PitchTooSmall { required: usize, actual: usize },
@@ -116,33 +111,31 @@ impl BuildMode {
 	fn update_preview<'a>(
 		&self,
 		PreviewParent { previewed, start_position, current_position }: PreviewParent,
-		mut current_children: impl Iterator<Item = (Entity, Mut<'a, GridBox>)>,
+		mut current_children: impl Iterator<Item = (Entity, Mut<'a, GridPosition>)>,
 		parent_entity: Entity,
 		commands: &mut Commands,
 		asset_server: &AssetServer,
 	) {
-		const PREVIEW_TINT: Color = Color::Hsla { hue: 0., saturation: 1., lightness: 1., alpha: 0.4 };
+		const PREVIEW_TINT: Color = Color::Hsla { hue: 0., saturation: 0.5, lightness: 1., alpha: 0.7 };
 
 		match self {
 			Self::Single => {
 				// Using start_position has the effect of "locking" the building where the click started.
-				let preview_position = GridBox::around(start_position, previewed.size().flat()).with_height(1000);
+				let preview_position = GridBox::around(start_position, previewed.size().flat()).smallest();
 				let any_child = current_children.next();
 				if let Some((_, mut existing_child)) = any_child {
 					*existing_child = preview_position;
 				} else {
 					let sprite = preview_sprite_for_buildable(previewed);
 					commands.entity(parent_entity).with_children(|parent| {
-						parent.spawn((PreviewChild, preview_position, StaticSprite {
-							bevy_sprite: SpriteBundle {
-								sprite: Sprite {
-									color: PREVIEW_TINT,
-									anchor: anchor_for_sprite(sprite),
-									..Default::default()
-								},
-								texture: asset_server.load(sprite),
+						parent.spawn((PreviewChild, preview_position, ObjectPriority::Overlay, SpriteBundle {
+							sprite: Sprite {
+								color: PREVIEW_TINT,
+								anchor: anchor_for_sprite(sprite),
 								..Default::default()
 							},
+							texture: asset_server.load(sprite),
+							..Default::default()
 						}));
 					});
 				}
@@ -151,27 +144,20 @@ impl BuildMode {
 				let required_positions = start_position.line_to_2d(current_position);
 				for element in required_positions.zip_longest(current_children) {
 					match element {
-						EitherOrBoth::Both(position, (_, mut child)) => child.corner = position,
+						EitherOrBoth::Both(position, (_, mut child)) => *child = position,
 						// Create new child.
 						EitherOrBoth::Left(position) => {
 							let sprite = preview_sprite_for_buildable(previewed);
 							commands.entity(parent_entity).with_children(|parent| {
-								parent.spawn((
-									PreviewChild,
-									// Extremely high priority.
-									GridBox::new(position, previewed.size()).with_height(1000),
-									StaticSprite {
-										bevy_sprite: SpriteBundle {
-											sprite: Sprite {
-												color: PREVIEW_TINT,
-												anchor: anchor_for_sprite(sprite),
-												..Default::default()
-											},
-											texture: asset_server.load(sprite),
-											..Default::default()
-										},
+								parent.spawn((PreviewChild, ObjectPriority::Overlay, position, SpriteBundle {
+									sprite: Sprite {
+										color: PREVIEW_TINT,
+										anchor: anchor_for_sprite(sprite),
+										..Default::default()
 									},
-								));
+									texture: asset_server.load(sprite),
+									..Default::default()
+								}));
 							});
 						},
 						// Destroy not needed child.
@@ -191,24 +177,22 @@ impl BuildMode {
 				for x in smaller_corner.x ..= larger_corner.x {
 					for y in smaller_corner.y ..= larger_corner.y {
 						if let Some((_, mut old_child_position)) = current_children.next() {
-							old_child_position.corner.x = x;
-							old_child_position.corner.y = y;
+							old_child_position.x = x;
+							old_child_position.y = y;
 						} else {
 							parent.with_children(|parent| {
 								parent.spawn((
 									PreviewChild,
-									// Extremely high priority.
-									GridBox::from_position((x, y, start_position.z).into()).with_height(1000),
-									StaticSprite {
-										bevy_sprite: SpriteBundle {
-											sprite: Sprite {
-												color: PREVIEW_TINT,
-												anchor: anchor_for_sprite(sprite),
-												..Default::default()
-											},
-											texture: asset_server.load(sprite),
+									ObjectPriority::Overlay,
+									GridPosition::from((x, y, start_position.z)),
+									SpriteBundle {
+										sprite: Sprite {
+											color: PREVIEW_TINT,
+											anchor: anchor_for_sprite(sprite),
 											..Default::default()
 										},
+										texture: asset_server.load(sprite),
+										..Default::default()
 									},
 								));
 							});
@@ -255,7 +239,7 @@ fn update_building_preview(
 	mouse: Res<Input<MouseButton>>,
 	mut commands: Commands,
 	mut preview: Query<(Entity, Option<&mut Children>, &PreviewParent, &mut Visibility)>,
-	preview_children: Query<&mut GridBox, With<PreviewChild>>,
+	preview_children: Query<&mut GridPosition, With<PreviewChild>>,
 	asset_server: Res<AssetServer>,
 ) {
 	for (parent_entity, children, preview_data, mut visibility) in &mut preview {
@@ -296,7 +280,7 @@ fn create_building_preview(
 	for event in &mut events {
 		commands.spawn((
 			PreviewParent::new(event.buildable),
-			HighPriority,
+			ObjectPriority::Overlay,
 			Visibility::Hidden,
 			// Bare minimum collection of components to make this entity and its children render.
 			Transform::default(),

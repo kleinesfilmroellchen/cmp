@@ -3,9 +3,9 @@ use std::marker::ConstParamTy;
 use bevy::prelude::*;
 use bevy::utils::HashMap;
 
-use super::{BoundingBox, GridPosition};
+use super::GridPosition;
 use crate::graphics::library::{anchor_for_sprite, sprite_for_ground};
-use crate::graphics::{BorderKind, StaticSprite};
+use crate::graphics::{BorderKind, ObjectPriority};
 use crate::ui::world_info::WorldInfoProperties;
 use crate::util::Tooltipable;
 
@@ -23,7 +23,6 @@ pub enum GroundKind {
 	Grass,
 	Pathway,
 	PoolPath,
-	/// Pitch surface.
 	Pitch,
 }
 
@@ -53,8 +52,8 @@ impl Tooltipable for GroundKind {
 				"Pool paths are similar to pathways, but they instead serve as the floor material of all pools. You \
 				 can therefore easily identify a pool area by this flooring.",
 			Self::Pitch =>
-				"Pitch ground looks like grass, but behaves very differently, since it defines where an \
-				 pitch is situated.",
+				"Pitch ground looks like grass, but behaves very differently, since it defines where a pitch is \
+				 situated.",
 		}
 	}
 }
@@ -72,8 +71,8 @@ impl GroundKind {
 #[derive(Bundle)]
 pub struct GroundTile {
 	position:   GridPosition,
-	bounds:     BoundingBox,
-	sprite:     StaticSprite,
+	priority:   ObjectPriority,
+	sprite:     SpriteBundle,
 	kind:       GroundKind,
 	world_info: WorldInfoProperties,
 }
@@ -83,19 +82,17 @@ impl GroundTile {
 		let sprite = sprite_for_ground(kind);
 		GroundTile {
 			position,
-			sprite: StaticSprite {
-				bevy_sprite: SpriteBundle {
-					sprite: Sprite {
-						anchor: anchor_for_sprite(sprite),
-						// flip_y: ((position.0.x % 5) >= (position.0.y % 7)) ^ (position.0.z % 3 == 0),
-						..Default::default()
-					},
-					texture: asset_server.load(sprite),
+			sprite: SpriteBundle {
+				sprite: Sprite {
+					anchor: anchor_for_sprite(sprite),
+					// flip_x: ((position.x % 5) ^ (position.y % 7) ^ (position.z % 11)) & (1 << 3) == 0,
 					..Default::default()
 				},
+				texture: asset_server.load(sprite),
+				..Default::default()
 			},
+			priority: ObjectPriority::Ground,
 			kind,
-			bounds: BoundingBox::fixed::<1, 1, 0>(),
 			world_info: WorldInfoProperties::basic(kind.to_string(), kind.description().to_string()),
 		}
 	}

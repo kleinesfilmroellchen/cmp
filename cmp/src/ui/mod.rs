@@ -59,7 +59,7 @@ pub mod controls {
 		fn description(&self) -> &'static str {
 			match self {
 				Self::Basics => "Fundamental buildings and objects.",
-				Self::Pitch => "Visitor pitches, such as tent spots, caravans or mobile homes.",
+				Self::Pitch => "Pitches housing visitors, such as tent pitches, caravans or mobile homes.",
 				Self::Pool => "Everything for swimming pools.",
 			}
 		}
@@ -68,7 +68,7 @@ pub mod controls {
 	impl std::fmt::Display for BuildMenu {
 		fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 			write!(f, "{}", match self {
-				Self::Pitch => "Pitch",
+				Self::Pitch => "Pitches",
 				Self::Basics => "The Basics",
 				Self::Pool => "Swimming Pools",
 			})
