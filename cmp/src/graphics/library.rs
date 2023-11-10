@@ -3,7 +3,7 @@
 use bevy::sprite::Anchor;
 
 use super::BorderKind;
-use crate::model::{AccommodationType, Buildable, GroundKind};
+use crate::model::{PitchType, Buildable, GroundKind};
 use crate::ui::controls::BuildMenu;
 
 pub fn sprite_for_ground(kind: GroundKind) -> &'static str {
@@ -11,14 +11,14 @@ pub fn sprite_for_ground(kind: GroundKind) -> &'static str {
 		GroundKind::Grass => "grass.png",
 		GroundKind::Pathway => "gravel.png",
 		GroundKind::PoolPath => "pool.png",
-		GroundKind::Accommodation => "accommodation-site-tile.png",
+		GroundKind::Pitch => "pitch-tile.png",
 	}
 }
 
 pub fn logo_for_build_menu(menu: BuildMenu) -> &'static str {
 	match menu {
 		BuildMenu::Basics => "concrete.png",
-		BuildMenu::Accommodation => "caravan.png",
+		BuildMenu::Pitch => "caravan.png",
 		BuildMenu::Pool => "pool.png",
 	}
 }
@@ -26,8 +26,8 @@ pub fn logo_for_build_menu(menu: BuildMenu) -> &'static str {
 pub fn logo_for_buildable(buildable: Buildable) -> &'static str {
 	match buildable {
 		Buildable::Ground(kind) => sprite_for_ground(kind),
-		Buildable::Accommodation(kind) => sprite_for_accommodation(kind),
-		Buildable::AccommodationSite => "accommodation-logo.png",
+		Buildable::PitchType(kind) => sprite_for_pitch(kind),
+		Buildable::Pitch => "pitch-logo.png",
 		Buildable::PoolArea => "pool.png",
 	}
 }
@@ -35,25 +35,25 @@ pub fn logo_for_buildable(buildable: Buildable) -> &'static str {
 pub fn preview_sprite_for_buildable(buildable: Buildable) -> &'static str {
 	match buildable {
 		Buildable::Ground(kind) => sprite_for_ground(kind),
-		Buildable::Accommodation(kind) => sprite_for_accommodation(kind),
-		Buildable::AccommodationSite => "accommodation-site-tile.png",
+		Buildable::PitchType(kind) => sprite_for_pitch(kind),
+		Buildable::Pitch => "pitch-tile.png",
 		Buildable::PoolArea => "pool.png",
 	}
 }
 
-pub fn sprite_for_accommodation(kind: AccommodationType) -> &'static str {
+pub fn sprite_for_pitch(kind: PitchType) -> &'static str {
 	match kind {
-		AccommodationType::TentSite => "tent-post.png",
-		AccommodationType::PermanentTent => "permanent-tent.png",
-		AccommodationType::CaravanSite => "caravan-post.png",
-		AccommodationType::MobileHome => "mobile-home.png",
-		AccommodationType::Cottage => "caravan.png",
+		PitchType::TentSite => "tent-post.png",
+		PitchType::PermanentTent => "permanent-tent.png",
+		PitchType::CaravanSite => "caravan-post.png",
+		PitchType::MobileHome => "mobile-home.png",
+		PitchType::Cottage => "caravan.png",
 	}
 }
 
 pub fn sprite_for_border_kind(kind: BorderKind) -> &'static str {
 	match kind {
-		BorderKind::Accommodation => "accommodation-site.png",
+		BorderKind::Pitch => "pitch-border.png",
 	}
 }
 

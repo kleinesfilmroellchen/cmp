@@ -24,7 +24,7 @@ pub enum GroundKind {
 	Pathway,
 	PoolPath,
 	/// Pitch surface.
-	Accommodation,
+	Pitch,
 }
 
 impl Default for GroundKind {
@@ -39,7 +39,7 @@ impl std::fmt::Display for GroundKind {
 			Self::Grass => "Grass",
 			Self::Pathway => "Pathway",
 			Self::PoolPath => "Pool Path",
-			Self::Accommodation => "Accommodation",
+			Self::Pitch => "Pitch",
 		})
 	}
 }
@@ -52,9 +52,9 @@ impl Tooltipable for GroundKind {
 			Self::PoolPath =>
 				"Pool paths are similar to pathways, but they instead serve as the floor material of all pools. You \
 				 can therefore easily identify a pool area by this flooring.",
-			Self::Accommodation =>
-				"Accommodation ground looks like grass, but behaves very differently, since it defines where an \
-				 accommodation is situated.",
+			Self::Pitch =>
+				"Pitch ground looks like grass, but behaves very differently, since it defines where an \
+				 pitch is situated.",
 		}
 	}
 }
@@ -62,7 +62,7 @@ impl Tooltipable for GroundKind {
 impl GroundKind {
 	pub const fn border_kind(&self) -> Option<BorderKind> {
 		match self {
-			Self::Accommodation => Some(BorderKind::Accommodation),
+			Self::Pitch => Some(BorderKind::Pitch),
 			Self::Grass | Self::Pathway | Self::PoolPath => None,
 		}
 	}

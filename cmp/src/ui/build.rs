@@ -12,7 +12,7 @@ use crate::graphics::{screen_to_world_space, HighPriority, StaticSprite};
 use crate::input::InputState;
 use crate::model::area::{Area, ImmutableArea, Pool, UpdateAreas};
 use crate::model::{
-	Accommodation, AccommodationBuildingBundle, AccommodationBundle, Buildable, BuildableType, GridBox, GridPosition,
+	Pitch, AccommodationBuildingBundle, AccommodationBundle, Buildable, BuildableType, GridBox, GridPosition,
 	GroundKind, GroundMap,
 };
 
@@ -22,8 +22,8 @@ impl Plugin for BuildPlugin {
 	fn build(&self, app: &mut App) {
 		app.add_event::<StartBuildPreview>()
 			.add_event::<PerformBuild<{ BuildableType::Ground }>>()
-			.add_event::<PerformBuild<{ BuildableType::Accommodation }>>()
-			.add_event::<PerformBuild<{ BuildableType::AccommodationSite }>>()
+			.add_event::<PerformBuild<{ BuildableType::Pitch }>>()
+			.add_event::<PerformBuild<{ BuildableType::PitchType }>>()
 			.add_event::<PerformBuild<{ BuildableType::PoolArea }>>()
 			.add_event::<BuildError>()
 			.add_systems(
@@ -43,8 +43,8 @@ impl Plugin for BuildPlugin {
 			.add_systems(
 				Update,
 				(
-					perform_accommodation_site_build,
-					perform_accommodation_type_build,
+					perform_pitch_build,
+					perform_pitch_type_build,
 					perform_ground_build,
 					perform_pool_area_build,
 				),
@@ -69,12 +69,12 @@ struct PerformBuild<const BUILDABLE: BuildableType> {
 /// Any reason that the build could not be completed; eventually propagated to the end-user.
 #[derive(Event, Error, Debug)]
 enum BuildError {
-	#[error("There is no accommodation pitch to build on here.")]
+	#[error("There is no pitch pitch to build on here.")]
 	NoAccommodationHere,
 	#[error("Building doesn’t have enough space to be built here.")]
 	NoSpace,
 	#[error(
-		"The pitch is too small for this accommodation; {} tiles are required but there are only {} \
+		"The pitch is too small for this pitch; {} tiles are required but there are only {} \
 		 tiles.", .required, .actual
 	)]
 	PitchTooSmall { required: usize, actual: usize },
@@ -328,8 +328,8 @@ fn perform_ground_build(
 	event.clear();
 }
 
-fn perform_accommodation_site_build(
-	mut event: EventReader<PerformBuild<{ BuildableType::AccommodationSite }>>,
+fn perform_pitch_build(
+	mut event: EventReader<PerformBuild<{ BuildableType::Pitch }>>,
 	mut commands: Commands,
 	asset_server: Res<AssetServer>,
 	mut ground_map: ResMut<GroundMap>,
@@ -340,7 +340,7 @@ fn perform_accommodation_site_build(
 		ground_map.fill_rect(
 			event.start_position,
 			event.end_position,
-			GroundKind::Accommodation,
+			GroundKind::Pitch,
 			&mut tile_query,
 			&mut commands,
 			&asset_server,
@@ -374,36 +374,36 @@ fn perform_pool_area_build(
 	event.clear();
 }
 
-fn perform_accommodation_type_build(
-	mut event: EventReader<PerformBuild<{ BuildableType::Accommodation }>>,
+fn perform_pitch_type_build(
+	mut event: EventReader<PerformBuild<{ BuildableType::PitchType }>>,
 	mut commands: Commands,
 	asset_server: Res<AssetServer>,
-	mut accommodations: Query<(Entity, &Area, &mut Accommodation)>,
+	mut pitches: Query<(Entity, &Area, &mut Pitch)>,
 	mut build_error: EventWriter<BuildError>,
 	mut area_update_event: EventWriter<UpdateAreas>,
 ) {
 	for event in event.into_iter() {
 		let kind = match event.buildable {
-			Buildable::Accommodation(kind) => kind,
+			Buildable::PitchType(kind) => kind,
 			_ => unreachable!(),
 		};
 		let start_position = event.start_position;
-		let mut accommodation = OnceLock::new();
-		accommodations.par_iter_mut().for_each_mut(|(entity, area, accommodation_candidate)| {
-			// Perform work immediately, since only one accommodation should contain this accommodation type.
+		let mut pitch = OnceLock::new();
+		pitches.par_iter_mut().for_each_mut(|(entity, area, pitch_candidate)| {
+			// Perform work immediately, since only one pitch should contain this pitch type.
 			if area.contains(&start_position) {
-				let _ = accommodation.set((entity, area, accommodation_candidate));
+				let _ = pitch.set((entity, area, pitch_candidate));
 			}
 		});
 
-		if accommodation.get().is_none() {
-			error!("no accommodation");
+		if pitch.get().is_none() {
+			error!("no pitch");
 			build_error.send(BuildError::NoAccommodationHere);
 			return;
 		}
-		let (accommodation_entity, area, accommodation) = accommodation.get_mut().unwrap();
-		let accommodation_box = GridBox::around(start_position, kind.size().flat());
-		if !area.fits(&accommodation_box) {
+		let (pitch_entity, area, pitch) = pitch.get_mut().unwrap();
+		let pitch_box = GridBox::around(start_position, kind.size().flat());
+		if !area.fits(&pitch_box) {
 			error!("physical space not enough");
 			build_error.send(BuildError::NoSpace);
 			return;
@@ -414,14 +414,14 @@ fn perform_accommodation_type_build(
 			return;
 		}
 
-		accommodation.kind = Some(kind);
+		pitch.kind = Some(kind);
 		if let Some(bundle) = AccommodationBuildingBundle::new(kind, start_position, &asset_server) {
-			commands.entity(*accommodation_entity).with_children(|parent| {
+			commands.entity(*pitch_entity).with_children(|parent| {
 				parent.spawn(bundle);
 			});
 		}
 
-		commands.entity(*accommodation_entity).remove::<Area>().insert(ImmutableArea((*area).clone()));
+		commands.entity(*pitch_entity).remove::<Area>().insert(ImmutableArea((*area).clone()));
 		area_update_event.send_default();
 	}
 	event.clear();
@@ -432,9 +432,9 @@ fn handle_build_interactions(
 	mut state: ResMut<NextState<InputState>>,
 	mut preview: Query<&mut PreviewParent>,
 	all_interacted: Query<&Interaction, (With<Node>, Changed<Interaction>)>,
-	mut accommodation_build_event: EventWriter<PerformBuild<{ BuildableType::Accommodation }>>,
+	mut pitch_type_build_event: EventWriter<PerformBuild<{ BuildableType::PitchType }>>,
 	mut ground_build_event: EventWriter<PerformBuild<{ BuildableType::Ground }>>,
-	mut accommodation_site_build_event: EventWriter<PerformBuild<{ BuildableType::AccommodationSite }>>,
+	mut pitch_build_event: EventWriter<PerformBuild<{ BuildableType::Pitch }>>,
 	mut pool_build_event: EventWriter<PerformBuild<{ BuildableType::PoolArea }>>,
 ) {
 	let any_ui_active = all_interacted.iter().any(|interaction| interaction != &Interaction::None);
@@ -460,12 +460,12 @@ fn handle_build_interactions(
 					end_position:   preview_data.current_position,
 					buildable:      preview_data.previewed,
 				}),
-				BuildableType::AccommodationSite => accommodation_site_build_event.send(PerformBuild {
+				BuildableType::Pitch => pitch_build_event.send(PerformBuild {
 					start_position: preview_data.start_position,
 					end_position:   preview_data.current_position,
 					buildable:      preview_data.previewed,
 				}),
-				BuildableType::Accommodation => accommodation_build_event.send(PerformBuild {
+				BuildableType::PitchType => pitch_type_build_event.send(PerformBuild {
 					start_position: preview_data.start_position,
 					end_position:   preview_data.current_position,
 					buildable:      preview_data.previewed,

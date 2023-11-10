@@ -49,8 +49,8 @@ pub mod controls {
 	pub enum BuildMenu {
 		/// Basic objects, like fences and pathways.
 		Basics,
-		/// Visitor accommodation.
-		Accommodation,
+		/// Visitor pitch.
+		Pitch,
 		/// All pool-related objects.
 		Pool,
 	}
@@ -59,7 +59,7 @@ pub mod controls {
 		fn description(&self) -> &'static str {
 			match self {
 				Self::Basics => "Fundamental buildings and objects.",
-				Self::Accommodation => "Visitor accommodations, such as tent spots, caravans or mobile homes.",
+				Self::Pitch => "Visitor pitches, such as tent spots, caravans or mobile homes.",
 				Self::Pool => "Everything for swimming pools.",
 			}
 		}
@@ -68,14 +68,14 @@ pub mod controls {
 	impl std::fmt::Display for BuildMenu {
 		fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 			write!(f, "{}", match self {
-				Self::Accommodation => "Accomodation",
+				Self::Pitch => "Pitch",
 				Self::Basics => "The Basics",
 				Self::Pool => "Swimming Pools",
 			})
 		}
 	}
 
-	pub(super) const ALL_BUILD_MENUS: [BuildMenu; 3] = [BuildMenu::Basics, BuildMenu::Accommodation, BuildMenu::Pool];
+	pub(super) const ALL_BUILD_MENUS: [BuildMenu; 3] = [BuildMenu::Basics, BuildMenu::Pitch, BuildMenu::Pool];
 
 	/// Marks a button that opens one of the several build menus.
 	#[derive(Component)]

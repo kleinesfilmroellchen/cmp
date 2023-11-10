@@ -1,13 +1,13 @@
 //! Internal world state data models and game mechanics.
 
-pub mod accommodation;
+pub mod pitch;
 pub mod area;
 pub mod geometry;
 pub mod tile;
 
 use std::marker::ConstParamTy;
 
-pub use accommodation::*;
+pub use pitch::*;
 use bevy::prelude::*;
 pub use geometry::*;
 pub use tile::*;
@@ -24,10 +24,10 @@ pub enum Buildable {
 	Ground(GroundKind),
 	/// Demarcates the [`area::Area`] of a pool; filled with [`GroundKind::PoolPath`].
 	PoolArea,
-	/// Demarcates an unspecified [`Accommodation`]-[`area::Area`].
-	AccommodationSite,
-	/// Some [`AccommodationType`] specifying the kind of an already existing [`Accommodation`].
-	Accommodation(AccommodationType),
+	/// Demarcates an unspecified [`Pitch`]-[`area::Area`].
+	Pitch,
+	/// Some [`PitchType`] specifying the kind of an already existing [`Pitch`].
+	PitchType(PitchType),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, ConstParamTy)]
@@ -35,8 +35,8 @@ pub enum Buildable {
 pub enum BuildableType {
 	Ground,
 	PoolArea,
-	AccommodationSite,
-	Accommodation,
+	Pitch,
+	PitchType,
 }
 
 impl From<Buildable> for BuildableType {
@@ -48,8 +48,8 @@ impl From<Buildable> for BuildableType {
 impl std::fmt::Display for Buildable {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		write!(f, "{}", match self {
-			Self::Accommodation(kind) => kind.to_string(),
-			Self::AccommodationSite => "Accommodation Site".to_string(),
+			Self::PitchType(kind) => kind.to_string(),
+			Self::Pitch => "Pitch Site".to_string(),
 			Self::Ground(kind) => kind.to_string(),
 			Self::PoolArea => "Pool Area".to_string(),
 		})
@@ -59,10 +59,10 @@ impl std::fmt::Display for Buildable {
 impl Tooltipable for Buildable {
 	fn description(&self) -> &'static str {
 		match self {
-			Self::Accommodation(kind) => kind.description(),
-			Self::AccommodationSite =>
-				"Demarcate a new accommodation site. The accommodation will initially be empty and cannot take \
-				 visitors. You have to specify the kind of accommodation by building an accommodation on top of this \
+			Self::PitchType(kind) => kind.description(),
+			Self::Pitch =>
+				"Demarcate a new pitch site. The pitch will initially be empty and cannot take \
+				 visitors. You have to specify the kind of pitch by building an pitch on top of this \
 				 site.",
 			Self::Ground(kind) => kind.description(),
 			Self::PoolArea => "Demarcate a pool area to start building a pool.",
@@ -74,12 +74,12 @@ pub const ALL_BUILDABLES: [Buildable; 9] = [
 	Buildable::Ground(GroundKind::Pathway),
 	Buildable::Ground(GroundKind::Grass),
 	Buildable::PoolArea,
-	Buildable::AccommodationSite,
-	Buildable::Accommodation(AccommodationType::TentSite),
-	Buildable::Accommodation(AccommodationType::CaravanSite),
-	Buildable::Accommodation(AccommodationType::PermanentTent),
-	Buildable::Accommodation(AccommodationType::MobileHome),
-	Buildable::Accommodation(AccommodationType::Cottage),
+	Buildable::Pitch,
+	Buildable::PitchType(PitchType::TentSite),
+	Buildable::PitchType(PitchType::CaravanSite),
+	Buildable::PitchType(PitchType::PermanentTent),
+	Buildable::PitchType(PitchType::MobileHome),
+	Buildable::PitchType(PitchType::Cottage),
 ];
 
 impl Buildable {
@@ -87,23 +87,23 @@ impl Buildable {
 		match self {
 			Self::Ground(_) => BuildMenu::Basics,
 			Self::PoolArea => BuildMenu::Pool,
-			Self::AccommodationSite | Self::Accommodation(_) => BuildMenu::Accommodation,
+			Self::Pitch | Self::PitchType(_) => BuildMenu::Pitch,
 		}
 	}
 
 	pub fn size(&self) -> BoundingBox {
 		match self {
 			Self::Ground(_) => (1, 1).into(),
-			Self::AccommodationSite | Self::PoolArea => (1, 1).into(),
-			Self::Accommodation(kind) => kind.size(),
+			Self::Pitch | Self::PoolArea => (1, 1).into(),
+			Self::PitchType(kind) => kind.size(),
 		}
 	}
 
 	pub fn build_mode(&self) -> BuildMode {
 		match self {
 			Self::Ground(_) => BuildMode::Line,
-			Self::AccommodationSite | Self::PoolArea => BuildMode::Rect,
-			Self::Accommodation(_) => BuildMode::Single,
+			Self::Pitch | Self::PoolArea => BuildMode::Rect,
+			Self::PitchType(_) => BuildMode::Single,
 		}
 	}
 }

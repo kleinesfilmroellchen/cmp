@@ -4,12 +4,12 @@ use bevy::prelude::*;
 use bevy::utils::{HashSet, Instant};
 use itertools::Itertools;
 
-use super::{Accommodation, BoundingBox, GridBox, GridPosition, GroundKind, GroundMap};
+use super::{Pitch, BoundingBox, GridBox, GridPosition, GroundKind, GroundMap};
 use crate::graphics::{BorderSides, BorderSprite, BorderTextures};
 use crate::ui::world_info::WorldInfoProperties;
 
 /// A continuous area on the ground, containing various tiles (often of a homogenous type) and demarcating some
-/// important region. For example, pools and accommodations are fundamentally areas.
+/// important region. For example, pools and pitches are fundamentally areas.
 #[derive(Component, Clone, Debug)]
 pub struct Area {
 	tiles: HashSet<GridPosition>,
@@ -165,7 +165,7 @@ impl Plugin for AreaManagement {
 		app.init_resource::<Events<UpdateAreas>>()
 			.add_systems(
 				FixedUpdate,
-				(update_areas::<Pool>, update_areas::<Accommodation>)
+				(update_areas::<Pool>, update_areas::<Pitch>)
 					.before(clean_area_events)
 					.before(update_area_world_info),
 			)
@@ -284,20 +284,20 @@ fn clean_area_events(mut update: ResMut<Events<UpdateAreas>>) {
 }
 
 fn update_area_world_info(
-	finalized_accommodations: Query<
+	finalized_pitches: Query<
 		(&WorldInfoProperties, &ImmutableArea),
 		(Without<Area>, Changed<WorldInfoProperties>),
 	>,
-	unfinalized_accommodations: Query<
+	unfinalized_pitches: Query<
 		(&WorldInfoProperties, &Area),
 		(Without<ImmutableArea>, Changed<WorldInfoProperties>),
 	>,
 	ground_map: Res<GroundMap>,
 	mut tiles: Query<&mut WorldInfoProperties, (With<GroundKind>, Without<ImmutableArea>, Without<Area>)>,
 ) {
-	for (properties, area) in unfinalized_accommodations
+	for (properties, area) in unfinalized_pitches
 		.iter()
-		.chain(finalized_accommodations.iter().map(|(properties, area)| (properties, &area.0)))
+		.chain(finalized_pitches.iter().map(|(properties, area)| (properties, &area.0)))
 	{
 		for tile in area.tiles_iter() {
 			let (tile_entity, _) = ground_map.get(&tile).unwrap();

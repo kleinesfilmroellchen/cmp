@@ -7,14 +7,14 @@ use bevy::utils::HashSet;
 
 use super::area::{Area, AreaMarker, ImmutableArea, UpdateAreas};
 use super::{BoundingBox, GridBox, GridPosition, GroundKind, GroundMap, Metric};
-use crate::graphics::library::{anchor_for_sprite, sprite_for_accommodation};
+use crate::graphics::library::{anchor_for_sprite, sprite_for_pitch};
 use crate::graphics::StaticSprite;
 use crate::ui::world_info::{WorldInfoProperties, WorldInfoProperty};
 use crate::util::Tooltipable;
 
-/// The different available types of accommodation.
+/// The different available types of pitch.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, ConstParamTy)]
-pub enum AccommodationType {
+pub enum PitchType {
 	TentSite,
 	PermanentTent,
 	CaravanSite,
@@ -24,7 +24,7 @@ pub enum AccommodationType {
 
 pub type Comfort = Metric<0, 10>;
 
-impl AccommodationType {
+impl PitchType {
 	pub const fn size(&self) -> BoundingBox {
 		match self {
 			Self::CaravanSite | Self::TentSite => BoundingBox::fixed::<1, 1, 1>(),
@@ -55,7 +55,7 @@ impl AccommodationType {
 		.unwrap()
 	}
 
-	/// Determines whether this accommodation type is actually a building, so that when creating it an actual building
+	/// Determines whether this pitch type is actually a building, so that when creating it an actual building
 	/// entity must be constructed.
 	pub const fn is_real_building(&self) -> bool {
 		match self {
@@ -65,7 +65,7 @@ impl AccommodationType {
 	}
 }
 
-impl std::fmt::Display for AccommodationType {
+impl std::fmt::Display for PitchType {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		write!(f, "{}", match self {
 			Self::TentSite => "Tent Site",
@@ -77,7 +77,7 @@ impl std::fmt::Display for AccommodationType {
 	}
 }
 
-impl Tooltipable for AccommodationType {
+impl Tooltipable for PitchType {
 	fn description(&self) -> &'static str {
 		match self {
 			Self::TentSite =>
@@ -94,7 +94,7 @@ impl Tooltipable for AccommodationType {
 			Self::CaravanSite =>
 				"A site for two or three campers to park their caravans. As opposed to tent sites, caravan sites need \
 				 a permanent water and electricity supply for the vehicles. In turn, less hardy campers with their \
-				 caravans will show up to these accommodation spots. As with tent sites, caravan sites provide ample \
+				 caravans will show up to these pitch spots. As with tent sites, caravan sites provide ample \
 				 space for the few visitors.",
 			Self::MobileHome =>
 				"A mobile home, the most basic form of permanent housing for four visitors. Mobile homes are parked \
@@ -113,17 +113,17 @@ impl Tooltipable for AccommodationType {
 
 type AccommodationMultiplicity = Metric<1, 2>;
 
-/// A proper accommodation for guests; essentially an instance of [`AccommodationType`].
+/// A proper pitch for guests; essentially an instance of [`PitchType`].
 #[derive(Component, Default)]
-pub struct Accommodation {
-	/// When the kind is [`None`], the accommodation type is unassigned and this accommodation is not functional.
-	pub kind:         Option<AccommodationType>,
-	/// How many of the same accommodation are available here. This value rarely goes beyond 1 except for specific
-	/// accommodation types.
+pub struct Pitch {
+	/// When the kind is [`None`], the pitch type is unassigned and this pitch is not functional.
+	pub kind:         Option<PitchType>,
+	/// How many of the same pitch are available here. This value rarely goes beyond 1 except for specific
+	/// pitch types.
 	pub multiplicity: AccommodationMultiplicity,
 }
 
-impl AreaMarker for Accommodation {
+impl AreaMarker for Pitch {
 	fn is_allowed_ground_type(&self, kind: super::GroundKind) -> bool {
 		kind == Self::GROUND_TYPE
 	}
@@ -133,8 +133,8 @@ impl AreaMarker for Accommodation {
 	}
 }
 
-impl Accommodation {
-	pub const GROUND_TYPE: GroundKind = GroundKind::Accommodation;
+impl Pitch {
+	pub const GROUND_TYPE: GroundKind = GroundKind::Pitch;
 
 	pub fn required_area(&self) -> usize {
 		self.kind.map(|kind| kind.required_area() * (*self.multiplicity as usize)).unwrap_or(0)
@@ -146,7 +146,7 @@ impl Accommodation {
 		properties.description =
 			self.kind.map_or(AccommodationBundle::info_base().description.as_str(), |x| x.description()).to_string();
 		if let Some(kind) = self.kind {
-			properties.push(WorldInfoProperty::AccommodationType(kind));
+			properties.push(WorldInfoProperty::PitchType(kind));
 			properties.push(WorldInfoProperty::Comfort(kind.comfort()));
 			properties.push(WorldInfoProperty::MinArea(kind.required_area()));
 		}
@@ -158,7 +158,7 @@ impl Accommodation {
 #[derive(Bundle)]
 pub struct AccommodationBundle {
 	area:                Area,
-	accommodation:       Accommodation,
+	pitch:       Pitch,
 	global_transform:    GlobalTransform,
 	transform:           Transform,
 	computed_visibility: ComputedVisibility,
@@ -170,8 +170,8 @@ impl AccommodationBundle {
 	pub fn new(start_position: GridPosition, end_position: GridPosition) -> Self {
 		Self {
 			area:                Area::from_rect(start_position, end_position),
-			accommodation:       Accommodation::default(),
-			// Make various graphical children of the accommodation area (borders, trees, buildings) visible.
+			pitch:       Pitch::default(),
+			// Make various graphical children of the pitch area (borders, trees, buildings) visible.
 			global_transform:    GlobalTransform::default(),
 			transform:           Transform::default(),
 			computed_visibility: ComputedVisibility::default(),
@@ -183,7 +183,7 @@ impl AccommodationBundle {
 	pub fn from_area(area: Area) -> Self {
 		Self {
 			area,
-			accommodation: Accommodation::default(),
+			pitch: Pitch::default(),
 			global_transform: GlobalTransform::default(),
 			transform: Transform::default(),
 			computed_visibility: ComputedVisibility::default(),
@@ -194,8 +194,8 @@ impl AccommodationBundle {
 
 	fn info_base() -> WorldInfoProperties {
 		WorldInfoProperties::basic(
-			"Accommodation".to_string(),
-			"An accommodation, providing residency to visitors. This accommodation is unassigned and cannot house \
+			"Pitch".to_string(),
+			"An pitch, providing residency to visitors. This pitch is unassigned and cannot house \
 			 visitors currently."
 				.to_string(),
 		)
@@ -213,11 +213,11 @@ pub struct AccommodationBuildingBundle {
 }
 
 impl AccommodationBuildingBundle {
-	pub fn new(kind: AccommodationType, position: GridPosition, asset_server: &AssetServer) -> Option<Self> {
+	pub fn new(kind: PitchType, position: GridPosition, asset_server: &AssetServer) -> Option<Self> {
 		if !kind.is_real_building() {
 			None
 		} else {
-			let sprite = sprite_for_accommodation(kind);
+			let sprite = sprite_for_pitch(kind);
 			Some(AccommodationBuildingBundle {
 				position: GridBox::around(position, kind.size().flat()),
 				sprite:   StaticSprite {
@@ -236,35 +236,35 @@ impl AccommodationBuildingBundle {
 pub struct AccommodationManagement;
 impl Plugin for AccommodationManagement {
 	fn build(&self, app: &mut App) {
-		app.add_systems(FixedUpdate, update_built_accommodations)
-			.add_systems(FixedUpdate, update_accommodation_world_info.after(update_built_accommodations));
+		app.add_systems(FixedUpdate, update_built_pitches)
+			.add_systems(FixedUpdate, update_pitch_world_info.after(update_built_pitches));
 	}
 }
 
-fn update_built_accommodations(
+fn update_built_pitches(
 	commands: ParallelCommands,
-	mut accommodations: Query<(Entity, &mut Accommodation, &Children, &mut ImmutableArea)>,
+	mut pitches: Query<(Entity, &mut Pitch, &Children, &mut ImmutableArea)>,
 	other_areas: Query<&Area>,
-	accommodation_building_children: Query<&GridBox, With<AccommodationBuilding>>,
+	pitch_building_children: Query<&GridBox, With<AccommodationBuilding>>,
 	ground_map: Res<GroundMap>,
 	mut update: ResMut<Events<UpdateAreas>>,
 ) {
 	if ground_map.is_changed() {
 		let relevant_tiles =
-			|tile: &'_ _| ground_map.kind_of(tile).is_some_and(|kind| kind == Accommodation::GROUND_TYPE);
-		// When the player places accommodation tiles over this finalized accommodation, we have to detect that and
+			|tile: &'_ _| ground_map.kind_of(tile).is_some_and(|kind| kind == Pitch::GROUND_TYPE);
+		// When the player places pitch tiles over this finalized pitch, we have to detect that and
 		// delete the tiles from our area.
 		let foreign_area_tiles =
 			other_areas.into_iter().flat_map(|area| area.tiles_iter().filter(relevant_tiles)).collect::<HashSet<_>>();
 
 		let needs_update = Arc::new(AtomicBool::new(false));
 
-		accommodations.par_iter_mut().for_each_mut(|(entity, mut accommodation, children, mut area)| {
+		pitches.par_iter_mut().for_each_mut(|(entity, mut pitch, children, mut area)| {
 			area.retain_tiles(|tile| relevant_tiles(tile) && !foreign_area_tiles.contains(tile));
 			let mut should_destroy = false;
-			// Check the three conditions for destroying an updated accommodation:
-			// 1. Area doesn't provide enough tiles for the accommodation type.
-			// 2. Accommodation building is not physically on the area anymore.
+			// Check the three conditions for destroying an updated pitch:
+			// 1. Area doesn't provide enough tiles for the pitch type.
+			// 2. Pitch building is not physically on the area anymore.
 			// 3. Area is discontinuous (for simplification purposes, this always deletes the entire pitch).
 
 			if area.is_empty() || area.is_discontinuous() {
@@ -272,19 +272,19 @@ fn update_built_accommodations(
 			} else {
 				// 2.
 				for child in children.iter() {
-					let child_position = accommodation_building_children.get(*child).unwrap();
+					let child_position = pitch_building_children.get(*child).unwrap();
 					if !area.fits(child_position) {
 						should_destroy = true;
 						break;
 					}
 				}
 				// 1.
-				if area.size() < accommodation.required_area() {
+				if area.size() < pitch.required_area() {
 					should_destroy = true;
 				}
 			}
 			if should_destroy {
-				// Reset the accommodation type into a mutable area without a type.
+				// Reset the pitch type into a mutable area without a type.
 				commands.command_scope(|mut commands| {
 					let inner_area: Area = area.clone().into();
 					let mut entity_commands = commands.entity(entity);
@@ -292,8 +292,8 @@ fn update_built_accommodations(
 					entity_commands.insert(inner_area);
 					entity_commands.despawn_descendants();
 				});
-				accommodation.kind = None;
-				accommodation.multiplicity = AccommodationMultiplicity::default();
+				pitch.kind = None;
+				pitch.multiplicity = AccommodationMultiplicity::default();
 				needs_update.store(true, Ordering::Release);
 			}
 		});
@@ -304,18 +304,18 @@ fn update_built_accommodations(
 	}
 }
 
-fn update_accommodation_world_info(
-	mut immutable_accommodations: Query<
-		(&mut WorldInfoProperties, Ref<Accommodation>, Ref<ImmutableArea>),
+fn update_pitch_world_info(
+	mut immutable_pitches: Query<
+		(&mut WorldInfoProperties, Ref<Pitch>, Ref<ImmutableArea>),
 		Without<Area>,
 	>,
-	mut accommodations: Query<(&mut WorldInfoProperties, Ref<Accommodation>, Ref<Area>), Without<ImmutableArea>>,
+	mut pitches: Query<(&mut WorldInfoProperties, Ref<Pitch>, Ref<Area>), Without<ImmutableArea>>,
 ) {
-	for (mut properties, accommodation, area) in accommodations.iter_mut().filter(|(_, _, a)| a.is_changed()) {
-		accommodation.apply_properties(&mut properties, &area);
+	for (mut properties, pitch, area) in pitches.iter_mut().filter(|(_, _, a)| a.is_changed()) {
+		pitch.apply_properties(&mut properties, &area);
 	}
-	for (mut properties, accommodation, area) in immutable_accommodations.iter_mut().filter(|(_, _, a)| a.is_changed())
+	for (mut properties, pitch, area) in immutable_pitches.iter_mut().filter(|(_, _, a)| a.is_changed())
 	{
-		accommodation.apply_properties(&mut properties, &area.0);
+		pitch.apply_properties(&mut properties, &area.0);
 	}
 }

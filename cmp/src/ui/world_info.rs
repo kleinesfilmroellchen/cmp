@@ -10,7 +10,7 @@ use parking_lot::Mutex;
 
 use crate::graphics::library::{font_for, FontStyle, FontWeight};
 use crate::graphics::{TILE_HEIGHT, TILE_WIDTH};
-use crate::model::{AccommodationType, Comfort};
+use crate::model::{PitchType, Comfort};
 
 #[derive(Component, Default)]
 pub struct WorldInfoUI {
@@ -38,10 +38,10 @@ pub enum WorldInfoProperty {
 	Area(usize),
 	/// Minimum area of some object.
 	MinArea(usize),
-	/// Comfort level of an [`crate::model::Accommodation`].
+	/// Comfort level of an [`crate::model::Pitch`].
 	Comfort(Comfort),
-	/// [`AccommodationType`] of an accommodation.
-	AccommodationType(AccommodationType),
+	/// [`PitchType`] of an pitch.
+	PitchType(PitchType),
 	/// Various properties called "multiplicity".
 	Multiplicity(u64),
 }
@@ -53,7 +53,7 @@ impl WorldInfoProperty {
 			Self::Area(_) => "Area",
 			Self::MinArea(_) => "Minimum area",
 			Self::Comfort(_) => "Comfort",
-			Self::AccommodationType(_) => "Type",
+			Self::PitchType(_) => "Type",
 			Self::Multiplicity(_) => "Multiplicity",
 		}
 		.to_string()
@@ -64,7 +64,7 @@ impl WorldInfoProperty {
 		match self {
 			Self::MinArea(area) | Self::Area(area) => format!("{}i²", area),
 			Self::Comfort(comfort) => format!("{}", comfort),
-			Self::AccommodationType(kind) => kind.to_string(),
+			Self::PitchType(kind) => kind.to_string(),
 			Self::Multiplicity(multiplicity) => format!("{}", multiplicity),
 		}
 	}

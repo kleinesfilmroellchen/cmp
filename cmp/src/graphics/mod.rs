@@ -1,6 +1,7 @@
 use std::sync::OnceLock;
 
 use bevy::core_pipeline::contrast_adaptive_sharpening::ContrastAdaptiveSharpeningSettings;
+use bevy::math::Vec3A;
 use bevy::prelude::*;
 use bevy::sprite::Anchor;
 use bevy::utils::HashMap;
@@ -39,7 +40,7 @@ pub struct StaticSprite {
 
 #[derive(Component, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum BorderKind {
-	Accommodation,
+	Pitch,
 }
 
 #[derive(Resource, Default)]
@@ -71,13 +72,13 @@ pub struct BorderSprite {
 	pub sides:                BorderSides,
 	pub kind:                 BorderKind,
 	pub(crate) sprite_bundle: SpriteSheetBundle,
-	/// Used to give the sprite priority before the (flat) ground tiles.
-	pub priority:             BoundingBox,
+	pub offset:               ActorPosition,
+	priority:                 HighPriority,
 }
 
 bitflags! {
 	#[repr(transparent)]
-	#[derive(Component, Clone, Copy, Eq, PartialEq)]
+	#[derive(Debug, Component, Clone, Copy, Eq, PartialEq)]
 	pub struct BorderSides : u8 {
 		const Top = 0b0001;
 		const Right = 0b0010;
@@ -97,15 +98,35 @@ impl BorderSides {
 		}
 	}
 
-	// pub fn anchor(self) -> Anchor {
-	// 	const EDGE_OFFSET: IVec2 = IVec2::new(TILE_WIDTH as i32 / 4, TILE_HEIGHT as i32 / 4);
-	// 	self.iter().map(|side| match side {
-	// 		Self::Top => 0,
-	// 		Self::Right => 1,
-	// 		Self::Left => 2,
-	// 		Self::Bottom => 3,
-	// 	})
-	// }
+	pub fn tile_offset(self) -> Vec2 {
+		const EDGE_OFFSET: Vec2 = Vec2::splat(1. / 4.);
+		self.iter()
+			.map(|side| match side {
+				Self::Top => -EDGE_OFFSET,
+				Self::Right => -EDGE_OFFSET + Vec2::X / 2.,
+				// Self::Left => -EDGE_OFFSET + Vec2::Y / 2.,
+				// Self::Bottom => EDGE_OFFSET,
+				_ => Vec2::ZERO,
+			})
+			.sum()
+	}
+
+	pub fn anchor(self) -> Anchor {
+		Anchor::Custom(self.tile_offset())
+	}
+
+	pub fn world_offset(self) -> Vec3A {
+		self.iter()
+			.map(|side| match side {
+				Self::Top => Vec3A::Y,
+				Self::Right => Vec3A::X,
+				// Self::Left => Vec3A::NEG_X,
+				// Self::Bottom => Vec3A::NEG_Y,
+				_ => Vec3A::ZERO,
+			})
+			.sum::<Vec3A>()
+			/ 2.
+	}
 }
 
 impl BorderSprite {
@@ -116,20 +137,23 @@ impl BorderSprite {
 		texture_atlases: &'a mut Assets<TextureAtlas>,
 		border_textures: &'a mut BorderTextures,
 	) -> impl Iterator<Item = Self> + 'a {
-		let sprite = library::sprite_for_border_kind(kind);
-		sides.iter_names().map(move |(_, side)| Self {
-			sides: side,
-			kind,
-			sprite_bundle: SpriteSheetBundle {
-				sprite: TextureAtlasSprite {
-					anchor: library::anchor_for_sprite(sprite), //side.anchor(),
-					index: side.to_sprite_index(),
+		sides.iter_names().map(move |(_, side)| {
+			debug!("{:?}: {}", side, side.world_offset());
+			Self {
+				sides: side,
+				kind,
+				sprite_bundle: SpriteSheetBundle {
+					sprite: TextureAtlasSprite {
+						anchor: side.anchor(),
+						index: side.to_sprite_index(),
+						..Default::default()
+					},
+					texture_atlas: border_textures.get(kind, texture_atlases, asset_server),
 					..Default::default()
 				},
-				texture_atlas: border_textures.get(kind, texture_atlases, asset_server),
-				..Default::default()
-			},
-			priority: BoundingBox::fixed::<1, 1, 1>(),
+				offset: side.world_offset().into(),
+				priority: HighPriority,
+			}
 		})
 	}
 }
