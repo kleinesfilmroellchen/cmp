@@ -21,8 +21,10 @@
 extern crate test;
 
 use std::sync::Arc;
+#[allow(unused)]
 use std::time::Duration;
 
+#[allow(unused)]
 use bevy::asset::ChangeWatcher;
 use bevy::log::{Level, LogPlugin};
 use bevy::prelude::*;
@@ -50,13 +52,17 @@ pub use graphics::GraphicsPlugin;
 /// Concurrent set implementation with the fast AHash algorithm.
 pub type DashSet<K> = dashmap::DashSet<K, std::hash::BuildHasherDefault<bevy::utils::AHasher>>;
 
+const VERSION: &str =
+	env!("CARGO_PKG_VERSION", "CMP must be built under Cargo, or set the CARGO_PKG_VERSION variable manually.");
+
 /// Base plugin for the entire core engine.
-/// FIXME: Extract the rendering into its own plugin.
 pub struct CmpPlugin;
 
 impl Plugin for CmpPlugin {
 	fn build(&self, app: &mut App) {
 		let args: Arc<CommandLineArguments> = Arc::new(argh::from_env());
+		let settings = Arc::new(GameSettings::from_arg_path(&args));
+		let log_level = if settings.show_debug { Level::TRACE } else { Level::INFO };
 
 		app.add_plugins(
 			DefaultPlugins
@@ -70,20 +76,24 @@ impl Plugin for CmpPlugin {
 				})
 				.set(ImagePlugin::default_nearest()).set(AnimationPlugin)
 				.set(LogPlugin {
-					#[cfg(debug_assertions)]
-					level: Level::TRACE,
-					#[cfg(not(debug_assertions))]
-					level: Level::INFO,
+					level: log_level,
 					filter: "info,cmp=trace,wgpu=error,bevy=warn".into(),
 				}),
 		)
+		.add_asset_loader(bevy_qoi::QOIAssetLoader)
 		// Fixed update runs every two seconds and performs slow work that can take this long.
 		.insert_resource(FixedTime::new_from_secs(0.5))
-		.add_plugins((GUIInputPlugin, UIPlugin, TileManagement, AccommodationManagement, AreaManagement, ConfigPlugin(args.clone()), ExternalPlugins(args)))
+		.add_plugins((GUIInputPlugin, UIPlugin, TileManagement, AccommodationManagement, AreaManagement, ConfigPlugin(args.clone(), settings.clone()), ExternalPlugins(args)))
 		.insert_resource(WindowIcon::default())
 		.add_systems(Startup, (debug::create_stats, setup_window, model::spawn_test_tiles))
+		.add_systems(PostStartup, print_program_info)
 		.add_systems(Update, (set_window_icon, debug::print_stats, apply_window_settings));
 	}
+}
+
+fn print_program_info() {
+	info!("The Camping Madness Project version {}", VERSION);
+	info!("Copyright © 2023, kleines Filmröllchen. Licensed under a BSD 2-clause license.")
 }
 
 #[derive(Resource, Default)]

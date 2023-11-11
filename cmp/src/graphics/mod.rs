@@ -98,10 +98,10 @@ impl BorderSides {
 		(self
 			.iter()
 			.map(|side| match side {
-				Self::Top => Vec2::new(4., 9.),
-				Self::Right => Vec2::new(12., 9.),
+				Self::Top => Vec2::new(4., 10.),
+				Self::Right => Vec2::new(12., 10.),
 				Self::Left => Vec2::new(4., 4.),
-				Self::Bottom => Vec2::new(11., 4.),
+				Self::Bottom => Vec2::new(12., 4.),
 				_ => Vec2::ZERO,
 			})
 			.sum::<Vec2>()
@@ -216,7 +216,7 @@ impl ObjectPriority {
 		match self {
 			ObjectPriority::Ground => 0.,
 			ObjectPriority::Normal => 1.,
-			ObjectPriority::Border => 1.1,
+			ObjectPriority::Border => 1.5,
 			ObjectPriority::Overlay => 1000.,
 		}
 	}

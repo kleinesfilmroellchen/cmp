@@ -98,13 +98,13 @@ pub fn print_stats(
 		stats.last_frame_times.pop_back();
 	}
 
-	let last_second_avg = stats.average(Duration::SECOND);
-	let last_second_95p = stats.percentile(Duration::SECOND, 0.95);
-	let last_10s_avg = stats.average(Duration::SECOND * 10);
-	let last_10s_95p = stats.percentile(Duration::SECOND * 10, 0.95);
-	let worst = stats.worst();
-
 	if settings.show_fps {
+		let last_second_avg = stats.average(Duration::SECOND);
+		let last_second_95p = stats.percentile(Duration::SECOND, 0.95);
+		let last_10s_avg = stats.average(Duration::SECOND * 10);
+		let last_10s_95p = stats.percentile(Duration::SECOND * 10, 0.95);
+		let worst = stats.worst();
+
 		*ui = Text::from_section(
 			format!(
 				"Current: {:4.1} fps, {:6.2}ms\nLast second: {:4.1} fps, {:6.2}ms\nLast second (95%): {:4.1} fps, \

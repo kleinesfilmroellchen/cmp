@@ -8,18 +8,18 @@ use crate::ui::controls::BuildMenu;
 
 pub fn sprite_for_ground(kind: GroundKind) -> &'static str {
 	match kind {
-		GroundKind::Grass => "grass.png",
-		GroundKind::Pathway => "gravel.png",
-		GroundKind::PoolPath => "pool.png",
-		GroundKind::Pitch => "pitch-tile.png",
+		GroundKind::Grass => "grass.qoi",
+		GroundKind::Pathway => "gravel.qoi",
+		GroundKind::PoolPath => "pool.qoi",
+		GroundKind::Pitch => "pitch-tile.qoi",
 	}
 }
 
 pub fn logo_for_build_menu(menu: BuildMenu) -> &'static str {
 	match menu {
-		BuildMenu::Basics => "concrete.png",
-		BuildMenu::Pitch => "pitch-logo.png",
-		BuildMenu::Pool => "pool.png",
+		BuildMenu::Basics => "concrete.qoi",
+		BuildMenu::Pitch => "pitch-logo.qoi",
+		BuildMenu::Pool => "pool.qoi",
 	}
 }
 
@@ -27,8 +27,8 @@ pub fn logo_for_buildable(buildable: Buildable) -> &'static str {
 	match buildable {
 		Buildable::Ground(kind) => sprite_for_ground(kind),
 		Buildable::PitchType(kind) => sprite_for_pitch(kind),
-		Buildable::Pitch => "pitch-area-logo.png",
-		Buildable::PoolArea => "pool.png",
+		Buildable::Pitch => "pitch-area-logo.qoi",
+		Buildable::PoolArea => "pool.qoi",
 	}
 }
 
@@ -36,24 +36,24 @@ pub fn preview_sprite_for_buildable(buildable: Buildable) -> &'static str {
 	match buildable {
 		Buildable::Ground(kind) => sprite_for_ground(kind),
 		Buildable::PitchType(kind) => sprite_for_pitch(kind),
-		Buildable::Pitch => "pitch-tile.png",
-		Buildable::PoolArea => "pool.png",
+		Buildable::Pitch => "pitch-tile.qoi",
+		Buildable::PoolArea => "pool.qoi",
 	}
 }
 
 pub fn sprite_for_pitch(kind: PitchType) -> &'static str {
 	match kind {
-		PitchType::TentPitch => "tent-post.png",
-		PitchType::PermanentTent => "permanent-tent.png",
-		PitchType::CaravanPitch => "caravan-post.png",
-		PitchType::MobileHome => "mobile-home.png",
-		PitchType::Cottage => "caravan.png",
+		PitchType::TentPitch => "tent-post.qoi",
+		PitchType::PermanentTent => "permanent-tent.qoi",
+		PitchType::CaravanPitch => "caravan-post.qoi",
+		PitchType::MobileHome => "mobile-home.qoi",
+		PitchType::Cottage => "cottage.qoi",
 	}
 }
 
 pub fn sprite_for_border_kind(kind: BorderKind) -> &'static str {
 	match kind {
-		BorderKind::Pitch => "pitch-border.png",
+		BorderKind::Pitch => "pitch-border.qoi",
 	}
 }
 
@@ -62,8 +62,8 @@ pub fn sprite_for_border_kind(kind: BorderKind) -> &'static str {
 /// order. This needs to be updated to keep in sync with graphics.
 pub fn anchor_for_sprite(sprite: &'static str) -> Anchor {
 	match sprite {
-		"grass.png" | "gravel.png" | "pool.png" => Anchor::BottomCenter,
-		"caravan.png" => Anchor::Custom(((23. - 20.) / 40., -0.5).into()),
+		"grass.qoi" | "gravel.qoi" | "pool.qoi" => Anchor::BottomCenter,
+		"cottage.qoi" => Anchor::Custom(((23. - 20.) / 40., -0.5).into()),
 		_ => Anchor::BottomCenter,
 	}
 }

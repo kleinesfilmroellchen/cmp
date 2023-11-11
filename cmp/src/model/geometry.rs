@@ -426,7 +426,7 @@ impl GridBox {
 	/// Returns whether the given position is exactly on the smaller edges (negative X and negative Y) of this AABB.
 	#[inline]
 	pub fn has_on_smaller_edges(&self, position: Vec3A) -> bool {
-		let in_range = |start, end, value| value >= start && value < end;
+		let in_range = |start, end, value| value >= start && value <= end;
 
 		let (start_x, start_y, _) = (*self.smallest()).into();
 		let (end_x, end_y, _) = (*self.largest() + IVec3::new(1, 1, 0)).into();

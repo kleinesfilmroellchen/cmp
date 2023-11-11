@@ -6,7 +6,7 @@ use argh::FromArgs;
 use bevy::prelude::*;
 use serde_derive::{Deserialize, Serialize};
 
-/// The Camping Madness Project game
+/// The Camping Madness Project
 #[derive(FromArgs, Resource, Clone, Debug, Default)]
 pub struct CommandLineArguments {
 	/// an alternative settings file to use instead of the system default
@@ -47,7 +47,7 @@ impl Default for GameSettings {
 }
 
 impl GameSettings {
-	pub fn from_arg_path(cli_arguments: &CLIResource) -> Self {
+	pub fn from_arg_path(cli_arguments: &CommandLineArguments) -> Self {
 		let maybe_config = if let Some(alternate_settings_file) = &cli_arguments.settings_file {
 			confy::load_path(alternate_settings_file)
 		} else {
@@ -66,22 +66,17 @@ impl GameSettings {
 const APP_NAME: &str = "cmp";
 const CONFIG_NAME: &str = "game-settings";
 
-pub struct ConfigPlugin(pub Arc<CommandLineArguments>);
+pub struct ConfigPlugin(pub Arc<CommandLineArguments>, pub Arc<GameSettings>);
 
 #[derive(Resource, Deref, DerefMut)]
 pub struct CLIResource(pub Arc<CommandLineArguments>);
 
 impl Plugin for ConfigPlugin {
 	fn build(&self, app: &mut App) {
-		app.init_resource::<GameSettings>()
+		app.insert_resource(*self.1)
 			.insert_resource(CLIResource(self.0.clone()))
-			.add_systems(Startup, load_settings)
 			.add_systems(Update, (save_settings, modify_graphics_settings));
 	}
-}
-
-fn load_settings(mut settings: ResMut<GameSettings>, cli_arguments: Res<CLIResource>) {
-	*settings = GameSettings::from_arg_path(&cli_arguments);
 }
 
 fn save_settings(settings: Res<GameSettings>, cli_arguments: Res<CLIResource>) {

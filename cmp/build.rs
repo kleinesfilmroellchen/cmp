@@ -1,0 +1,128 @@
+//! CMP build script.
+//!
+//! This build script performs automatic asset compilation if the required
+//! programs are available:
+//! - libresprite, to compile all *.ase files into corresponding *.png files
+//! - qoi, to compile all *.png files into corresponding *.qoi files
+//!
+//! The QOI files are also committed to the repository, so this script's success is not a prerequisite for compiling and
+//! running the game. However, it helps tremendously when working on assets. The process can be done manually in any
+//! case.
+
+use std::cell::OnceCell;
+use std::env;
+use std::ffi::OsString;
+use std::fmt::Debug;
+use std::path::{Path, PathBuf};
+use std::process::Command;
+
+const ASSET_DIRECTORY: &str = "../assets";
+const PNG_TEMP_SUBDIRECTORY: &str = "png";
+const ASE_EXTENSION: &str = "ase";
+const PNG_EXTENSION: &str = "png";
+const QOI_EXTENSION: &str = "qoi";
+
+fn main() {
+	println!("cargo:rerun-if-changed={}", ASSET_DIRECTORY);
+
+	let ase_files = find_all_ase_inputs();
+	println!("Converting ase files: {:?}", ase_files);
+
+	let asset_directory = full_asset_diretory();
+	if asset_directory.exists() {
+		std::fs::remove_dir_all(asset_directory).unwrap();
+	}
+	std::fs::create_dir(full_asset_diretory()).unwrap();
+
+	let png_files = convert_all_ase_to_png(&ase_files);
+	convert_all_png_to_qoi(&png_files);
+}
+
+fn find_all_ase_inputs() -> Vec<PathBuf> {
+	let base_path = PathBuf::from(ASSET_DIRECTORY);
+	base_path
+		.read_dir()
+		.into_iter()
+		.flatten()
+		.filter_map(|maybe_entry| maybe_entry.map(|entry| entry.path()).ok())
+		.filter(|entry| entry.extension() == Some(&OsString::from(ASE_EXTENSION)))
+		.collect()
+}
+
+fn convert_all_ase_to_png(ase_files: &[impl AsRef<Path> + Debug]) -> Vec<PathBuf> {
+	let mut resulting_pngs = Vec::new();
+	for ase_file in ase_files {
+		match convert_ase_to_png(ase_file) {
+			Ok(png_path) => resulting_pngs.push(png_path),
+			Err(why) => println!("cargo:warning=File {:?} could not be converted to PNG: {}", ase_file, why),
+		}
+	}
+	resulting_pngs
+}
+
+fn convert_ase_to_png(ase: impl AsRef<Path>) -> std::io::Result<PathBuf> {
+	let output_path = to_png_temp_output(&ase)?;
+	let command =
+		Command::new("libresprite").args(["--batch", "--sheet"]).arg(&output_path).arg(ase.as_ref()).output()?;
+
+	if !command.status.success() {
+		Err(std::io::Error::other(format!(
+			"libresprite exited with code {}. Stdout: {}\nStderr: {}",
+			command.status.code().unwrap_or(-1),
+			String::from_utf8_lossy(&command.stdout),
+			String::from_utf8_lossy(&command.stderr)
+		)))
+	} else {
+		Ok(output_path)
+	}
+}
+
+fn convert_all_png_to_qoi(png_files: &[impl AsRef<Path> + Debug]) {
+	for png_file in png_files {
+		if let Err(why) = convert_png_to_qoi(png_file) {
+			println!("cargo:warning=File {:?} could not be converted to QOI: {}", png_file, why);
+		}
+	}
+}
+
+fn convert_png_to_qoi(png_file: impl AsRef<Path>) -> std::io::Result<()> {
+	let output_path = to_qoi_output(&png_file)?;
+	let command = Command::new("qoiconv").arg(png_file.as_ref()).arg(output_path).output()?;
+
+	if !command.status.success() {
+		Err(std::io::Error::other(format!(
+			"qoiconv exited with code {}. Stdout: {}\nStderr: {}",
+			command.status.code().unwrap_or(-1),
+			String::from_utf8_lossy(&command.stdout),
+			String::from_utf8_lossy(&command.stderr)
+		)))
+	} else {
+		Ok(())
+	}
+}
+
+const FULL_ASSET_DIRECTORY: OnceCell<PathBuf> = OnceCell::new();
+fn full_asset_diretory() -> PathBuf {
+	FULL_ASSET_DIRECTORY
+		.get_or_init(|| Path::new(&env::var_os("OUT_DIR").unwrap_or(".".into())).join(PNG_TEMP_SUBDIRECTORY))
+		.clone()
+}
+
+fn to_png_temp_output(ase: impl AsRef<Path>) -> std::io::Result<PathBuf> {
+	Ok(full_asset_diretory().join(
+		ase.as_ref()
+			.with_extension(PNG_EXTENSION)
+			.file_name()
+			.ok_or(std::io::Error::other("ase file path is invalid"))?,
+	))
+}
+
+fn to_qoi_output(png_file: impl AsRef<Path>) -> std::io::Result<PathBuf> {
+	Ok(Path::new(ASSET_DIRECTORY).join(
+		png_file
+			.as_ref()
+			.with_extension(QOI_EXTENSION)
+			.file_name()
+			.ok_or(std::io::Error::other("ase file path is invalid"))?,
+	))
+}
