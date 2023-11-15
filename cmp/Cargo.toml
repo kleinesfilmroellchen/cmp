@@ -28,3 +28,6 @@ bitflags = { version = "2.4.0", features = ["std"] }
 parking_lot = { version = "0.12.1", features = ["nightly"] }
 dashmap = "5.5.3"
 bevy_qoi = { path = "../bevy-qoi" }
+
+[build-dependencies]
+embed-resource = "1.6.3"

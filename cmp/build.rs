@@ -8,6 +8,10 @@
 //! The QOI files are also committed to the repository, so this script's success is not a prerequisite for compiling and
 //! running the game. However, it helps tremendously when working on assets. The process can be done manually in any
 //! case.
+//!
+//! This script further embeds an EXE icon into the compiled binary for Windows.
+
+extern crate embed_resource;
 
 use std::cell::OnceCell;
 use std::env;
@@ -25,17 +29,26 @@ const QOI_EXTENSION: &str = "qoi";
 fn main() {
 	println!("cargo:rerun-if-changed={}", ASSET_DIRECTORY);
 
+	let target = std::env::var("TARGET").unwrap();
+	if target.contains("windows") {
+		embed_windows_icon();
+	}
+
 	let ase_files = find_all_ase_inputs();
 	println!("Converting ase files: {:?}", ase_files);
 
-	let asset_directory = full_asset_diretory();
+	let asset_directory = full_asset_directory();
 	if asset_directory.exists() {
 		std::fs::remove_dir_all(asset_directory).unwrap();
 	}
-	std::fs::create_dir(full_asset_diretory()).unwrap();
+	std::fs::create_dir(full_asset_directory()).unwrap();
 
 	let png_files = convert_all_ase_to_png(&ase_files);
 	convert_all_png_to_qoi(&png_files);
+}
+
+fn embed_windows_icon() {
+	embed_resource::compile(PathBuf::from(ASSET_DIRECTORY).join("icon.rc"));
 }
 
 fn find_all_ase_inputs() -> Vec<PathBuf> {
@@ -102,14 +115,14 @@ fn convert_png_to_qoi(png_file: impl AsRef<Path>) -> std::io::Result<()> {
 }
 
 const FULL_ASSET_DIRECTORY: OnceCell<PathBuf> = OnceCell::new();
-fn full_asset_diretory() -> PathBuf {
+fn full_asset_directory() -> PathBuf {
 	FULL_ASSET_DIRECTORY
 		.get_or_init(|| Path::new(&env::var_os("OUT_DIR").unwrap_or(".".into())).join(PNG_TEMP_SUBDIRECTORY))
 		.clone()
 }
 
 fn to_png_temp_output(ase: impl AsRef<Path>) -> std::io::Result<PathBuf> {
-	Ok(full_asset_diretory().join(
+	Ok(full_asset_directory().join(
 		ase.as_ref()
 			.with_extension(PNG_EXTENSION)
 			.file_name()
