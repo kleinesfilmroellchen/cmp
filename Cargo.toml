@@ -1,5 +1,5 @@
 [workspace]
-resolver = "2"                             # Important! wgpu/Bevy needs this!
+resolver = "2"                                         # Important! wgpu/Bevy needs this!
 members = ["cmp", "client", "example-mod", "bevy-qoi"]
 default-members = ["client"]
 
@@ -8,7 +8,6 @@ version = "0.1.0"
 description = "CMP, the Camping Madness Project game"
 edition = "2021"
 rust-version = "1.75"
-
 
 [profile.dev]
 opt-level = 1
