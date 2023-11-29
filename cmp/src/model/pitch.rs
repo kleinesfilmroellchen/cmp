@@ -187,7 +187,7 @@ impl AccommodationBundle {
 			global_transform: GlobalTransform::default(),
 			transform: Transform::default(),
 			inherited_visibility: InheritedVisibility::default(),
-			view_visibility:      ViewVisibility::default(),
+			view_visibility: ViewVisibility::default(),
 			visibility: Visibility::Visible,
 			properties: Self::info_base(),
 		}

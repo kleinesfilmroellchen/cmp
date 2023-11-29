@@ -3,25 +3,28 @@ use std::time::Duration;
 use bevy::prelude::*;
 use build::BuildPlugin;
 
+use self::animate::{AnimationPlugin, AnimationTargets, UIAnimation};
 use self::controls::{BuildMenuContainer, ALL_BUILD_MENUS};
 use crate::graphics::library::{logo_for_build_menu, logo_for_buildable};
 use crate::input::InputState;
 use crate::model::ALL_BUILDABLES;
-use crate::util::physics_ease::MassDamperSystem;
-use crate::util::{Lerpable, Tooltip, TooltipPlugin};
+use crate::ui::animate::{StyleHeight, TransitionTimes};
+use crate::util::{Tooltip, TooltipPlugin};
 
+pub(crate) mod animate;
 pub(crate) mod build;
+pub mod error;
 pub(crate) mod world_info;
 
 pub struct UIPlugin;
 
 impl Plugin for UIPlugin {
 	fn build(&self, app: &mut App) {
-		app.add_plugins((BuildPlugin, TooltipPlugin))
+		app.add_plugins((BuildPlugin, TooltipPlugin, AnimationPlugin))
 			.add_event::<controls::OpenBuildMenu>()
 			.add_event::<controls::CloseBuildMenus>()
-			.add_systems(Startup, (initialize_ui, world_info::setup_world_info))
-			.add_systems(Update, (transition_button_interaction, animate_button, update_build_menu_state))
+			.add_event::<error::ErrorBox>()
+			.add_systems(Startup, (initialize_ui, /* initialize_dialogs */ world_info::setup_world_info))
 			.add_systems(
 				Update,
 				(world_info::reassign_world_info, world_info::update_world_info).run_if(in_state(InputState::Idle)),
@@ -32,8 +35,13 @@ impl Plugin for UIPlugin {
 			)
 			.add_systems(
 				Update,
-				(on_build_menu_button_press, on_start_build_preview.after(on_build_menu_button_press)),
-			);
+				(
+					update_build_menu_state,
+					on_build_menu_button_press,
+					on_start_build_preview.after(on_build_menu_button_press),
+				),
+			)
+			.add_systems(PostUpdate, (error::show_errors, error::print_errors));
 	}
 }
 
@@ -97,86 +105,6 @@ pub mod controls {
 	pub struct CloseBuildMenus;
 }
 
-/// This does not use Bevy's animation system, which is highly limited and mostly useful for 3D mesh transforms.
-#[derive(Component, Clone)]
-struct ButtonAnimations {
-	/// Currently playing animation.
-	target:          Interaction,
-	/// Stores the original background color so that it can be restored.
-	original_color:  Color,
-	/// Stores the original height of the button so that it can be restored.
-	original_height: f32,
-	// Physics-based easing systems:
-	height_system:   MassDamperSystem,
-	color_system:    MassDamperSystem,
-}
-
-impl ButtonAnimations {
-	pub fn new(current_color: BackgroundColor, current_style: &Style) -> Self {
-		ButtonAnimations {
-			target:          Interaction::None,
-			height_system:   MassDamperSystem::new(16., 20., 1.),
-			color_system:    MassDamperSystem::new(4., 4., 1.),
-			original_color:  current_color.0,
-			original_height: current_style.height.resolve(0., Vec2::ZERO).unwrap_or(0.),
-		}
-	}
-
-	pub const fn transition_time_to(target: Interaction) -> Duration {
-		match target {
-			Interaction::Pressed => Duration::from_millis(80),
-			Interaction::Hovered => Duration::from_millis(200),
-			Interaction::None => Duration::from_millis(250),
-		}
-	}
-
-	pub fn logical_height_position_of(target: Interaction) -> f32 {
-		match target {
-			Interaction::Pressed => 1.,
-			Interaction::Hovered => 1.,
-			Interaction::None => 0.,
-		}
-	}
-
-	pub fn logical_color_position_of(target: Interaction) -> f32 {
-		match target {
-			Interaction::Pressed => 1.,
-			Interaction::Hovered => 0.,
-			Interaction::None => 0.,
-		}
-	}
-
-	/// Starts an animation that transitions to the specific interaction target.
-	pub fn start_transition_to(&mut self, target: Interaction) {
-		self.target = target;
-		self.height_system.set_target(Self::logical_height_position_of(target));
-		self.color_system.set_target(Self::logical_color_position_of(target));
-	}
-
-	/// Runs the regular update of the animation, performing the button animation itself if necessary.
-	pub fn update(&mut self, time: &Time, color: &mut BackgroundColor, style: &mut Style) {
-		// Animation was finished and finalized before already, no need to do anything.
-		// This order of operations guarantees that we actually reach the target values without needing to set them
-		// every time.
-
-		let normalized_delta = time.delta().as_secs_f32() / Self::transition_time_to(self.target).as_secs_f32();
-		self.height_system.simulate(normalized_delta);
-		self.color_system.simulate(normalized_delta);
-
-		let target_color = {
-			let [hue, saturation, mut lightness, alpha] = self.original_color.as_hsla_f32();
-			lightness = (lightness - 0.3).clamp(0., 1.);
-			Color::hsla(hue, saturation, lightness, alpha)
-		};
-		let target_height = self.original_height + 20.;
-
-		let current_color = self.original_color.lerp(&target_color, self.color_system.position());
-		let current_height = self.original_height.lerp(&target_height, self.height_system.position()).round_ties_even();
-		*color = BackgroundColor(current_color);
-		style.height = Val::Px(current_height);
-	}
-}
-
 const BUTTON_SPACING: Val = Val::Px(5.);
 
 fn initialize_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -230,6 +158,33 @@ fn initialize_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
 					..Default::default()
 				})
 				.with_children(|parent| {
+					let background_color = BackgroundColor(Color::DARK_GRAY);
+					const PIXEL_SIZE: f32 = 50.;
+					const TRANSITION_TIMES: TransitionTimes = TransitionTimes {
+						to_start:   Duration::from_millis(250),
+						to_hovered: Duration::from_millis(200),
+						to_pressed: Duration::from_millis(80),
+					};
+					let height_animation = UIAnimation::<_, _, StyleHeight>::new(
+						Val::Px(PIXEL_SIZE),
+						Val::Px(PIXEL_SIZE + 20.),
+						AnimationTargets::at_hover(),
+						16.,
+						20.,
+						TRANSITION_TIMES,
+					);
+					let press_animation = UIAnimation::<_, _, BackgroundColor>::new(
+						background_color,
+						BackgroundColor({
+							let [hue, saturation, mut lightness, alpha] = background_color.0.as_hsla_f32();
+							lightness = (lightness - 0.3).clamp(0., 1.);
+							Color::hsla(hue, saturation, lightness, alpha)
+						}),
+						AnimationTargets::at_press(),
+						4.,
+						4.,
+						TransitionTimes::uniform(Duration::from_millis(100)),
+					);
 					parent
 						.spawn(NodeBundle {
 							style: Style {
@@ -245,17 +200,17 @@ fn initialize_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
 						.with_children(|parent| {
 							// TODO: Use iter_variants to dynamically access all variants.
 							for menu_type in controls::ALL_BUILD_MENUS {
-								let background_color = BackgroundColor(Color::DARK_GRAY);
 								let style = Style {
 									justify_content: JustifyContent::Center,
 									align_items: AlignItems::Center,
-									width: Val::Px(50.),
-									height: Val::Px(50.),
+									width: Val::Px(PIXEL_SIZE),
+									height: Val::Px(PIXEL_SIZE),
 									..Default::default()
 								};
 								parent
 									.spawn((
-										ButtonAnimations::new(background_color, &style),
+										height_animation.clone(),
+										press_animation.clone(),
 										ButtonBundle { style, background_color, ..Default::default() },
 										controls::BuildMenuButton(menu_type),
 										Tooltip::from(&menu_type),
@@ -311,7 +266,8 @@ fn initialize_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
 									};
 									build_menu
 										.spawn((
-											ButtonAnimations::new(background_color, &style),
+											height_animation.clone(),
+											press_animation.clone(),
 											ButtonBundle { style, background_color, ..Default::default() },
 											Tooltip::from(buildable),
 											controls::StartBuildButton(*buildable),
@@ -333,21 +289,63 @@ fn initialize_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
 		});
 }
 
-fn transition_button_interaction(
-	mut button: Query<(&Interaction, &mut ButtonAnimations), (Changed<Interaction>, With<Button>)>,
-) {
-	for (interaction, mut animations) in &mut button {
-		animations.start_transition_to(*interaction);
-	}
-}
+#[derive(Component, Clone, Copy, Debug)]
+struct DialogContainer;
 
-fn animate_button(
-	time: Res<Time>,
-	mut buttons: Query<(&mut ButtonAnimations, &mut BackgroundColor, &mut Style), With<Button>>,
-) {
-	for (mut animations, mut color, mut style) in &mut buttons {
-		animations.update(&time, &mut color, &mut style);
-	}
+fn initialize_dialogs(mut commands: Commands, asset_server: Res<AssetServer>) {
+	commands
+		.spawn((
+			NodeBundle {
+				style: Style {
+					width: Val::Percent(100.),
+					height: Val::Percent(100.),
+					display: Display::Grid,
+					// Absolute positioning for top-level containers allows us to make all UI layers independent.
+					position_type: PositionType::Absolute,
+					grid_template_columns: vec![
+						RepeatedGridTrack::max_content(1),
+						RepeatedGridTrack::minmax(
+							1,
+							MinTrackSizingFunction::Percent(50.),
+							MaxTrackSizingFunction::MinContent,
+						),
+						RepeatedGridTrack::max_content(1),
+					],
+					grid_template_rows: vec![
+						RepeatedGridTrack::max_content(1),
+						RepeatedGridTrack::minmax(
+							1,
+							MinTrackSizingFunction::Percent(50.),
+							MaxTrackSizingFunction::MinContent,
+						),
+						RepeatedGridTrack::max_content(1),
+					],
+					..Default::default()
+				},
+				background_color: BackgroundColor(Color::DARK_GRAY.with_a(0.5)),
+				..Default::default()
+			},
+			DialogContainer,
+		))
+		.with_children(|parent| {
+			parent.spawn(NodeBundle {
+				style: Style {
+					grid_row: GridPlacement::start(2),
+					grid_column: GridPlacement::start(2),
+					display: Display::Grid,
+					align_items: AlignItems::Center,
+					align_content: AlignContent::Start,
+					grid_template_columns: vec![RepeatedGridTrack::auto(1), RepeatedGridTrack::min_content(1)],
+					grid_template_rows: vec![RepeatedGridTrack::auto(1), RepeatedGridTrack::min_content(1)],
+					padding: UiRect::all(BUTTON_SPACING),
+					row_gap: BUTTON_SPACING,
+					..Default::default()
+				},
+				background_color: BackgroundColor(Color::DARK_GRAY),
+				..Default::default()
+			});
+			// TODO
+		});
 }
 
 fn on_build_menu_button_press(

@@ -5,6 +5,7 @@ use bevy::utils::thiserror::Error;
 use bevy::window::PrimaryWindow;
 use itertools::{EitherOrBoth, Itertools};
 
+use super::error::{DisplayableError, ErrorBox};
 use super::on_start_build_preview;
 use super::world_info::WorldInfoProperties;
 use crate::graphics::library::{anchor_for_sprite, preview_sprite_for_buildable};
@@ -64,7 +65,7 @@ struct PerformBuild<const BUILDABLE: BuildableType> {
 
 /// Any reason that the build could not be completed; eventually propagated to the end-user.
 #[derive(Event, Error, Debug)]
-enum BuildError {
+pub(super) enum BuildError {
 	#[error("There is no pitch to build on here.")]
 	NoAccommodationHere,
 	#[error("Building doesn’t have enough space to be built here.")]
@@ -74,6 +75,12 @@ enum BuildError {
 		 tiles.", .required, .actual
 	)]
 	PitchTooSmall { required: usize, actual: usize },
+}
+
+impl DisplayableError for BuildError {
+	fn name(&self) -> &str {
+		"Build error"
+	}
 }
 
 /// Component for the building preview's parent entity.
@@ -365,7 +372,7 @@ fn perform_pitch_type_build(
 	mut commands: Commands,
 	asset_server: Res<AssetServer>,
 	mut pitches: Query<(Entity, &Area, &mut Pitch)>,
-	mut build_error: EventWriter<BuildError>,
+	mut build_error: EventWriter<ErrorBox>,
 	mut area_update_event: EventWriter<UpdateAreas>,
 ) {
 	for event in event.read() {
@@ -383,20 +390,17 @@ fn perform_pitch_type_build(
 		});
 
 		if pitch.get().is_none() {
-			error!("no pitch");
-			build_error.send(BuildError::NoAccommodationHere);
+			build_error.send(BuildError::NoAccommodationHere.into());
 			return;
 		}
 		let (pitch_entity, area, pitch) = pitch.get_mut().unwrap();
 		let pitch_box = GridBox::around(start_position, kind.size().flat());
 		if !area.fits(&pitch_box) {
-			error!("physical space not enough");
-			build_error.send(BuildError::NoSpace);
+			build_error.send(BuildError::NoSpace.into());
 			return;
 		}
 		if area.size() < kind.required_area() {
-			error!("pitch not large enough");
-			build_error.send(BuildError::PitchTooSmall { required: kind.required_area(), actual: area.size() });
+			build_error.send(BuildError::PitchTooSmall { required: kind.required_area(), actual: area.size() }.into());
 			return;
 		}
 

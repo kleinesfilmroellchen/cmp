@@ -41,6 +41,28 @@ impl Lerpable for Color {
 	}
 }
 
+impl Lerpable for Val {
+	fn lerp(&self, other: &Self, t: f32) -> Self {
+		match (self, other) {
+			// Interpolating from/to Auto doesn't really make sense, but we can stay at Auto.
+			(Val::Auto, _) | (_, Val::Auto) => Val::Auto,
+			(Val::Px(this), Val::Px(other)) => Val::Px(this.lerp(other, t)),
+			(Val::Percent(this), Val::Percent(other)) => Val::Percent(this.lerp(other, t)),
+			(Val::Vw(this), Val::Vw(other)) => Val::Vw(this.lerp(other, t)),
+			(Val::Vh(this), Val::Vh(other)) => Val::Vh(this.lerp(other, t)),
+			(Val::VMin(this), Val::VMin(other)) => Val::VMin(this.lerp(other, t)),
+			(Val::VMax(this), Val::VMax(other)) => Val::VMax(this.lerp(other, t)),
+			_ => panic!("Can't lerp between {:?} and {:?}", self, other),
+		}
+	}
+}
+
+impl Lerpable for BackgroundColor {
+	fn lerp(&self, other: &Self, t: f32) -> Self {
+		Self(self.0.lerp(&other.0, t))
+	}
+}
+
 /// Shows information about a UI element on hover.
 #[derive(Component)]
 pub struct Tooltip {

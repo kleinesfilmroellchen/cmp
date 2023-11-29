@@ -13,7 +13,8 @@
 	adt_const_params,
 	trivial_bounds,
 	const_fn_floating_point_arithmetic,
-	round_ties_even
+	round_ties_even,
+	trait_alias
 )]
 #![deny(clippy::all, missing_docs)]
 #![allow(clippy::type_complexity, incomplete_features, clippy::too_many_arguments)]
