@@ -15,4 +15,4 @@ crate-type = ["dylib"]
 cmp = { path = "../cmp" }
 # Make sure to specify the identical bevy version as CMP itself!
 # Use "dynamic_linking" to not statically link bevy into your app, but use CMP's built-in shared bevy library instead.
-bevy = { version = "0.11.2" }
+bevy = { git = "https://github.com/bevyengine/bevy", rev = "e3a59c4" }

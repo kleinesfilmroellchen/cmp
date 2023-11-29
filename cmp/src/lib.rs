@@ -24,8 +24,6 @@ use std::sync::Arc;
 #[allow(unused)]
 use std::time::Duration;
 
-#[allow(unused)]
-use bevy::asset::ChangeWatcher;
 use bevy::log::{Level, LogPlugin};
 use bevy::prelude::*;
 use bevy::window::{PresentMode, PrimaryWindow};
@@ -68,11 +66,13 @@ impl Plugin for CmpPlugin {
 			DefaultPlugins
 				.build()
 				.set(AssetPlugin {
-					asset_folder:      "../assets".into(),
+					file_path:       "../assets".into(),
+					processed_file_path: "../processed-assets".into(),
 					#[cfg(debug_assertions)]
-					watch_for_changes: Some(ChangeWatcher { delay: Duration::from_secs(3) }),
+        			watch_for_changes_override: Some(true),
 					#[cfg(not(debug_assertions))]
-					watch_for_changes: None,
+					watch_for_changes_override: Some(false),
+        			mode: AssetMode::Unprocessed,
 				})
 				.set(ImagePlugin::default_nearest()).set(AnimationPlugin)
 				.set(LogPlugin {
@@ -80,9 +80,9 @@ impl Plugin for CmpPlugin {
 					filter: "info,cmp=trace,wgpu=error,bevy=warn".into(),
 				}),
 		)
-		.add_asset_loader(bevy_qoi::QOIAssetLoader)
+		.register_asset_loader(bevy_qoi::QOIAssetLoader)
 		// Fixed update runs every two seconds and performs slow work that can take this long.
-		.insert_resource(FixedTime::new_from_secs(0.5))
+		.insert_resource(Time::<Fixed>::from_seconds(0.5))
 		.add_plugins((GUIInputPlugin, UIPlugin, TileManagement, AccommodationManagement, AreaManagement, ConfigPlugin(args.clone(), settings.clone()), ExternalPlugins(args)))
 		.insert_resource(WindowIcon::default())
 		.add_systems(Startup, (debug::create_stats, setup_window, model::spawn_test_tiles))
@@ -104,7 +104,7 @@ fn setup_window(
 	mut icon: ResMut<WindowIcon>,
 	mut windows: Query<&mut bevy::prelude::Window, With<PrimaryWindow>>,
 ) {
-	icon.0 = asset_server.load::<Image, _>("logo-overscaled.png");
+	icon.0 = asset_server.load::<Image>("logo-overscaled.png");
 
 	let mut window = windows.single_mut();
 	window.title = "Camping Madness Project".to_string();
@@ -127,9 +127,10 @@ fn set_window_icon(
 	images: Res<Assets<Image>>,
 	window_icon: Res<WindowIcon>,
 ) {
-	for ev in ev_asset.iter() {
-		if let AssetEvent::Created { handle } = ev {
-			if *handle == window_icon.0 {
+	for ev in ev_asset.read() {
+		if let AssetEvent::LoadedWithDependencies { id } = ev {
+			let maybe_id = images.iter().find_map(|(img_id, _)| if *id == img_id { Some(img_id) } else { None });
+			if maybe_id.is_some_and(|id| id == window_icon.0.id()) {
 				for window in &mut windows {
 					let winit_window =
 						winit_map.windows.get(winit_map.entity_to_winit.get(&window.0).unwrap()).unwrap();

@@ -9,9 +9,11 @@ crate-type = ["dylib"]
 
 [dependencies]
 # The Bevy game engine.
-bevy = { version = "0.11.2", features = ["dynamic_linking"] }
+bevy = { git = "https://github.com/bevyengine/bevy", rev = "e3a59c4", features = [
+	"dynamic_linking"
+] }
 # Bevy dynamic plugin support, used for first-class modding support in CMP.
-bevy_dynamic_plugin = "0.11.2"
+bevy_dynamic_plugin = { git = "https://github.com/bevyengine/bevy", rev = "e3a59c4" }
 libloading = "0.8"
 # Direct access to Bevy's windowing library winit for some functionality such as setting a window logo.
 winit = "0.28"

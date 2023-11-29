@@ -11,9 +11,10 @@ use crate::graphics::library::{anchor_for_sprite, preview_sprite_for_buildable};
 use crate::graphics::{screen_to_world_space, ObjectPriority};
 use crate::input::InputState;
 use crate::model::area::{Area, ImmutableArea, Pool, UpdateAreas};
+use crate::model::pitch::Pitch;
 use crate::model::{
 	AccommodationBuildingBundle, AccommodationBundle, Buildable, BuildableType, GridBox, GridPosition, GroundKind,
-	GroundMap, Pitch,
+	GroundMap,
 };
 
 pub struct BuildPlugin;
@@ -277,7 +278,7 @@ fn create_building_preview(
 			commands.entity(old_preview).despawn_recursive();
 		}
 	}
-	for event in &mut events {
+	for event in events.read() {
 		commands.spawn((
 			PreviewParent::new(event.buildable),
 			ObjectPriority::Overlay,
@@ -285,7 +286,8 @@ fn create_building_preview(
 			// Bare minimum collection of components to make this entity and its children render.
 			Transform::default(),
 			GlobalTransform::default(),
-			ComputedVisibility::default(),
+			InheritedVisibility::default(),
+			ViewVisibility::default(),
 		));
 	}
 }
@@ -298,7 +300,7 @@ fn perform_ground_build(
 	mut tile_query: Query<(Entity, &GridPosition, &mut GroundKind, &mut WorldInfoProperties)>,
 	mut area_update_event: EventWriter<UpdateAreas>,
 ) {
-	for event in &mut event {
+	for event in event.read() {
 		let kind = match event.buildable {
 			Buildable::Ground(kind) => kind,
 			_ => unreachable!(),
@@ -320,7 +322,7 @@ fn perform_pitch_build(
 	mut tile_query: Query<(Entity, &GridPosition, &mut GroundKind, &mut WorldInfoProperties)>,
 	mut area_update_event: EventWriter<UpdateAreas>,
 ) {
-	for event in &mut event {
+	for event in event.read() {
 		ground_map.fill_rect(
 			event.start_position,
 			event.end_position,
@@ -343,7 +345,7 @@ fn perform_pool_area_build(
 	mut tile_query: Query<(Entity, &GridPosition, &mut GroundKind, &mut WorldInfoProperties)>,
 	mut area_update_event: EventWriter<UpdateAreas>,
 ) {
-	for event in &mut event {
+	for event in event.read() {
 		ground_map.fill_rect(
 			event.start_position,
 			event.end_position,
@@ -366,14 +368,14 @@ fn perform_pitch_type_build(
 	mut build_error: EventWriter<BuildError>,
 	mut area_update_event: EventWriter<UpdateAreas>,
 ) {
-	for event in event.into_iter() {
+	for event in event.read() {
 		let kind = match event.buildable {
 			Buildable::PitchType(kind) => kind,
 			_ => unreachable!(),
 		};
 		let start_position = event.start_position;
 		let mut pitch = OnceLock::new();
-		pitches.par_iter_mut().for_each_mut(|(entity, area, pitch_candidate)| {
+		pitches.par_iter_mut().for_each(|(entity, area, pitch_candidate)| {
 			// Perform work immediately, since only one pitch should contain this pitch type.
 			if area.contains(&start_position) {
 				let _ = pitch.set((entity, area, pitch_candidate));
@@ -434,26 +436,34 @@ fn handle_build_interactions(
 			state.set(InputState::Idle);
 			// Transform a "dynamic" PerformBuild instantiation into a static one.
 			match BuildableType::from(preview_data.previewed) {
-				BuildableType::Ground => ground_build_event.send(PerformBuild {
-					start_position: preview_data.start_position,
-					end_position:   preview_data.current_position,
-					buildable:      preview_data.previewed,
-				}),
-				BuildableType::PoolArea => pool_build_event.send(PerformBuild {
-					start_position: preview_data.start_position,
-					end_position:   preview_data.current_position,
-					buildable:      preview_data.previewed,
-				}),
-				BuildableType::Pitch => pitch_build_event.send(PerformBuild {
-					start_position: preview_data.start_position,
-					end_position:   preview_data.current_position,
-					buildable:      preview_data.previewed,
-				}),
-				BuildableType::PitchType => pitch_type_build_event.send(PerformBuild {
-					start_position: preview_data.start_position,
-					end_position:   preview_data.current_position,
-					buildable:      preview_data.previewed,
-				}),
+				BuildableType::Ground => {
+					ground_build_event.send(PerformBuild {
+						start_position: preview_data.start_position,
+						end_position:   preview_data.current_position,
+						buildable:      preview_data.previewed,
+					});
+				},
+				BuildableType::PoolArea => {
+					pool_build_event.send(PerformBuild {
+						start_position: preview_data.start_position,
+						end_position:   preview_data.current_position,
+						buildable:      preview_data.previewed,
+					});
+				},
+				BuildableType::Pitch => {
+					pitch_build_event.send(PerformBuild {
+						start_position: preview_data.start_position,
+						end_position:   preview_data.current_position,
+						buildable:      preview_data.previewed,
+					});
+				},
+				BuildableType::PitchType => {
+					pitch_type_build_event.send(PerformBuild {
+						start_position: preview_data.start_position,
+						end_position:   preview_data.current_position,
+						buildable:      preview_data.previewed,
+					});
+				},
 			}
 		}
 		// Keep start and current identical as long as the mouse is not pressed.

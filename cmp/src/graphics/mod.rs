@@ -258,7 +258,7 @@ fn move_edge_objects_in_front_of_boxes(
 	possible_parents: Query<&GridPosition, With<Children>>,
 	boxed_entities: Query<&GridBox>,
 ) {
-	edge_objects.par_iter_mut().for_each_mut(|(mut bevy_transform, edge_object_position, parent)| {
+	edge_objects.par_iter_mut().for_each(|(mut bevy_transform, edge_object_position, parent)| {
 		let own_position = if let Some(parent) = parent.and_then(|parent| possible_parents.get(parent.get()).ok()) {
 			parent.position() + **edge_object_position
 		} else {

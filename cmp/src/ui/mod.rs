@@ -118,7 +118,7 @@ impl ButtonAnimations {
 			height_system:   MassDamperSystem::new(16., 20., 1.),
 			color_system:    MassDamperSystem::new(4., 4., 1.),
 			original_color:  current_color.0,
-			original_height: current_style.height.evaluate(0.).unwrap_or(0.),
+			original_height: current_style.height.resolve(0., Vec2::ZERO).unwrap_or(0.),
 		}
 	}
 
@@ -381,7 +381,7 @@ fn update_build_menu_state(
 	mut open_menu_event: EventReader<controls::OpenBuildMenu>,
 	mut close_menu_event: EventReader<controls::CloseBuildMenus>,
 ) {
-	for open_event in &mut open_menu_event {
+	for open_event in open_menu_event.read() {
 		let kind = open_event.0;
 		for (container_type, mut style) in &mut build_menus {
 			// The second check will also close any currently-open menu on second click.
@@ -389,7 +389,7 @@ fn update_build_menu_state(
 				if container_type.0 == kind && style.display == Display::None { Display::Flex } else { Display::None };
 		}
 	}
-	for _ in &mut close_menu_event {
+	for _ in close_menu_event.read() {
 		for (_, mut style) in &mut build_menus {
 			style.display = Display::None;
 		}

@@ -6,4 +6,4 @@ edition.workspace = true
 
 [dependencies]
 cmp = { path = "../cmp" }
-bevy = { version = "0.11.2", features = ["dynamic_linking"] }
+bevy = { git = "https://github.com/bevyengine/bevy", rev = "e3a59c4", features = ["dynamic_linking"] }

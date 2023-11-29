@@ -1,7 +1,11 @@
+use std::error::Error;
+
 use anyhow::anyhow;
-use bevy::asset::{AssetLoader, LoadedAsset};
+use bevy::asset::io::Reader;
+use bevy::asset::{AssetLoader, AsyncReadExt, LoadContext};
 use bevy::prelude::*;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
+use bevy::utils::BoxedFuture;
 use qoi::Decoder;
 
 /// The asset loader that provides QOI loading capabilities.
@@ -25,17 +29,24 @@ use qoi::Decoder;
 pub struct QOIAssetLoader;
 
 impl AssetLoader for QOIAssetLoader {
+	type Asset = Image;
+	type Error = Box<dyn Error + Send + Sync + 'static>;
+	type Settings = ();
+
 	fn load<'a>(
 		&'a self,
-		bytes: &'a [u8],
-		load_context: &'a mut bevy::asset::LoadContext,
-	) -> bevy::utils::BoxedFuture<'a, Result<(), bevy::asset::Error>> {
+		reader: &'a mut Reader,
+		_: &'a Self::Settings,
+		_: &'a mut LoadContext,
+	) -> BoxedFuture<'a, Result<Self::Asset, Self::Error>> {
 		Box::pin(async move {
+			let mut bytes = Vec::new();
+			reader.read_to_end(&mut bytes).await?;
 			let mut decoder = Decoder::new(&bytes)?.with_channels(qoi::Channels::Rgba);
 			let decoded = decoder.decode_to_vec()?;
 			let header = decoder.header();
 
-			load_context.set_default_asset(LoadedAsset::new(Image::new(
+			Ok(Image::new(
 				Extent3d { width: header.width, height: header.height, ..Default::default() },
 				TextureDimension::D2,
 				decoded,
@@ -46,9 +57,7 @@ impl AssetLoader for QOIAssetLoader {
 						qoi::ColorSpace::Linear => TextureFormat::Rgba8Unorm,
 					}),
 				}?,
-			)));
-
-			Ok(())
+			))
 		})
 	}
 

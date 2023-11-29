@@ -75,7 +75,7 @@ fn zoom_camera(
 ) {
 	let mut camera_projection = camera_q.single_mut();
 
-	for scroll in &mut scroll_events {
+	for scroll in scroll_events.read() {
 		let amount = scroll.y;
 		// Only allow power-of-two scales, since those will not cause off-by-one rendering glitches.
 		camera_projection.scale = 2.0f32.powf(camera_projection.scale.log2().round() - amount).clamp(1. / 16., 2.);

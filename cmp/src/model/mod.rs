@@ -11,6 +11,7 @@ use bevy::prelude::*;
 pub use geometry::*;
 pub use pitch::*;
 pub use tile::*;
+pub use pitch::Pitch;
 
 use crate::ui::build::BuildMode;
 use crate::ui::controls::BuildMenu;

@@ -133,12 +133,12 @@ pub fn setup_world_info(mut commands: Commands) {
 		.with_children(|parent| {
 			parent.spawn((WorldInfoTitle, TextBundle {
 				text: Text { linebreak_behavior: BreakLineOn::WordBoundary, ..Default::default() },
-				style: Style { grid_column: GridPlacement::start_span(0, 2), ..Default::default() },
+				style: Style { grid_column: GridPlacement::start_span(1, 2), ..Default::default() },
 				..Default::default()
 			}));
 			parent.spawn((WorldInfoBody, TextBundle {
 				text: Text { linebreak_behavior: BreakLineOn::WordBoundary, ..Default::default() },
-				style: Style { grid_column: GridPlacement::start_span(0, 2), ..Default::default() },
+				style: Style { grid_column: GridPlacement::start_span(1, 2), ..Default::default() },
 				..Default::default()
 			}));
 		});
@@ -214,7 +214,7 @@ pub fn reassign_world_info(
 		let node_under_cursor: Arc<Mutex<Option<_>>> = Arc::default();
 		// PERFORMANCE: Run distance checks in parallel, only locking the current-best node once we have something
 		// that's within the click tolerance anyways.
-		interactable_world_info_entities.par_iter_mut().for_each_mut(|(entity, node_position, mut properties)| {
+		interactable_world_info_entities.par_iter_mut().for_each(|(entity, node_position, mut properties)| {
 			let mut node_position = node_position.translation_vec3a();
 			node_position.z = 0.;
 			let distance_to_cursor = node_position.distance(cursor_position).abs();
@@ -284,7 +284,6 @@ pub fn update_world_info(
 				let property_value = property.property_value();
 				parent.spawn((
 					TextBundle {
-						style: Style { grid_column: GridPlacement::start(0), ..Default::default() },
 						text: Text::from_section(property_name, TextStyle {
 							font:      asset_server.load(font_for(FontWeight::Regular, FontStyle::Regular)),
 							font_size: 18.,
@@ -296,11 +295,7 @@ pub fn update_world_info(
 				));
 				parent.spawn((
 					TextBundle {
-						style: Style {
-							grid_column: GridPlacement::start(1),
-							align_self: AlignSelf::End,
-							..Default::default()
-						},
+						style: Style { align_self: AlignSelf::End, ..Default::default() },
 						text: Text::from_section(property_value, TextStyle {
 							font:      asset_server.load(font_for(FontWeight::Regular, FontStyle::Regular)),
 							font_size: 18.,

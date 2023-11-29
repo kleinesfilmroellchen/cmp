@@ -155,26 +155,28 @@ impl Pitch {
 
 #[derive(Bundle)]
 pub struct AccommodationBundle {
-	area:                Area,
-	pitch:               Pitch,
-	global_transform:    GlobalTransform,
-	transform:           Transform,
-	computed_visibility: ComputedVisibility,
-	visibility:          Visibility,
-	properties:          WorldInfoProperties,
+	area:                 Area,
+	pitch:                Pitch,
+	global_transform:     GlobalTransform,
+	transform:            Transform,
+	view_visibility:      ViewVisibility,
+	inherited_visibility: InheritedVisibility,
+	visibility:           Visibility,
+	properties:           WorldInfoProperties,
 }
 
 impl AccommodationBundle {
 	pub fn new(start_position: GridPosition, end_position: GridPosition) -> Self {
 		Self {
-			area:                Area::from_rect(start_position, end_position),
-			pitch:               Pitch::default(),
+			area:                 Area::from_rect(start_position, end_position),
+			pitch:                Pitch::default(),
 			// Make various graphical children of the pitch area (borders, trees, buildings) visible.
-			global_transform:    GlobalTransform::default(),
-			transform:           Transform::default(),
-			computed_visibility: ComputedVisibility::default(),
-			visibility:          Visibility::Visible,
-			properties:          Self::info_base(),
+			global_transform:     GlobalTransform::default(),
+			transform:            Transform::default(),
+			inherited_visibility: InheritedVisibility::default(),
+			view_visibility:      ViewVisibility::default(),
+			visibility:           Visibility::Visible,
+			properties:           Self::info_base(),
 		}
 	}
 
@@ -184,7 +186,8 @@ impl AccommodationBundle {
 			pitch: Pitch::default(),
 			global_transform: GlobalTransform::default(),
 			transform: Transform::default(),
-			computed_visibility: ComputedVisibility::default(),
+			inherited_visibility: InheritedVisibility::default(),
+			view_visibility:      ViewVisibility::default(),
 			visibility: Visibility::Visible,
 			properties: Self::info_base(),
 		}
@@ -255,7 +258,7 @@ fn update_built_pitches(
 
 		let needs_update = Arc::new(AtomicBool::new(false));
 
-		pitches.par_iter_mut().for_each_mut(|(entity, mut pitch, children, mut area)| {
+		pitches.par_iter_mut().for_each(|(entity, mut pitch, children, mut area)| {
 			area.retain_tiles(|tile| relevant_tiles(tile) && !foreign_area_tiles.contains(tile));
 			let mut should_destroy = false;
 			// Check the three conditions for destroying an updated pitch:
