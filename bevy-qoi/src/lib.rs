@@ -16,13 +16,11 @@ use qoi::Decoder;
 /// use bevy::prelude::*;
 /// use bevy_qoi::QOIAssetLoader;
 ///
-/// fn main() {
-/// 	let mut app = App::new();
-/// 	app.add_plugins(DefaultPlugins);
-/// 	app.add_asset_loader(QOIAssetLoader);
-/// 	// Initialize the rest of your game...
-/// 	app.run();
-/// }
+/// let mut app = App::new();
+/// app.add_plugins(DefaultPlugins);
+/// app.add_asset_loader(QOIAssetLoader);
+/// // Initialize the rest of your game...
+/// app.run();
 /// ```
 ///
 /// The asset loader hooks into Bevy's asset system like normal, meaning you can load QOI images like any other asset.

@@ -110,7 +110,8 @@ mod test {
 	fn bench_mass_spring_damper_system(bench: &mut test::Bencher) {
 		let mut system = super::MassDamperSystem::new(1.4, 2.33, 0.7);
 		bench.iter(|| {
-			test::black_box(system.simulate(60.));
+			system.simulate(60.);
+			test::black_box(());
 		})
 	}
 }

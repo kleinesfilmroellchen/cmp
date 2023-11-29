@@ -115,14 +115,14 @@ impl<D: Lerpable + Sync + Send + 'static + Clone, C: Component + Clone, P: Anima
 {
 	fn clone(&self) -> Self {
 		Self {
-			target:           self.target.clone(),
-			target_values:    self.target_values.clone(),
+			target:           self.target,
+			target_values:    self.target_values,
 			start_position:   self.start_position.clone(),
 			end_position:     self.end_position.clone(),
-			transition_times: self.transition_times.clone(),
-			system:           self.system.clone(),
-			c_mark:           self.c_mark.clone(),
-			p_mark:           self.p_mark.clone(),
+			transition_times: self.transition_times,
+			system:           self.system,
+			c_mark:           self.c_mark,
+			p_mark:           self.p_mark,
 		}
 	}
 }

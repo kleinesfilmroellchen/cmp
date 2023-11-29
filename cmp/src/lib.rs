@@ -147,7 +147,7 @@ fn set_window_icon(
 						(rgba, width, height)
 					};
 
-					let icon = Icon::from_rgba(icon_rgba, icon_width as u32, icon_height as u32).unwrap();
+					let icon = Icon::from_rgba(icon_rgba, icon_width, icon_height).unwrap();
 
 					winit_window.set_window_icon(Some(icon));
 				}

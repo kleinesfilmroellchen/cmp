@@ -292,7 +292,7 @@ fn initialize_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
 #[derive(Component, Clone, Copy, Debug)]
 struct DialogContainer;
 
-fn initialize_dialogs(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn initialize_dialogs(mut commands: Commands, _asset_server: Res<AssetServer>) {
 	commands
 		.spawn((
 			NodeBundle {
