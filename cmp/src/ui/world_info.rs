@@ -10,6 +10,7 @@ use parking_lot::Mutex;
 
 use crate::graphics::library::{font_for, FontStyle, FontWeight};
 use crate::graphics::{TILE_HEIGHT, TILE_WIDTH};
+use crate::input::MouseClick;
 use crate::model::{Comfort, PitchType};
 
 #[derive(Component, Default)]
@@ -184,62 +185,63 @@ pub fn hide_world_info(mut world_info: Query<&mut WorldInfoUI>, input: Res<Input
 }
 
 pub fn reassign_world_info(
-	mouse_buttons: Res<Input<MouseButton>>,
-	windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
-	camera_q: Query<(&Camera, &GlobalTransform)>,
+	// mouse_buttons: Res<Input<MouseButton>>,
+	// windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
+	// camera_q: Query<(&Camera, &GlobalTransform)>,
 	blocking_ui_elements: Query<&Interaction, (With<Node>, Changed<Interaction>)>,
 	mut interactable_world_info_entities: Query<(Entity, &GlobalTransform, &mut WorldInfoProperties)>,
 	mut world_info: Query<&mut WorldInfoUI>,
+	mut mouse_click: EventReader<MouseClick>,
 ) {
-	if mouse_buttons.just_released(MouseButton::Left)
-		&& !blocking_ui_elements.iter().any(|interaction| interaction != &Interaction::None)
-	{
-		let start = Instant::now();
+	for MouseClick { world_position, .. } in mouse_click.read() {
+		if !blocking_ui_elements.iter().any(|interaction| interaction != &Interaction::None) {
+			let start = Instant::now();
 
-		let (camera, camera_transform) = camera_q.single();
-		let window = windows.single();
-		let cursor_position = window.cursor_position();
-		if cursor_position.is_none() {
-			return;
-		}
-		let cursor_position = cursor_position.unwrap();
-		let mut world_info_data = world_info.single_mut();
+			let mut world_info_data = world_info.single_mut();
+			// let (camera, camera_transform) = camera_q.single();
+			// let window = windows.single();
+			// let cursor_position = window.cursor_position();
+			// if cursor_position.is_none() {
+			// 	return;
+			// }
+			// let cursor_position = cursor_position.unwrap();
 
-		let cursor_position = camera.viewport_to_world_2d(camera_transform, cursor_position);
-		if cursor_position.is_none() {
-			return;
-		}
-		let cursor_position = Vec3A::from((cursor_position.unwrap(), 0.)) - Vec3A::from((0., TILE_HEIGHT / 2., 0.));
+			// let cursor_position = camera.viewport_to_world_2d(camera_transform, cursor_position);
+			// if cursor_position.is_none() {
+			// 	return;
+			// }
+			let cursor_position = Vec3A::from((*world_position, 0.)) - Vec3A::from((0., TILE_HEIGHT / 2., 0.));
 
-		let node_under_cursor: Arc<Mutex<Option<_>>> = Arc::default();
-		// PERFORMANCE: Run distance checks in parallel, only locking the current-best node once we have something
-		// that's within the click tolerance anyways.
-		interactable_world_info_entities.par_iter_mut().for_each(|(entity, node_position, mut properties)| {
-			let mut node_position = node_position.translation_vec3a();
-			node_position.z = 0.;
-			let distance_to_cursor = node_position.distance(cursor_position).abs();
+			let node_under_cursor: Arc<Mutex<Option<_>>> = Arc::default();
+			// PERFORMANCE: Run distance checks in parallel, only locking the current-best node once we have something
+			// that's within the click tolerance anyways.
+			interactable_world_info_entities.par_iter_mut().for_each(|(entity, node_position, mut properties)| {
+				let mut node_position = node_position.translation_vec3a();
+				node_position.z = 0.;
+				let distance_to_cursor = node_position.distance(cursor_position).abs();
 
-			if distance_to_cursor < 2. * TILE_WIDTH {
-				let mut node_under_cursor = node_under_cursor.lock();
-				if let Some((old_entity, distance)) = node_under_cursor.as_mut() {
-					if *distance > distance_to_cursor {
-						// Set this world info to changed so that update_world_info definitely runs the next time.
-						properties.set_changed();
-						*old_entity = entity;
-						*distance = distance_to_cursor;
+				if distance_to_cursor < 2. * TILE_WIDTH {
+					let mut node_under_cursor = node_under_cursor.lock();
+					if let Some((old_entity, distance)) = node_under_cursor.as_mut() {
+						if *distance > distance_to_cursor {
+							// Set this world info to changed so that update_world_info definitely runs the next time.
+							properties.set_changed();
+							*old_entity = entity;
+							*distance = distance_to_cursor;
+						}
+					} else {
+						*node_under_cursor = Some((entity, distance_to_cursor));
 					}
-				} else {
-					*node_under_cursor = Some((entity, distance_to_cursor));
 				}
+			});
+
+			if let Some((entity, _)) = &*node_under_cursor.lock() {
+				world_info_data.attached_entity = Some(*entity);
 			}
-		});
 
-		if let Some((entity, _)) = &*node_under_cursor.lock() {
-			world_info_data.attached_entity = Some(*entity);
+			let duration = Instant::now() - start;
+			debug!("Regenerating world info took {:?}", duration);
 		}
-
-		let duration = Instant::now() - start;
-		debug!("Regenerating world info took {:?}", duration);
 	}
 }
 
