@@ -124,11 +124,12 @@ pub fn setup_world_info(mut commands: Commands) {
 					..Default::default()
 				},
 				background_color: BackgroundColor(Color::DARK_GRAY),
-				focus_policy: FocusPolicy::Pass,
+				focus_policy: FocusPolicy::Block,
 				z_index: ZIndex::Global(1),
 				visibility: Visibility::Hidden,
 				..Default::default()
 			},
+			Interaction::default(),
 			WorldInfoUI::default(),
 		))
 		.with_children(|parent| {
@@ -185,31 +186,19 @@ pub fn hide_world_info(mut world_info: Query<&mut WorldInfoUI>, input: Res<Input
 }
 
 pub fn reassign_world_info(
-	// mouse_buttons: Res<Input<MouseButton>>,
-	// windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
-	// camera_q: Query<(&Camera, &GlobalTransform)>,
-	blocking_ui_elements: Query<&Interaction, (With<Node>, Changed<Interaction>)>,
+	blocking_ui_elements: Query<(&FocusPolicy, &Interaction)>,
 	mut interactable_world_info_entities: Query<(Entity, &GlobalTransform, &mut WorldInfoProperties)>,
 	mut world_info: Query<&mut WorldInfoUI>,
 	mut mouse_click: EventReader<MouseClick>,
 ) {
 	for MouseClick { world_position, .. } in mouse_click.read() {
-		if !blocking_ui_elements.iter().any(|interaction| interaction != &Interaction::None) {
+		if !blocking_ui_elements
+			.iter()
+			.any(|(policy, interaction)| *policy == FocusPolicy::Block && *interaction != Interaction::None)
+		{
 			let start = Instant::now();
 
 			let mut world_info_data = world_info.single_mut();
-			// let (camera, camera_transform) = camera_q.single();
-			// let window = windows.single();
-			// let cursor_position = window.cursor_position();
-			// if cursor_position.is_none() {
-			// 	return;
-			// }
-			// let cursor_position = cursor_position.unwrap();
-
-			// let cursor_position = camera.viewport_to_world_2d(camera_transform, cursor_position);
-			// if cursor_position.is_none() {
-			// 	return;
-			// }
 			let cursor_position = Vec3A::from((*world_position, 0.)) - Vec3A::from((0., TILE_HEIGHT / 2., 0.));
 
 			let node_under_cursor: Arc<Mutex<Option<_>>> = Arc::default();

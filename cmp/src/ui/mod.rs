@@ -1,11 +1,13 @@
 use std::time::Duration;
 
 use bevy::prelude::*;
+use bevy::text::BreakLineOn;
+use bevy::ui::FocusPolicy;
 use build::BuildPlugin;
 
 use self::animate::{AnimationPlugin, AnimationTargets, UIAnimation};
 use self::controls::{BuildMenuContainer, ALL_BUILD_MENUS};
-use crate::graphics::library::{logo_for_build_menu, logo_for_buildable};
+use crate::graphics::library::{font_for, logo_for_build_menu, logo_for_buildable, FontStyle, FontWeight};
 use crate::input::InputState;
 use crate::model::ALL_BUILDABLES;
 use crate::ui::animate::{StyleHeight, TransitionTimes};
@@ -24,7 +26,7 @@ impl Plugin for UIPlugin {
 			.add_event::<controls::OpenBuildMenu>()
 			.add_event::<controls::CloseBuildMenus>()
 			.add_event::<error::ErrorBox>()
-			.add_systems(Startup, (initialize_ui, /* initialize_dialogs */ world_info::setup_world_info))
+			.add_systems(Startup, (initialize_ui, initialize_dialogs, world_info::setup_world_info))
 			.add_systems(
 				Update,
 				(world_info::reassign_world_info, world_info::update_world_info).run_if(in_state(InputState::Idle)),
@@ -39,6 +41,7 @@ impl Plugin for UIPlugin {
 					update_build_menu_state,
 					on_build_menu_button_press,
 					on_start_build_preview.after(on_build_menu_button_press),
+					close_dialog,
 				),
 			)
 			.add_systems(PostUpdate, (error::show_errors, error::print_errors));
@@ -103,6 +106,17 @@ pub mod controls {
 	/// An event notifying that the open build menu has been closed.
 	#[derive(Event)]
 	pub struct CloseBuildMenus;
+
+	#[derive(Component, Clone, Copy, Debug)]
+	pub struct DialogContainer;
+	#[derive(Component, Clone, Copy, Debug)]
+	pub struct DialogBox;
+	#[derive(Component, Clone, Copy, Debug)]
+	pub struct DialogTitle;
+	#[derive(Component, Clone, Copy, Debug)]
+	pub struct DialogContents;
+	#[derive(Component, Clone, Copy, Debug)]
+	pub struct DialogCloseButton;
 }
 
 const BUTTON_SPACING: Val = Val::Px(5.);
@@ -186,17 +200,21 @@ fn initialize_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
 						TransitionTimes::uniform(Duration::from_millis(100)),
 					);
 					parent
-						.spawn(NodeBundle {
-							style: Style {
-								grid_row: GridPlacement::start(2),
-								display: Display::Flex,
-								flex_direction: FlexDirection::Row,
-								align_items: AlignItems::Baseline,
-								column_gap: BUTTON_SPACING,
+						.spawn((
+							NodeBundle {
+								style: Style {
+									grid_row: GridPlacement::start(2),
+									display: Display::Flex,
+									flex_direction: FlexDirection::Row,
+									align_items: AlignItems::Baseline,
+									column_gap: BUTTON_SPACING,
+									..Default::default()
+								},
+								focus_policy: FocusPolicy::Block,
 								..Default::default()
 							},
-							..Default::default()
-						})
+							Interaction::default(),
+						))
 						.with_children(|parent| {
 							// TODO: Use iter_variants to dynamically access all variants.
 							for menu_type in controls::ALL_BUILD_MENUS {
@@ -244,12 +262,11 @@ fn initialize_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
 										..Default::default()
 									},
 									background_color: BackgroundColor(Color::GRAY),
+									focus_policy: FocusPolicy::Block,
 									..Default::default()
 								},
 								BuildMenuContainer(menu_type),
-								// Make the menu background receive and block mouse clicks, e.g. to prevent accidental
-								// building.
-								Interaction::None,
+								Interaction::default(),
 							))
 							.with_children(|build_menu| {
 								// May be a little slow to iterate all buildable types each time, but we only do it once
@@ -289,10 +306,7 @@ fn initialize_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
 		});
 }
 
-#[derive(Component, Clone, Copy, Debug)]
-struct DialogContainer;
-
-fn initialize_dialogs(mut commands: Commands, _asset_server: Res<AssetServer>) {
+fn initialize_dialogs(mut commands: Commands, asset_server: Res<AssetServer>) {
 	commands
 		.spawn((
 			NodeBundle {
@@ -303,49 +317,101 @@ fn initialize_dialogs(mut commands: Commands, _asset_server: Res<AssetServer>) {
 					// Absolute positioning for top-level containers allows us to make all UI layers independent.
 					position_type: PositionType::Absolute,
 					grid_template_columns: vec![
-						RepeatedGridTrack::max_content(1),
-						RepeatedGridTrack::minmax(
-							1,
-							MinTrackSizingFunction::Percent(50.),
-							MaxTrackSizingFunction::MinContent,
-						),
-						RepeatedGridTrack::max_content(1),
+						RepeatedGridTrack::fr(1, 1.),
+						RepeatedGridTrack::percent(1, 50.),
+						RepeatedGridTrack::fr(1, 1.),
 					],
 					grid_template_rows: vec![
-						RepeatedGridTrack::max_content(1),
+						RepeatedGridTrack::fr(1, 1.),
 						RepeatedGridTrack::minmax(
 							1,
 							MinTrackSizingFunction::Percent(50.),
 							MaxTrackSizingFunction::MinContent,
 						),
-						RepeatedGridTrack::max_content(1),
+						RepeatedGridTrack::fr(1, 1.),
 					],
 					..Default::default()
 				},
+				visibility: Visibility::Hidden,
 				background_color: BackgroundColor(Color::DARK_GRAY.with_a(0.5)),
 				..Default::default()
 			},
-			DialogContainer,
+			controls::DialogContainer,
 		))
 		.with_children(|parent| {
-			parent.spawn(NodeBundle {
-				style: Style {
-					grid_row: GridPlacement::start(2),
-					grid_column: GridPlacement::start(2),
-					display: Display::Grid,
-					align_items: AlignItems::Center,
-					align_content: AlignContent::Start,
-					grid_template_columns: vec![RepeatedGridTrack::auto(1), RepeatedGridTrack::min_content(1)],
-					grid_template_rows: vec![RepeatedGridTrack::auto(1), RepeatedGridTrack::min_content(1)],
-					padding: UiRect::all(BUTTON_SPACING),
-					row_gap: BUTTON_SPACING,
-					..Default::default()
-				},
-				background_color: BackgroundColor(Color::DARK_GRAY),
-				..Default::default()
-			});
-			// TODO
+			parent
+				.spawn((
+					NodeBundle {
+						style: Style {
+							grid_row: GridPlacement::start(2),
+							grid_column: GridPlacement::start(2),
+							display: Display::Grid,
+							align_items: AlignItems::Start,
+							justify_content: JustifyContent::Center,
+							align_content: AlignContent::Center,
+							grid_template_columns: vec![RepeatedGridTrack::auto(1), RepeatedGridTrack::min_content(1)],
+							grid_template_rows: vec![RepeatedGridTrack::min_content(1), RepeatedGridTrack::auto(1)],
+							padding: UiRect::all(BUTTON_SPACING),
+							row_gap: BUTTON_SPACING,
+							..Default::default()
+						},
+						focus_policy: FocusPolicy::Block,
+						background_color: BackgroundColor(Color::DARK_GRAY),
+						..Default::default()
+					},
+					Interaction::default(),
+					controls::DialogBox,
+				))
+				.with_children(|parent| {
+					parent.spawn((
+						TextBundle {
+							style: Style {
+								grid_row: GridPlacement::start(1),
+								grid_column: GridPlacement::span(1),
+								justify_self: JustifySelf::Center,
+								align_self: AlignSelf::Center,
+								..Default::default()
+							},
+							text: Text {
+								alignment: TextAlignment::Center,
+								linebreak_behavior: BreakLineOn::WordBoundary,
+								sections: vec![TextSection::new("", TextStyle {
+									font:      asset_server.load(font_for(FontWeight::Bold, FontStyle::Regular)),
+									font_size: 32.,
+									color:     Color::ORANGE,
+								})],
+								..Default::default()
+							},
+							..Default::default()
+						},
+						controls::DialogTitle,
+					));
+					parent.spawn((
+						ButtonBundle {
+							style: Style {
+								grid_row: GridPlacement::start(1),
+								grid_column: GridPlacement::start(2),
+								min_width: Val::Px(30.),
+								min_height: Val::Px(30.),
+								..Default::default()
+							},
+							background_color: BackgroundColor(Color::BLACK),
+							..Default::default()
+						},
+						controls::DialogCloseButton,
+					));
+				});
 		});
+}
+
+fn close_dialog(
+	mut dialog_container: Query<&mut Visibility, With<controls::DialogContainer>>,
+	interacted_button: Query<&Interaction, (Changed<Interaction>, With<controls::DialogCloseButton>)>,
+) {
+	let mut dialog_container_visibility = dialog_container.single_mut();
+	if matches!(interacted_button.get_single(), Ok(&Interaction::Pressed)) {
+		dialog_container_visibility.set_if_neq(Visibility::Hidden);
+	}
 }
 
 fn on_build_menu_button_press(

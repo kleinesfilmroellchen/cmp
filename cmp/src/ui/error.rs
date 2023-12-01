@@ -1,6 +1,9 @@
 //! Error display in the UI.
 use bevy::prelude::*;
 
+use super::controls::{DialogBox, DialogContainer, DialogContents, DialogTitle};
+use crate::graphics::library::{font_for, FontStyle, FontWeight};
+
 /// A kind of error event that can be displayed in the UI.
 pub trait DisplayableError: std::error::Error + Event {
 	// The error's name; may not be static but depend on internal state.
@@ -24,8 +27,47 @@ impl<T: DisplayableError> From<T> for ErrorBox {
 	}
 }
 
-pub(super) fn show_errors(mut errors: EventReader<ErrorBox>) {
-	for _ in errors.read() {}
+pub(super) fn show_errors(
+	mut errors: EventReader<ErrorBox>,
+	mut dialog_container: Query<&mut Visibility, With<DialogContainer>>,
+	dialog_box: Query<Entity, With<DialogBox>>,
+	mut dialog_title: Query<&mut Text, With<DialogTitle>>,
+	mut dialog_contents: Query<Entity, With<DialogContents>>,
+	asset_server: Res<AssetServer>,
+	mut commands: Commands,
+) {
+	let mut dialog_container = dialog_container.single_mut();
+	// Don't show another error while the dialog box is still open.
+	if dialog_container.as_ref() == Visibility::Visible {
+		return;
+	}
+
+	if let Some(ErrorBox(error)) = errors.read().next() {
+		let title = error.name();
+		let text = error.to_string();
+
+		let mut dialog_title = dialog_title.single_mut();
+		let dialog_box = dialog_box.single();
+
+		dialog_contents.iter_mut().for_each(|entity| commands.entity(entity).despawn_recursive());
+
+		let dialog_title_text = dialog_title.sections.first_mut().unwrap();
+		dialog_title_text.value = title.into();
+		dialog_title_text.style.color = Color::ORANGE;
+
+		commands.entity(dialog_box).with_children(|dialog_content_commands| {
+			dialog_content_commands.spawn((
+				TextBundle::from_section(text, TextStyle {
+					font:      asset_server.load(font_for(FontWeight::Regular, FontStyle::Regular)),
+					font_size: 24.,
+					color:     Color::WHITE,
+				}),
+				DialogContents,
+			));
+		});
+
+		dialog_container.set_if_neq(Visibility::Visible);
+	}
 }
 
 pub(super) fn print_errors(mut errors: EventReader<ErrorBox>) {
