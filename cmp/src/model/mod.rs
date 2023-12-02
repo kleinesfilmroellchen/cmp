@@ -2,6 +2,7 @@
 
 pub mod area;
 pub mod geometry;
+pub mod nav;
 pub mod pitch;
 pub mod tile;
 

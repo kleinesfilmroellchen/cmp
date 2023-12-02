@@ -32,6 +32,7 @@ use bevy::winit::WinitWindows;
 use config::{CommandLineArguments, ConfigPlugin, GameSettings};
 use input::GUIInputPlugin;
 use model::area::AreaManagement;
+use model::nav::NavManagement;
 use model::{AccommodationManagement, TileManagement};
 use plugins::ExternalPlugins;
 use ui::UIPlugin;
@@ -60,6 +61,12 @@ pub struct CmpPlugin;
 impl Plugin for CmpPlugin {
 	fn build(&self, app: &mut App) {
 		let args: Arc<CommandLineArguments> = Arc::new(argh::from_env());
+
+		if args.version {
+			println!("{}", program_info());
+			std::process::exit(0);
+		}
+
 		let settings = Arc::new(GameSettings::from_arg_path(&args));
 		let log_level = if settings.show_debug { Level::TRACE } else { Level::INFO };
 
@@ -84,7 +91,7 @@ impl Plugin for CmpPlugin {
 		.register_asset_loader(bevy_qoi::QOIAssetLoader)
 		// Fixed update runs every two seconds and performs slow work that can take this long.
 		.insert_resource(Time::<Fixed>::from_seconds(0.5))
-		.add_plugins((GUIInputPlugin, UIPlugin, TileManagement, AccommodationManagement, AreaManagement, ConfigPlugin(args.clone(), settings.clone()), ExternalPlugins(args)))
+		.add_plugins((GUIInputPlugin, UIPlugin, TileManagement, AccommodationManagement, AreaManagement, NavManagement, ConfigPlugin(args.clone(), settings.clone()), ExternalPlugins(args)))
 		.insert_resource(WindowIcon::default())
 		.add_systems(Startup, (debug::create_stats, setup_window, model::spawn_test_tiles))
 		.add_systems(PostStartup, print_program_info)
@@ -93,8 +100,15 @@ impl Plugin for CmpPlugin {
 }
 
 fn print_program_info() {
-	info!("The Camping Madness Project version {}", VERSION);
-	info!("Copyright © 2023, kleines Filmröllchen. Licensed under a BSD 2-clause license.")
+	info!("{}", program_info());
+}
+
+fn program_info() -> String {
+	format!(
+		"The Camping Madness Project version {}\nCopyright © 2023, kleines Filmröllchen. Licensed under a BSD \
+		 2-clause license.",
+		VERSION
+	)
 }
 
 #[derive(Resource, Default)]

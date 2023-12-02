@@ -6,7 +6,7 @@ use itertools::Itertools;
 
 use super::{BoundingBox, GridBox, GridPosition, GroundKind, GroundMap, Pitch};
 use crate::config::GameSettings;
-use crate::graphics::{BorderSides, BorderSprite, BorderTextures, ObjectPriority};
+use crate::graphics::{Sides, BorderSprite, BorderTextures, ObjectPriority};
 use crate::ui::world_info::WorldInfoProperties;
 
 /// A continuous area on the ground, containing various tiles (often of a homogenous type) and demarcating some
@@ -103,16 +103,16 @@ impl Area {
 		for position in &self.tiles {
 			let (entity, kind) = ground_map.get(position).unwrap();
 			if let Some(border_kind) = kind.border_kind() {
-				let mut sides = BorderSides::all();
+				let mut sides = Sides::all();
 				for neighbor in position.neighbors().into_iter().filter(|neighbor| {
 					self.tiles.contains(neighbor)
 						&& ground_map.kind_of(neighbor).is_some_and(|neighbor_kind| neighbor_kind == kind)
 				}) {
 					sides ^= match *(neighbor - *position) {
-						IVec3::X => BorderSides::Right,
-						IVec3::NEG_X => BorderSides::Left,
-						IVec3::Y => BorderSides::Top,
-						IVec3::NEG_Y => BorderSides::Bottom,
+						IVec3::X => Sides::Right,
+						IVec3::NEG_X => Sides::Left,
+						IVec3::Y => Sides::Top,
+						IVec3::NEG_Y => Sides::Bottom,
 						_ => unreachable!(),
 					};
 				}

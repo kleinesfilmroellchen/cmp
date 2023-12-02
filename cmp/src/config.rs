@@ -15,6 +15,9 @@ pub struct CommandLineArguments {
 	/// external game plugins ("mods") to load; a path to a plugin's shared library file (.dll, .so, ...)
 	#[argh(option)]
 	pub plugins:       Vec<PathBuf>,
+	/// show CMP version information
+	#[argh(switch)]
+	pub version:       bool,
 }
 
 /// Game settings for CMP. Game settings are stored by [`confy`] in TOML format in a system-defined config path. For

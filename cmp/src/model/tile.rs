@@ -3,9 +3,10 @@ use std::marker::ConstParamTy;
 use bevy::prelude::*;
 use bevy::utils::HashMap;
 
+use super::nav::NavVertex;
 use super::GridPosition;
 use crate::graphics::library::{anchor_for_sprite, sprite_for_ground};
-use crate::graphics::{BorderKind, ObjectPriority};
+use crate::graphics::{BorderKind, ObjectPriority, Sides};
 use crate::ui::world_info::WorldInfoProperties;
 use crate::util::Tooltipable;
 
@@ -75,6 +76,7 @@ pub struct GroundTile {
 	sprite:     SpriteBundle,
 	kind:       GroundKind,
 	world_info: WorldInfoProperties,
+	navigable:  NavVertex,
 }
 
 impl GroundTile {
@@ -94,6 +96,12 @@ impl GroundTile {
 			priority: ObjectPriority::Ground,
 			kind,
 			world_info: WorldInfoProperties::basic(kind.to_string(), kind.description().to_string()),
+			// Testing
+			navigable: NavVertex {
+				exits:        Sides::all(),
+				speed:        2.,
+				navigability: super::nav::NavCategory::People,
+			},
 		}
 	}
 }

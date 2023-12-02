@@ -61,7 +61,7 @@ impl BorderTextures {
 /// Sprite representing a border of a larger area, such as a fence.
 #[derive(Bundle)]
 pub struct BorderSprite {
-	pub side:                 BorderSides,
+	pub side:                 Sides,
 	pub kind:                 BorderKind,
 	pub(crate) sprite_bundle: SpriteSheetBundle,
 	pub offset:               ActorPosition,
@@ -71,7 +71,7 @@ pub struct BorderSprite {
 bitflags! {
 	#[repr(transparent)]
 	#[derive(Debug, Component, Clone, Copy, Eq, PartialEq)]
-	pub struct BorderSides : u8 {
+	pub struct Sides : u8 {
 		const Top = 0b0001;
 		const Right = 0b0010;
 		const Bottom = 0b0100;
@@ -79,7 +79,7 @@ bitflags! {
 	}
 }
 
-impl BorderSides {
+impl Sides {
 	pub fn to_sprite_index(self) -> usize {
 		match self {
 			Self::Top => 0,
@@ -129,7 +129,7 @@ impl BorderSides {
 
 impl BorderSprite {
 	pub fn new<'a>(
-		sides: BorderSides,
+		sides: Sides,
 		kind: BorderKind,
 		asset_server: &'a AssetServer,
 		texture_atlases: &'a mut Assets<TextureAtlas>,
@@ -224,7 +224,8 @@ impl ObjectPriority {
 
 static TRANSFORMATION_MATRIX: OnceLock<Mat3> = OnceLock::new();
 
-pub const TILE_HEIGHT: f32 = 12.;
+/// BUG: This should be 12 but that commonly leads to off-by-one seams.
+pub const TILE_HEIGHT: f32 = 11.999;
 pub const TILE_WIDTH: f32 = 16.;
 
 fn position_objects<PositionType: WorldPosition>(

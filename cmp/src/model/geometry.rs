@@ -60,6 +60,7 @@ impl<T: Into<Vec3>> std::ops::Sub<T> for ActorPosition {
 
 /// A grid position can only take exact grid values.
 #[derive(Component, Default, Copy, Clone, Debug, Deref, DerefMut, Eq, PartialEq, Hash)]
+#[repr(transparent)]
 pub struct GridPosition(pub(crate) IVec3);
 
 impl GridPosition {
