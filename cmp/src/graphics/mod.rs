@@ -1,6 +1,7 @@
 use std::sync::OnceLock;
 
 use bevy::core_pipeline::contrast_adaptive_sharpening::ContrastAdaptiveSharpeningSettings;
+use bevy::core_pipeline::tonemapping::DebandDither;
 use bevy::math::Vec3A;
 use bevy::prelude::*;
 use bevy::sprite::Anchor;
@@ -181,11 +182,19 @@ fn update_immutable_area_borders(
 
 fn initialize_graphics(mut commands: Commands, _asset_server: Res<AssetServer>, mut msaa: ResMut<Msaa>) {
 	let projection = OrthographicProjection { scale: 1. / 4., near: -100000., ..Default::default() };
-	commands.spawn((Camera2dBundle { projection, ..Default::default() }, ContrastAdaptiveSharpeningSettings {
-		enabled:             false,
-		sharpening_strength: 0.3,
-		denoise:             false,
-	}));
+	commands.spawn((
+		Camera2dBundle {
+			projection,
+			deband_dither: DebandDither::Enabled,
+			camera: Camera { hdr: true, ..Default::default() },
+			..Default::default()
+		},
+		ContrastAdaptiveSharpeningSettings {
+			enabled:             false,
+			sharpening_strength: 0.3,
+			denoise:             false,
+		},
+	));
 	*msaa = Msaa::Off;
 }
 

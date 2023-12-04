@@ -1,6 +1,7 @@
 //! Navigation and navmesh information.
 
 use std::cmp::Ordering;
+use std::f32::consts::PI;
 use std::marker::ConstParamTy;
 
 use bevy::math::Vec3A;
@@ -19,6 +20,7 @@ use crate::graphics::{Sides, TRANSFORMATION_MATRIX};
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, ConstParamTy)]
 #[repr(u8)]
 pub enum NavCategory {
+	None,
 	#[default]
 	People,
 	Vehicles,
@@ -30,8 +32,9 @@ impl PartialOrd for NavCategory {
 			Some(Ordering::Equal)
 		} else {
 			match (self, other) {
-				(NavCategory::People, _) => Some(Ordering::Less),
-				(NavCategory::Vehicles, NavCategory::People) => Some(Ordering::Greater),
+				(_, Self::None) => Some(Ordering::Greater),
+				(Self::People, _) => Some(Ordering::Less),
+				(Self::Vehicles, Self::People) => Some(Ordering::Greater),
 				_ => None,
 			}
 		}
@@ -40,7 +43,7 @@ impl PartialOrd for NavCategory {
 
 /// A navigable vertex on the ground. The entities with these components make up the nav meshes in the world.
 #[derive(Component, Clone, Copy, Debug)]
-pub struct NavVertex {
+pub struct NavComponent {
 	/// Which directions this vertex has exits in.
 	pub exits:        Sides,
 	/// What speed this vertex can be traversed at. In the navmesh graph this is used for traversing from this vertex
@@ -51,34 +54,69 @@ pub struct NavVertex {
 	pub navigability: NavCategory,
 }
 
+#[derive(Clone, Copy, Debug)]
+pub struct NavVertex {
+	pub position: GridPosition,
+	pub speed:    f32,
+}
+
+impl PartialEq for NavVertex {
+	fn eq(&self, other: &Self) -> bool {
+		self.position == other.position
+	}
+}
+impl Eq for NavVertex {}
+impl std::hash::Hash for NavVertex {
+	fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+		self.position.hash(state);
+	}
+}
+impl PartialOrd for NavVertex {
+	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+		self.position.partial_cmp(&other.position)
+	}
+}
+impl Ord for NavVertex {
+	fn cmp(&self, other: &Self) -> Ordering {
+		self.position.cmp(&other.position)
+	}
+}
+
+impl From<(GridPosition, f32)> for NavVertex {
+	fn from(value: (GridPosition, f32)) -> Self {
+		Self { position: value.0, speed: value.1 }
+	}
+}
+
 /// A navigation mesh. This is not really a mesh, but it serves the same function as a 3D navmesh. Mathematically
 /// speaking, the navmesh is a directed weighted graph.
 #[derive(Resource, Debug, Default)]
 pub struct NavMesh<const N: NavCategory> {
 	/// Internal graph for the nav mesh.
-	graph: DiGraphMap<GridPosition, f32>,
+	graph: DiGraphMap<NavVertex, ()>,
 }
 
 impl<const N: NavCategory> NavMesh<N> {
-	/// Updates vertex state with minimal effort, leaving the mesh inconsistent.
-	fn update_vertex_impl(&mut self, position: &GridPosition, vertex: NavVertex) {
-		let belongs_in_mesh = vertex.navigability <= N;
+	fn update_vertex_impl(&mut self, position: &GridPosition, vertex: NavComponent) {
+		let belongs_in_mesh = N <= vertex.navigability;
 		// Vertex is being added to the mesh or modified within it.
 		if belongs_in_mesh {
-			for neighbor in position.neighbors_for(vertex.exits.complement()) {
-				self.graph.remove_edge(*position, neighbor);
-			}
-			let weight = 1. / vertex.speed;
+			self.graph.remove_node((*position, vertex.speed).into());
+			self.graph.add_node((*position, vertex.speed).into());
 			for neighbor in position.neighbors_for(vertex.exits) {
-				self.graph.add_edge(*position, neighbor, weight);
+				if self.graph.contains_node((neighbor, 0.).into()) {
+					self.graph.add_edge((*position, vertex.speed).into(), (neighbor, vertex.speed).into(), ());
+					// TODO: We don’t really know whether the neighbor actually has a connection in this direction.
+					self.graph.add_edge((neighbor, vertex.speed).into(), (*position, vertex.speed).into(), ());
+				}
 			}
 		} else {
 			// Vertex is being removed from the mesh.
-			self.graph.remove_node(*position);
+			self.graph.remove_node((*position, 0.).into());
 		}
 	}
 
-	pub fn update_vertices<'a>(&mut self, vertices: impl IntoIterator<Item = (&'a GridPosition, &'a NavVertex)>) {
+	pub fn update_vertices<'a>(&mut self, vertices: impl IntoIterator<Item = (&'a GridPosition, &'a NavComponent)>) {
 		for (position, vertex) in vertices {
 			self.update_vertex_impl(position, *vertex);
 		}
@@ -87,7 +125,7 @@ impl<const N: NavCategory> NavMesh<N> {
 
 fn update_navmesh<const N: NavCategory>(
 	mut mesh: ResMut<NavMesh<N>>,
-	changed_navigables: Query<(&GridPosition, &NavVertex), Changed<NavVertex>>,
+	changed_navigables: Query<(&GridPosition, &NavComponent), Changed<NavComponent>>,
 ) {
 	if changed_navigables.is_empty() {
 		return;
@@ -102,12 +140,20 @@ fn visualize_navmesh<const N: NavCategory>(mesh: Res<NavMesh<N>>, mut gizmos: Gi
 		return;
 	}
 
-	for (start, end, _) in mesh.graph.all_edges() {
-		gizmos.line_2d(
-			(*TRANSFORMATION_MATRIX.get().unwrap() * (start.as_vec3a() + Vec3A::new(0.5, 0.5, 0.))).truncate(),
-			(*TRANSFORMATION_MATRIX.get().unwrap() * (end.as_vec3a() + Vec3A::new(0.5, 0.5, 0.))).truncate(),
-			Color::BLUE,
-		);
+	let positive_angle = Vec2::from_angle(PI / 12.);
+	let negative_angle = Vec2::from_angle(-PI / 12.);
+
+	for (start_node, end_node, _) in mesh.graph.all_edges() {
+		let start = (*TRANSFORMATION_MATRIX.get().unwrap()
+			* (start_node.position.as_vec3a() + Vec3A::new(0.5, 0.5, 0.)))
+		.truncate();
+		let end = (*TRANSFORMATION_MATRIX.get().unwrap() * (end_node.position.as_vec3a() + Vec3A::new(0.5, 0.5, 0.)))
+			.truncate();
+		let dir = end - start;
+		let tip1 = start + positive_angle.rotate(dir) * 0.7;
+		let tip2 = start + negative_angle.rotate(dir) * 0.7;
+
+		gizmos.linestrip_2d([start, start + dir * 0.9, tip1, start + dir * 0.9, tip2], Color::BLUE * start_node.speed);
 	}
 }
 

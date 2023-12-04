@@ -3,7 +3,7 @@ use std::marker::ConstParamTy;
 use bevy::prelude::*;
 use bevy::utils::HashMap;
 
-use super::nav::NavVertex;
+use super::nav::{NavCategory, NavComponent};
 use super::GridPosition;
 use crate::graphics::library::{anchor_for_sprite, sprite_for_ground};
 use crate::graphics::{BorderKind, ObjectPriority, Sides};
@@ -14,7 +14,10 @@ pub struct TileManagement;
 
 impl Plugin for TileManagement {
 	fn build(&self, app: &mut App) {
-		app.insert_resource(GroundMap::new()).add_systems(PostUpdate, update_ground_textures);
+		app.insert_resource(GroundMap::new()).add_systems(PostUpdate, update_ground_textures).add_systems(
+			FixedUpdate,
+			(add_navigability.after(update_navigability_properties), update_navigability_properties),
+		);
 	}
 }
 
@@ -66,6 +69,23 @@ impl GroundKind {
 			Self::Grass | Self::Pathway | Self::PoolPath => None,
 		}
 	}
+
+	pub const fn navigability(&self) -> NavCategory {
+		match self {
+			Self::Grass | Self::PoolPath => NavCategory::People,
+			Self::Pathway => NavCategory::Vehicles,
+			Self::Pitch => NavCategory::None,
+		}
+	}
+
+	/// The traversal speed needed for this ground type. The speed is given in tiles/second (i/s²) for a person.
+	pub const fn traversal_speed(&self) -> f32 {
+		match self {
+			Self::Grass | Self::Pitch => 1.25,
+			Self::Pathway => 2.,
+			Self::PoolPath => 1.,
+		}
+	}
 }
 
 /// A single tile on the ground defining its size.
@@ -76,7 +96,7 @@ pub struct GroundTile {
 	sprite:     SpriteBundle,
 	kind:       GroundKind,
 	world_info: WorldInfoProperties,
-	navigable:  NavVertex,
+	navigable:  NavComponent,
 }
 
 impl GroundTile {
@@ -96,11 +116,10 @@ impl GroundTile {
 			priority: ObjectPriority::Ground,
 			kind,
 			world_info: WorldInfoProperties::basic(kind.to_string(), kind.description().to_string()),
-			// Testing
-			navigable: NavVertex {
+			navigable: NavComponent {
 				exits:        Sides::all(),
-				speed:        2.,
-				navigability: super::nav::NavCategory::People,
+				speed:        kind.traversal_speed(),
+				navigability: kind.navigability(),
 			},
 		}
 	}
@@ -205,9 +224,21 @@ pub fn update_ground_textures(
 	}
 }
 
-pub fn update_navigability_properties(
-	mut map: ResMut<GroundMap>,
-	ground_vertices: Query<(Entity, &GroundKind, &mut NavVertex), Changed<GroundKind>>,
-) {
-	
+pub fn add_navigability(mut ground_vertices: Query<(Entity, &GroundKind), Without<NavComponent>>, mut commands: Commands) {
+	for (entity, kind) in &mut ground_vertices {
+		commands.entity(entity).insert(NavComponent {
+			navigability: kind.navigability(),
+			exits:        Sides::all(),
+			speed:        kind.traversal_speed(),
+		});
+	}
+}
+
+pub fn update_navigability_properties(mut ground_vertices: Query<(&GroundKind, &mut NavComponent), Changed<GroundKind>>) {
+	for (kind, mut vertex) in &mut ground_vertices {
+		vertex.navigability = kind.navigability();
+		// TODO: Check border objects in another system and remove sides with borders.
+		vertex.exits = Sides::all();
+		vertex.speed = kind.traversal_speed();
+	}
 }
