@@ -157,8 +157,8 @@ impl GroundMap {
 		commands: &mut Commands,
 		asset_server: &AssetServer,
 	) {
-		let smaller_corner = start_position.min(*end_position);
-		let larger_corner = start_position.max(*end_position);
+		let smaller_corner = start_position.min(end_position);
+		let larger_corner = start_position.max(end_position);
 		for x in smaller_corner.x ..= larger_corner.x {
 			for y in smaller_corner.y ..= larger_corner.y {
 				let position = (x, y, start_position.z).into();
@@ -203,4 +203,11 @@ pub fn update_ground_textures(
 		let sprite = sprite_for_ground(*kind);
 		*texture = asset_server.load(sprite);
 	}
+}
+
+pub fn update_navigability_properties(
+	mut map: ResMut<GroundMap>,
+	ground_vertices: Query<(Entity, &GroundKind, &mut NavVertex), Changed<GroundKind>>,
+) {
+	
 }

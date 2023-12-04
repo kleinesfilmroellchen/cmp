@@ -222,7 +222,7 @@ impl ObjectPriority {
 	}
 }
 
-static TRANSFORMATION_MATRIX: OnceLock<Mat3> = OnceLock::new();
+pub static TRANSFORMATION_MATRIX: OnceLock<Mat3> = OnceLock::new();
 
 /// BUG: This should be 12 but that commonly leads to off-by-one seams.
 pub const TILE_HEIGHT: f32 = 11.999;

@@ -1,9 +1,13 @@
 //! Geometric baseline components.
 
+use std::cmp::Ordering;
+
 use bevy::ecs::component::TableStorage;
 use bevy::math::Vec3A;
 use bevy::prelude::*;
 use itertools::Itertools;
+
+use crate::graphics::Sides;
 
 /// A position in world space, as opposed to screen space. There are several underlying implementations of world
 /// positions, depending on how an entity’s position is constrained.
@@ -124,6 +128,20 @@ impl GridPosition {
 	pub fn neighbors(&self) -> [GridPosition; 4] {
 		[(-1, 0), (1, 0), (0, -1), (0, 1)].map(|(x, y)| *self + IVec2::from((x, y)))
 	}
+
+	/// Return all neighbors from this [`GridPosition`] given certain [`Sides`].
+	pub fn neighbors_for(&self, directions: Sides) -> impl Iterator<Item = GridPosition> {
+		let this = *self;
+		directions.iter().map(move |direction| {
+			GridPosition(match direction {
+				Sides::Bottom => this.0 + IVec3::from((0, -1, 0)),
+				Sides::Top => this.0 + IVec3::from((0, 1, 0)),
+				Sides::Right => this.0 + IVec3::from((1, 0, 0)),
+				Sides::Left => this.0 + IVec3::from((-1, 0, 0)),
+				_ => unreachable!(),
+			})
+		})
+	}
 }
 
 impl WorldPosition for GridPosition {
@@ -136,7 +154,7 @@ impl WorldPosition for GridPosition {
 impl PartialOrd for GridPosition {
 	/// A grid position is considered smaller if its distance to negative infinity (sum of all coordinates) is smaller.
 	/// However, if two grid positions have the same distance to negative infinity but distinct coordinates, an order
-	/// cannot be determined (that's why there is intentionally no [`std::cmp::Ord`] implementation on this type).
+	/// cannot be determined. We implement [`Ord`] by then comparing coordinates in order.
 	fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
 		if self.0 == other.0 {
 			Some(std::cmp::Ordering::Equal)
@@ -147,6 +165,20 @@ impl PartialOrd for GridPosition {
 				order @ (std::cmp::Ordering::Less | std::cmp::Ordering::Greater) => Some(order),
 				// Distance is equal, but we already know the positions are not equal!
 				std::cmp::Ordering::Equal => None,
+			}
+		}
+	}
+}
+
+impl Ord for GridPosition {
+	fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+		if let Some(order) = self.partial_cmp(other) {
+			order
+		} else {
+			match (self.x.cmp(&other.x), self.y.cmp(&other.y), self.z.cmp(&other.z)) {
+				(Ordering::Equal, Ordering::Equal, order) => order,
+				(Ordering::Equal, order, _) => order,
+				(order, _, _) => order,
 			}
 		}
 	}
@@ -376,8 +408,8 @@ impl GridBox {
 	}
 
 	pub fn from_corners(first_corner: GridPosition, second_corner: GridPosition) -> Self {
-		let smallest_corner = first_corner.min(*second_corner);
-		let largest_corner = first_corner.max(*second_corner);
+		let smallest_corner = first_corner.min(second_corner);
+		let largest_corner = first_corner.max(second_corner);
 		let real_extents = largest_corner - smallest_corner;
 		debug_assert!(real_extents.x >= 0 && real_extents.y >= 0 && real_extents.z >= 0);
 		Self { corner: smallest_corner.into(), extents: real_extents.as_uvec3().into() }
