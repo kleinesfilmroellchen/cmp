@@ -111,19 +111,40 @@ fn fix_camera(mut last_screen_position: ResMut<LastScreenPosition>) {
 	last_screen_position.0 = None;
 }
 
+/// `accumulated_scroll` takes care of small-increment smooth scrolling devices like trackpads.
 fn zoom_camera(
 	mut scroll_events: EventReader<MouseWheel>,
 	mut camera_q: Query<&mut OrthographicProjection, With<Camera>>,
+	mut accumulated_scroll: Local<f32>,
 ) {
 	let mut camera_projection = camera_q.single_mut();
 
-	for scroll in scroll_events.read() {
-		let amount = scroll.y;
-		// Only allow power-of-two scales, since those will not cause off-by-one rendering glitches.
-		camera_projection.scale = 2.0f32.powf(camera_projection.scale.log2().round() - amount).clamp(1. / 16., 2.);
-		// HACK: Exact scale of 1 is very glitchy for some reason
-		if camera_projection.scale == 1. {
-			camera_projection.scale = 1.0001;
-		}
+	let amount = scroll_events.read().map(|scroll| scroll.y).sum::<f32>();
+	if amount == 0. {
+		return;
 	}
+
+	// If changing scroll direction, snap accumulation to 0 so that it doesn’t take longer to zoom than if you didn’t
+	// change direction.
+	if accumulated_scroll.signum() != amount.signum() {
+		*accumulated_scroll = 0.;
+	}
+	// Accumulate scroll so that small scroll increments don’t get lost.
+	*accumulated_scroll += amount;
+	if accumulated_scroll.abs() < 1. {
+		// Below a total scroll of 1, nothing happens due to the zoom math below, so we can skip updating the camera
+		// transform altogether.
+		return;
+	}
+
+	// Only allow power-of-two scales, since those will not cause off-by-one rendering glitches.
+	camera_projection.scale =
+		2f32.powf(camera_projection.scale.log2().round() - *accumulated_scroll).clamp(1. / 16., 2.);
+	// HACK: Exact scale of 1 is very glitchy for some reason
+	if camera_projection.scale == 1. {
+		camera_projection.scale = 1.0001;
+	}
+
+	// Since we just scrolled, reset the accumulator.
+	*accumulated_scroll = 0.;
 }
