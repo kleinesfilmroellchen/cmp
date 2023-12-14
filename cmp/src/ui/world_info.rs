@@ -191,7 +191,7 @@ pub fn reassign_world_info(
 	mut world_info: Query<&mut WorldInfoUI>,
 	mut mouse_click: EventReader<MouseClick>,
 ) {
-	for MouseClick { world_position, .. } in mouse_click.read() {
+	for MouseClick { engine_position: world_position, .. } in mouse_click.read() {
 		if !blocking_ui_elements
 			.iter()
 			.any(|(policy, interaction)| *policy == FocusPolicy::Block && *interaction != Interaction::None)

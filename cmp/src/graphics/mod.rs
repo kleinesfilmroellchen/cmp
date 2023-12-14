@@ -287,16 +287,16 @@ fn move_edge_objects_in_front_of_boxes(
 	});
 }
 
-/// Translates from a screen pixel position back to world space. Note that z needs to be provided and generally
+/// Translates from a bevy engine position back to world space. Note that z needs to be provided and generally
 /// depends on the surface at the specific location.
-pub fn screen_to_world_space(screen_position: Vec2, z: f32) -> ActorPosition {
+pub fn engine_to_world_space(engine_position: Vec2, z: f32) -> ActorPosition {
 	// The matrix is invertible, since we keep the z dimension when using it normally, so we can make use of that by
-	// synthetically re-inserting the z coordinate into the 2D screen position and getting a precise inverse transform
+	// synthetically re-inserting the z coordinate into the 2D engine position and getting a precise inverse transform
 	// for free.
 	let matrix = TRANSFORMATION_MATRIX.get().unwrap().inverse();
-	let screen_space_with_synthetic_z: Vec3 = (screen_position, z).into();
+	let engine_space_with_synthetic_z: Vec3 = (engine_position, z).into();
 	// The z coordinate here is garbage; discard it and replace it with the given one.
-	let mut world_space = matrix * screen_space_with_synthetic_z;
+	let mut world_space = matrix * engine_space_with_synthetic_z;
 	world_space.z = z;
 	ActorPosition(world_space.into())
 }

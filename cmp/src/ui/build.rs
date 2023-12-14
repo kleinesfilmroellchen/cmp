@@ -9,7 +9,7 @@ use super::error::{DisplayableError, ErrorBox};
 use super::on_start_build_preview;
 use super::world_info::WorldInfoProperties;
 use crate::graphics::library::{anchor_for_sprite, preview_sprite_for_buildable};
-use crate::graphics::{screen_to_world_space, ObjectPriority};
+use crate::graphics::{engine_to_world_space, ObjectPriority};
 use crate::input::InputState;
 use crate::model::area::{Area, ImmutableArea, Pool, UpdateAreas};
 use crate::model::pitch::Pitch;
@@ -237,7 +237,7 @@ fn set_building_preview_start(
 	// FIXME: Use ray casting + structure data to figure out the elevation under the cursor.
 	let fake_z = 0.;
 	// Since we measure positions from corners, offset the cursor half a tile so we move the preview around its center.
-	let world_position = (screen_to_world_space(cursor_position, fake_z) - Vec3::new(0.5, 0.5, 0.)).round();
+	let world_position = (engine_to_world_space(cursor_position, fake_z) - Vec3::new(0.5, 0.5, 0.)).round();
 	for mut preview_data in &mut preview {
 		preview_data.current_position = world_position;
 	}

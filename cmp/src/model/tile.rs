@@ -79,11 +79,11 @@ impl GroundKind {
 	}
 
 	/// The traversal speed needed for this ground type. The speed is given in tiles/second (i/s²) for a person.
-	pub const fn traversal_speed(&self) -> f32 {
+	pub const fn traversal_speed(&self) -> u32 {
 		match self {
-			Self::Grass | Self::Pitch => 1.25,
-			Self::Pathway => 2.,
-			Self::PoolPath => 1.,
+			Self::Grass | Self::Pitch => 1,
+			Self::Pathway => 2,
+			Self::PoolPath => 1,
 		}
 	}
 }

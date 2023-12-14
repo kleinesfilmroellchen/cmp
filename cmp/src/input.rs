@@ -46,10 +46,10 @@ struct DragStartScreenPosition(Option<Vec2>);
 
 const DRAG_THRESHOLD: f32 = 0.2;
 
-#[derive(Event)]
+#[derive(Event, Debug, Clone, Copy)]
 pub struct MouseClick {
 	pub screen_position: Vec2,
-	pub world_position:  Vec2,
+	pub engine_position:  Vec2,
 }
 
 fn move_camera(
@@ -64,15 +64,15 @@ fn move_camera(
 	let (camera, mut camera_transform, camera_global_transform) = camera_q.single_mut();
 
 	if let Some(current_screen_position) = window.cursor_position() {
-		let current_world_position =
+		let current_engine_position =
 			camera.viewport_to_world(camera_global_transform, current_screen_position).unwrap().origin.truncate();
 
 		if let Some(last_screen_position) = last_screen_position.0
 			&& mouse.pressed(MouseButton::Left)
 		{
-			let last_world_position =
+			let last_engine_position =
 				camera.viewport_to_world(camera_global_transform, last_screen_position).unwrap().origin.truncate();
-			let delta = last_world_position - current_world_position;
+			let delta = last_engine_position - current_engine_position;
 			camera_transform.translation += Vec3::from((delta, 0.));
 		}
 
@@ -88,12 +88,12 @@ fn move_camera(
 				.unwrap()
 				.origin
 				.truncate();
-			let delta = drag_start_world_position - current_world_position;
+			let delta = drag_start_world_position - current_engine_position;
 
 			if delta.length() < DRAG_THRESHOLD {
 				click_event.send(MouseClick {
 					screen_position: current_screen_position,
-					world_position:  current_world_position,
+					engine_position:  current_engine_position,
 				});
 			}
 		}
