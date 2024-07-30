@@ -4,8 +4,8 @@ use anyhow::anyhow;
 use bevy::asset::io::Reader;
 use bevy::asset::{AssetLoader, AsyncReadExt, LoadContext};
 use bevy::prelude::*;
+use bevy::render::render_asset::RenderAssetUsages;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
-use bevy::utils::BoxedFuture;
 use qoi::Decoder;
 
 /// The asset loader that provides QOI loading capabilities.
@@ -31,32 +31,31 @@ impl AssetLoader for QOIAssetLoader {
 	type Error = Box<dyn Error + Send + Sync + 'static>;
 	type Settings = ();
 
-	fn load<'a>(
+	async fn load<'a>(
 		&'a self,
-		reader: &'a mut Reader,
+		reader: &'a mut Reader<'_>,
 		_: &'a Self::Settings,
-		_: &'a mut LoadContext,
-	) -> BoxedFuture<'a, Result<Self::Asset, Self::Error>> {
-		Box::pin(async move {
-			let mut bytes = Vec::new();
-			reader.read_to_end(&mut bytes).await?;
-			let mut decoder = Decoder::new(&bytes)?.with_channels(qoi::Channels::Rgba);
-			let decoded = decoder.decode_to_vec()?;
-			let header = decoder.header();
+		_: &'a mut LoadContext<'_>,
+	) -> Result<Self::Asset, Self::Error> {
+		let mut bytes = Vec::new();
+		reader.read_to_end(&mut bytes).await?;
+		let mut decoder = Decoder::new(&bytes)?.with_channels(qoi::Channels::Rgba);
+		let decoded = decoder.decode_to_vec()?;
+		let header = decoder.header();
 
-			Ok(Image::new(
-				Extent3d { width: header.width, height: header.height, ..Default::default() },
-				TextureDimension::D2,
-				decoded,
-				match header.channels {
-					qoi::Channels::Rgb => Err(anyhow!("Rgb not supported.")),
-					qoi::Channels::Rgba => Ok(match header.colorspace {
-						qoi::ColorSpace::Srgb => TextureFormat::Rgba8UnormSrgb,
-						qoi::ColorSpace::Linear => TextureFormat::Rgba8Unorm,
-					}),
-				}?,
-			))
-		})
+		Ok(Image::new(
+			Extent3d { width: header.width, height: header.height, ..Default::default() },
+			TextureDimension::D2,
+			decoded,
+			match header.channels {
+				qoi::Channels::Rgb => Err(anyhow!("Rgb not supported.")),
+				qoi::Channels::Rgba => Ok(match header.colorspace {
+					qoi::ColorSpace::Srgb => TextureFormat::Rgba8UnormSrgb,
+					qoi::ColorSpace::Linear => TextureFormat::Rgba8Unorm,
+				}),
+			}?,
+			RenderAssetUsages::RENDER_WORLD | RenderAssetUsages::MAIN_WORLD,
+		))
 	}
 
 	fn extensions(&self) -> &[&str] {

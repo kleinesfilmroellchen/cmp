@@ -1,6 +1,7 @@
 use std::ops::DerefMut;
 use std::sync::Arc;
 
+use bevy::color::palettes::css::{ANTIQUE_WHITE, DARK_GRAY, WHITE};
 use bevy::math::Vec3A;
 use bevy::prelude::*;
 use bevy::text::BreakLineOn;
@@ -123,7 +124,7 @@ pub fn setup_world_info(mut commands: Commands) {
 					min_height: Val::Percent(10.),
 					..Default::default()
 				},
-				background_color: BackgroundColor(Color::DARK_GRAY),
+				background_color: BackgroundColor(DARK_GRAY.into()),
 				focus_policy: FocusPolicy::Block,
 				z_index: ZIndex::Global(1),
 				visibility: Visibility::Hidden,
@@ -178,7 +179,7 @@ pub fn move_world_info(
 	}
 }
 
-pub fn hide_world_info(mut world_info: Query<&mut WorldInfoUI>, input: Res<Input<KeyCode>>) {
+pub fn hide_world_info(mut world_info: Query<&mut WorldInfoUI>, input: Res<ButtonInput<KeyCode>>) {
 	let mut world_info_ui = world_info.single_mut();
 	if input.just_pressed(KeyCode::Escape) {
 		world_info_ui.attached_entity = None;
@@ -260,12 +261,12 @@ pub fn update_world_info(
 		world_info_header.sections = vec![TextSection::new(&node_under_cursor.name, TextStyle {
 			font:      asset_server.load(font_for(FontWeight::Bold, FontStyle::Regular)),
 			font_size: 24.,
-			color:     Color::WHITE,
+			color:     WHITE.into(),
 		})];
 		world_info_body.sections = vec![TextSection::new(&node_under_cursor.description, TextStyle {
 			font:      asset_server.load(font_for(FontWeight::Regular, FontStyle::Regular)),
 			font_size: 16.,
-			color:     Color::WHITE,
+			color:     WHITE.into(),
 		})];
 
 		let mut info_ui = commands.entity(world_info_style);
@@ -278,7 +279,7 @@ pub fn update_world_info(
 						text: Text::from_section(property_name, TextStyle {
 							font:      asset_server.load(font_for(FontWeight::Regular, FontStyle::Regular)),
 							font_size: 18.,
-							color:     Color::WHITE,
+							color:     WHITE.into(),
 						}),
 						..Default::default()
 					},
@@ -290,7 +291,7 @@ pub fn update_world_info(
 						text: Text::from_section(property_value, TextStyle {
 							font:      asset_server.load(font_for(FontWeight::Regular, FontStyle::Regular)),
 							font_size: 18.,
-							color:     Color::ANTIQUE_WHITE,
+							color:     ANTIQUE_WHITE.into(),
 						}),
 						..Default::default()
 					},

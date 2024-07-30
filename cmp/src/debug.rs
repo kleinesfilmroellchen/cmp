@@ -79,7 +79,7 @@ pub fn create_stats(mut commands: Commands) {
 			parent.spawn((
 				TextBundle::from_section("FPS Data", TextStyle::default())
 					.with_style(Style { margin: UiRect::all(Val::Px(5.0)), ..default() })
-					.with_text_alignment(TextAlignment::Left),
+					.with_text_justify(JustifyText::Left),
 				StatUI::default(),
 			));
 		});

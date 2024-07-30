@@ -1,12 +1,13 @@
 use std::collections::VecDeque;
 
+use bevy::color::palettes::css::RED;
 use bevy::prelude::*;
 use bevy::utils::{HashSet, Instant};
 use itertools::Itertools;
 
 use super::{BoundingBox, GridBox, GridPosition, GroundKind, GroundMap, Pitch};
 use crate::config::GameSettings;
-use crate::graphics::{Sides, BorderSprite, BorderTextures, ObjectPriority};
+use crate::graphics::{BorderSprite, BorderTextures, ObjectPriority, Sides};
 use crate::ui::world_info::WorldInfoProperties;
 
 /// A continuous area on the ground, containing various tiles (often of a homogenous type) and demarcating some
@@ -97,7 +98,7 @@ impl Area {
 		ground_map: &GroundMap,
 		commands: &mut Commands,
 		asset_server: &AssetServer,
-		texture_atlases: &mut Assets<TextureAtlas>,
+		texture_atlases: &mut Assets<TextureAtlasLayout>,
 		border_textures: &mut BorderTextures,
 	) {
 		for position in &self.tiles {
@@ -193,7 +194,7 @@ fn update_areas<T: AreaMarker + Default>(
 		return;
 	}
 
-	old_area_markers.for_each(|x| commands.entity(x).despawn());
+	old_area_markers.iter().for_each(|x| commands.entity(x).despawn());
 
 	// Perform flood fill on the areas to update them.
 	let mut remaining_tiles = HashSet::<GridPosition>::new();
@@ -254,7 +255,7 @@ fn update_areas<T: AreaMarker + Default>(
 								crate::graphics::library::FontStyle::Regular,
 							)),
 							font_size: 16.,
-							color:     Color::RED,
+							color:     RED.into(),
 						}),
 						text_anchor: bevy::sprite::Anchor::BottomCenter,
 						visibility: Visibility::Visible,

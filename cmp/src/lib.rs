@@ -13,7 +13,6 @@
 	adt_const_params,
 	trivial_bounds,
 	const_fn_floating_point_arithmetic,
-	round_ties_even,
 	trait_alias
 )]
 #![deny(clippy::all, missing_docs)]
@@ -25,6 +24,7 @@ use std::sync::Arc;
 #[allow(unused)]
 use std::time::Duration;
 
+use bevy::asset::AssetMetaCheck;
 use bevy::log::{Level, LogPlugin};
 use bevy::prelude::*;
 use bevy::window::{PresentMode, PrimaryWindow};
@@ -81,11 +81,13 @@ impl Plugin for CmpPlugin {
 					#[cfg(not(debug_assertions))]
 					watch_for_changes_override: Some(false),
         			mode: AssetMode::Unprocessed,
+					meta_check: AssetMetaCheck::Always,
 				})
 				.set(ImagePlugin::default_nearest()).set(AnimationPlugin)
 				.set(LogPlugin {
 					level: log_level,
 					filter: "info,cmp=trace,wgpu=error,bevy=warn".into(),
+					..Default::default()
 				}),
 		)
 		.register_asset_loader(bevy_qoi::QOIAssetLoader)

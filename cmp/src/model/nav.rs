@@ -5,10 +5,11 @@ use std::collections::{BTreeSet, VecDeque};
 use std::f32::consts::PI;
 use std::marker::ConstParamTy;
 
+use bevy::color::palettes::css::{BLUE, RED};
 use bevy::math::Vec3A;
 use bevy::prelude::*;
-use bevy::utils::petgraph::graphmap::DiGraphMap;
 use bevy::utils::{HashSet, Instant};
+use petgraph::graphmap::DiGraphMap;
 
 use super::{GridPosition, WorldPosition};
 use crate::config::GameSettings;
@@ -264,10 +265,8 @@ fn visualize_navmesh<const N: NavCategory>(mesh: Res<NavMesh<N>>, mut gizmos: Gi
 		let tip1 = start + positive_angle.rotate(dir) * 0.7;
 		let tip2 = start + negative_angle.rotate(dir) * 0.7;
 
-		gizmos.linestrip_2d(
-			[start, start + dir * 0.9, tip1, start + dir * 0.9, tip2],
-			Color::BLUE * (start_node.speed as f32),
-		);
+		gizmos
+			.linestrip_2d([start, start + dir * 0.9, tip1, start + dir * 0.9, tip2], BLUE * (start_node.speed as f32));
 	}
 }
 
@@ -305,7 +304,7 @@ fn debug_pathfinding<const N: NavCategory>(
 				(*TRANSFORMATION_MATRIX.get().unwrap() * (last_position.position() + Vec3A::new(0.4, 0.4, 0.)))
 					.truncate(),
 				(*TRANSFORMATION_MATRIX.get().unwrap() * (position.position() + Vec3A::new(0.4, 0.4, 0.))).truncate(),
-				Color::RED,
+				RED,
 			);
 		}
 		last_position = Some(*position);

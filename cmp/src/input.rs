@@ -23,7 +23,7 @@ pub struct GUIInputPlugin;
 
 impl Plugin for GUIInputPlugin {
 	fn build(&self, app: &mut App) {
-		app.add_state::<InputState>()
+		app.init_state::<InputState>()
 			.init_resource::<DragStartScreenPosition>()
 			.init_resource::<LastScreenPosition>()
 			.add_event::<MouseClick>()
@@ -53,7 +53,7 @@ pub struct MouseClick {
 }
 
 fn move_camera(
-	mouse: Res<Input<MouseButton>>,
+	mouse: Res<ButtonInput<MouseButton>>,
 	window: Query<&Window, With<PrimaryWindow>>,
 	mut camera_q: Query<(&Camera, &mut Transform, &GlobalTransform)>,
 	mut last_screen_position: ResMut<LastScreenPosition>,

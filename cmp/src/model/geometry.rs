@@ -2,7 +2,7 @@
 
 use std::cmp::Ordering;
 
-use bevy::ecs::component::TableStorage;
+use bevy::ecs::component::StorageType;
 use bevy::math::Vec3A;
 use bevy::prelude::*;
 use itertools::Itertools;
@@ -13,7 +13,7 @@ use crate::graphics::Sides;
 /// positions, depending on how an entity’s position is constrained.
 ///
 /// The unit of world positions is tiles. One tile width corresponds to one world position
-pub trait WorldPosition: Component<Storage = TableStorage> {
+pub trait WorldPosition: Component {
 	/// Returns this component’s position in world space. For entities with extents other than 1, this is the bottom
 	/// left corner of the larger entity.
 	fn position(&self) -> Vec3A;
@@ -72,57 +72,60 @@ impl GridPosition {
 	/// FIXME: Respect the Z dimension; all positions will currently inherit the source's z height.
 	pub fn line_to_2d(self, target: Self) -> impl Iterator<Item = Self> {
 		// Relying on extra unstable features is fun! <https://rust-lang.github.io/rfcs/2033-experimental-coroutines.html>
-		std::iter::from_coroutine(move || {
-			// Bresenham's algorithm
-			if (self.y - target.y).abs() < (self.x - target.x).abs() {
-				// non-steep slopes
-				let lower = *if self.x < target.x { self } else { target };
-				let upper = *if self.x >= target.x { self } else { target };
+		std::iter::from_coroutine(
+			#[coroutine]
+			move || {
+				// Bresenham's algorithm
+				if (self.y - target.y).abs() < (self.x - target.x).abs() {
+					// non-steep slopes
+					let lower = *if self.x < target.x { self } else { target };
+					let upper = *if self.x >= target.x { self } else { target };
 
-				let dx = upper.x - lower.x;
-				let mut dy = upper.y - lower.y;
+					let dx = upper.x - lower.x;
+					let mut dy = upper.y - lower.y;
 
-				let mut y_dir = 1;
-				if dy < 0 {
-					y_dir = -1;
-					dy = -dy;
-				}
-				let mut d = (2 * dy) - dx;
-				let mut y = lower.y;
-				for x in lower.x ..= upper.x {
-					yield (x, y, self.z).into();
-					if d > 0 {
-						y += y_dir;
-						d += 2 * (dy - dx);
-					} else {
-						d += 2 * dy;
+					let mut y_dir = 1;
+					if dy < 0 {
+						y_dir = -1;
+						dy = -dy;
+					}
+					let mut d = (2 * dy) - dx;
+					let mut y = lower.y;
+					for x in lower.x ..= upper.x {
+						yield (x, y, self.z).into();
+						if d > 0 {
+							y += y_dir;
+							d += 2 * (dy - dx);
+						} else {
+							d += 2 * dy;
+						}
+					}
+				} else {
+					// steep slopes: iterate on y instead of x
+					let lower = *if self.y < target.y { self } else { target };
+					let upper = *if self.y >= target.y { self } else { target };
+
+					let mut dx = upper.x - lower.x;
+					let dy = upper.y - lower.y;
+					let mut x_dir = 1;
+					if dx < 0 {
+						x_dir = -1;
+						dx = -dx;
+					}
+					let mut d = (2 * dx) - dy;
+					let mut x = lower.x;
+					for y in lower.y ..= upper.y {
+						yield (x, y, self.z).into();
+						if d > 0 {
+							x += x_dir;
+							d += 2 * (dx - dy);
+						} else {
+							d += 2 * dx;
+						}
 					}
 				}
-			} else {
-				// steep slopes: iterate on y instead of x
-				let lower = *if self.y < target.y { self } else { target };
-				let upper = *if self.y >= target.y { self } else { target };
-
-				let mut dx = upper.x - lower.x;
-				let dy = upper.y - lower.y;
-				let mut x_dir = 1;
-				if dx < 0 {
-					x_dir = -1;
-					dx = -dx;
-				}
-				let mut d = (2 * dx) - dy;
-				let mut x = lower.x;
-				for y in lower.y ..= upper.y {
-					yield (x, y, self.z).into();
-					if d > 0 {
-						x += x_dir;
-						d += 2 * (dx - dy);
-					} else {
-						d += 2 * dx;
-					}
-				}
-			}
-		})
+			},
+		)
 	}
 
 	pub fn neighbors(&self) -> [GridPosition; 4] {

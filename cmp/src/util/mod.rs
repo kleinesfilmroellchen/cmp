@@ -1,5 +1,6 @@
 //! Generic utilities not specific to CMP.
 
+use bevy::color::palettes::css::DARK_GRAY;
 use bevy::prelude::*;
 use bevy::text::BreakLineOn;
 
@@ -30,14 +31,14 @@ impl Lerpable for f64 {
 impl Lerpable for Color {
 	fn lerp(&self, other: &Self, t: f32) -> Self {
 		// It is VERY IMPORTANT that we interpolate colors in linear color space, otherwise the lightness will be off!
-		let [this_red, this_green, this_blue, this_alpha] = self.as_linear_rgba_f32();
-		let [other_red, other_green, other_blue, other_alpha] = other.as_linear_rgba_f32();
-		Self::RgbaLinear {
-			red:   this_red.lerp(&other_red, t),
-			green: this_green.lerp(&other_green, t),
-			blue:  this_blue.lerp(&other_blue, t),
-			alpha: this_alpha.lerp(&other_alpha, t),
-		}
+		let LinearRgba { red: this_red, green: this_green, blue: this_blue, alpha: this_alpha } = self.to_linear();
+		let LinearRgba { red: other_red, green: other_green, blue: other_blue, alpha: other_alpha } = other.to_linear();
+		Self::linear_rgba(
+			this_red.lerp(other_red, t),
+			this_green.lerp(other_green, t),
+			this_blue.lerp(other_blue, t),
+			this_alpha.lerp(other_alpha, t),
+		)
 	}
 }
 
@@ -132,7 +133,7 @@ fn setup_tooltip(mut commands: Commands) {
 					row_gap: Val::Px(5.),
 					..Default::default()
 				},
-				background_color: BackgroundColor(Color::DARK_GRAY),
+				background_color: BackgroundColor(DARK_GRAY.into()),
 				..Default::default()
 			},
 			TooltipUI,

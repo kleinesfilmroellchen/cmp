@@ -95,8 +95,8 @@ fn save_settings(settings: Res<GameSettings>, cli_arguments: Res<CLIResource>) {
 	}
 }
 
-fn modify_graphics_settings(mut settings: ResMut<GameSettings>, keys: Res<Input<KeyCode>>) {
-	if keys.just_pressed(KeyCode::V) && keys.any_pressed([KeyCode::ControlLeft, KeyCode::ControlRight]) {
+fn modify_graphics_settings(mut settings: ResMut<GameSettings>, keys: Res<ButtonInput<KeyCode>>) {
+	if keys.just_pressed(KeyCode::KeyV) && keys.any_pressed([KeyCode::ControlLeft, KeyCode::ControlRight]) {
 		settings.use_vsync = !settings.use_vsync;
 	}
 }

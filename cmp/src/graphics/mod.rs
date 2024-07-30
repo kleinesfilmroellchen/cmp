@@ -38,24 +38,25 @@ pub enum BorderKind {
 
 #[derive(Resource, Default)]
 pub struct BorderTextures {
-	pub textures: HashMap<BorderKind, Handle<TextureAtlas>>,
+	pub textures: HashMap<BorderKind, Handle<TextureAtlasLayout>>,
 }
 
 impl BorderTextures {
 	pub fn get(
 		&mut self,
 		kind: BorderKind,
-		atlas: &mut Assets<TextureAtlas>,
+		atlas: &mut Assets<TextureAtlasLayout>,
 		asset_server: &AssetServer,
-	) -> Handle<TextureAtlas> {
-		self.textures
-			.entry(kind)
-			.or_insert_with(|| {
-				let sprite = library::sprite_for_border_kind(kind);
-				let image = asset_server.load(sprite);
-				atlas.add(TextureAtlas::from_grid(image, (16., 16.).into(), 4, 1, None, None))
-			})
-			.clone()
+	) -> (Handle<TextureAtlasLayout>, Handle<Image>) {
+		let sprite = library::sprite_for_border_kind(kind);
+		let image = asset_server.load(sprite);
+		(
+			self.textures
+				.entry(kind)
+				.or_insert_with(|| atlas.add(TextureAtlasLayout::from_grid((16, 16).into(), 4, 1, None, None)))
+				.clone(),
+			image,
+		)
 	}
 }
 
@@ -133,23 +134,23 @@ impl BorderSprite {
 		sides: Sides,
 		kind: BorderKind,
 		asset_server: &'a AssetServer,
-		texture_atlases: &'a mut Assets<TextureAtlas>,
+		texture_atlases: &'a mut Assets<TextureAtlasLayout>,
 		border_textures: &'a mut BorderTextures,
 	) -> impl Iterator<Item = Self> + 'a {
-		sides.iter_names().map(move |(_, side)| Self {
-			side,
-			kind,
-			sprite_bundle: SpriteSheetBundle {
-				sprite: TextureAtlasSprite {
-					anchor: side.anchor(),
-					index: side.to_sprite_index(),
+		sides.iter_names().map(move |(_, side)| {
+			let (layout, image) = border_textures.get(kind, texture_atlases, asset_server);
+			Self {
+				side,
+				kind,
+				sprite_bundle: SpriteSheetBundle {
+					sprite: Sprite { anchor: side.anchor(), ..Default::default() },
+					texture: image,
+					atlas: TextureAtlas { layout, index: side.to_sprite_index() },
 					..Default::default()
 				},
-				texture_atlas: border_textures.get(kind, texture_atlases, asset_server),
-				..Default::default()
-			},
-			offset: side.world_offset().into(),
-			priority: ObjectPriority::Border,
+				offset: side.world_offset().into(),
+				priority: ObjectPriority::Border,
+			}
 		})
 	}
 }
@@ -158,7 +159,7 @@ fn update_area_borders(
 	ground_map: Res<GroundMap>,
 	mut commands: Commands,
 	asset_server: Res<AssetServer>,
-	mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+	mut texture_atlases: ResMut<Assets<TextureAtlasLayout>>,
 	mut border_textures: ResMut<BorderTextures>,
 	mut areas: Query<&mut Area, Changed<Area>>,
 ) {
@@ -171,7 +172,7 @@ fn update_immutable_area_borders(
 	ground_map: Res<GroundMap>,
 	mut commands: Commands,
 	asset_server: Res<AssetServer>,
-	mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+	mut texture_atlases: ResMut<Assets<TextureAtlasLayout>>,
 	mut border_textures: ResMut<BorderTextures>,
 	mut areas: Query<&mut ImmutableArea, Changed<ImmutableArea>>,
 ) {

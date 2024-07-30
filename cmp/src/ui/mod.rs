@@ -4,6 +4,7 @@ use bevy::prelude::*;
 use bevy::text::BreakLineOn;
 use bevy::ui::FocusPolicy;
 use build::BuildPlugin;
+use bevy::color::palettes::css::{GRAY, DARK_GRAY, WHITE, ORANGE};
 
 use self::animate::{AnimationPlugin, AnimationTargets, UIAnimation};
 use self::controls::{BuildMenuContainer, ALL_BUILD_MENUS};
@@ -172,7 +173,7 @@ fn initialize_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
 					..Default::default()
 				})
 				.with_children(|parent| {
-					let background_color = BackgroundColor(Color::DARK_GRAY);
+					let background_color = BackgroundColor(DARK_GRAY.into());
 					const PIXEL_SIZE: f32 = 50.;
 					const TRANSITION_TIMES: TransitionTimes = TransitionTimes {
 						to_start:   Duration::from_millis(250),
@@ -190,7 +191,7 @@ fn initialize_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
 					let press_animation = UIAnimation::<_, _, BackgroundColor>::new(
 						background_color,
 						BackgroundColor({
-							let [hue, saturation, mut lightness, alpha] = background_color.0.as_hsla_f32();
+							let Hsla { hue, saturation, mut lightness, alpha } = background_color.0.into();
 							lightness = (lightness - 0.3).clamp(0., 1.);
 							Color::hsla(hue, saturation, lightness, alpha)
 						}),
@@ -261,7 +262,7 @@ fn initialize_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
 										min_height: Val::Px(50.),
 										..Default::default()
 									},
-									background_color: BackgroundColor(Color::GRAY),
+									background_color: BackgroundColor(GRAY.into()),
 									focus_policy: FocusPolicy::Block,
 									..Default::default()
 								},
@@ -273,7 +274,7 @@ fn initialize_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
 								// on startup anyways.
 								for buildable in ALL_BUILDABLES.iter().filter(|buildable| buildable.menu() == menu_type)
 								{
-									let background_color = BackgroundColor(Color::DARK_GRAY);
+									let background_color = BackgroundColor(DARK_GRAY.into());
 									let style = Style {
 										justify_content: JustifyContent::Center,
 										align_items: AlignItems::Center,
@@ -333,7 +334,7 @@ fn initialize_dialogs(mut commands: Commands, asset_server: Res<AssetServer>) {
 					..Default::default()
 				},
 				visibility: Visibility::Hidden,
-				background_color: BackgroundColor(Color::DARK_GRAY.with_a(0.5)),
+				background_color: BackgroundColor(Color::Srgba(DARK_GRAY).with_alpha(0.5)),
 				..Default::default()
 			},
 			controls::DialogContainer,
@@ -356,7 +357,7 @@ fn initialize_dialogs(mut commands: Commands, asset_server: Res<AssetServer>) {
 							..Default::default()
 						},
 						focus_policy: FocusPolicy::Block,
-						background_color: BackgroundColor(Color::DARK_GRAY),
+						background_color: BackgroundColor(DARK_GRAY.into()),
 						..Default::default()
 					},
 					Interaction::default(),
@@ -373,12 +374,12 @@ fn initialize_dialogs(mut commands: Commands, asset_server: Res<AssetServer>) {
 								..Default::default()
 							},
 							text: Text {
-								alignment: TextAlignment::Center,
+								justify: JustifyText::Center,
 								linebreak_behavior: BreakLineOn::WordBoundary,
 								sections: vec![TextSection::new("", TextStyle {
 									font:      asset_server.load(font_for(FontWeight::Bold, FontStyle::Regular)),
 									font_size: 32.,
-									color:     Color::ORANGE,
+									color:     ORANGE.into(),
 								})],
 								..Default::default()
 							},

@@ -9,14 +9,14 @@ crate-type = ["dylib"]
 
 [dependencies]
 # The Bevy game engine.
-bevy = { git = "https://github.com/bevyengine/bevy", rev = "e3a59c4", features = [
+bevy = { version = "0.14", features = [
 	"dynamic_linking"
 ] }
 # Bevy dynamic plugin support, used for first-class modding support in CMP.
-bevy_dynamic_plugin = { git = "https://github.com/bevyengine/bevy", rev = "e3a59c4" }
+bevy_dynamic_plugin = { version = "0.14" }
 libloading = "0.8"
 # Direct access to Bevy's windowing library winit for some functionality such as setting a window logo.
-winit = "0.28"
+winit = "0.30"
 # Simple loading and saving of game settings in a cross-platform way.
 confy = "0.5.1"
 # Setting and game state serialization/deserialization from and to disk.
@@ -30,6 +30,8 @@ bitflags = { version = "2.4.0", features = ["std"] }
 parking_lot = { version = "0.12.1", features = ["nightly"] }
 dashmap = "5.5.3"
 bevy_qoi = { path = "../bevy-qoi" }
+petgraph = "0.6.5"
+thiserror = "1.0"
 
 [build-dependencies]
 embed-resource = "1.6.3"

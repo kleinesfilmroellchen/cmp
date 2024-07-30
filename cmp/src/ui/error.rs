@@ -1,11 +1,12 @@
 //! Error display in the UI.
 use bevy::prelude::*;
+use bevy::color::palettes::css::{ORANGE, WHITE};
 
 use super::controls::{DialogBox, DialogContainer, DialogContents, DialogTitle};
 use crate::graphics::library::{font_for, FontStyle, FontWeight};
 
 /// A kind of error event that can be displayed in the UI.
-pub trait DisplayableError: std::error::Error + Event {
+pub trait DisplayableError: std::error::Error {
 	// The error's name; may not be static but depend on internal state.
 	fn name(&self) -> &str;
 }
@@ -21,7 +22,7 @@ impl std::fmt::Display for ErrorBox {
 	}
 }
 
-impl<T: DisplayableError> From<T> for ErrorBox {
+impl<T: DisplayableError + Send + Sync + 'static> From<T> for ErrorBox {
 	fn from(value: T) -> Self {
 		Self(Box::new(value))
 	}
@@ -53,14 +54,14 @@ pub(super) fn show_errors(
 
 		let dialog_title_text = dialog_title.sections.first_mut().unwrap();
 		dialog_title_text.value = title.into();
-		dialog_title_text.style.color = Color::ORANGE;
+		dialog_title_text.style.color = ORANGE.into();
 
 		commands.entity(dialog_box).with_children(|dialog_content_commands| {
 			dialog_content_commands.spawn((
 				TextBundle::from_section(text, TextStyle {
 					font:      asset_server.load(font_for(FontWeight::Regular, FontStyle::Regular)),
 					font_size: 24.,
-					color:     Color::WHITE,
+					color:     WHITE.into(),
 				}),
 				DialogContents,
 			));

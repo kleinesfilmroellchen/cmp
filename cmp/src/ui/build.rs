@@ -1,9 +1,9 @@
 use std::sync::OnceLock;
 
 use bevy::prelude::*;
-use bevy::utils::thiserror::Error;
 use bevy::window::PrimaryWindow;
 use itertools::{EitherOrBoth, Itertools};
+use thiserror::Error;
 
 use super::error::{DisplayableError, ErrorBox};
 use super::on_start_build_preview;
@@ -124,7 +124,7 @@ impl BuildMode {
 		commands: &mut Commands,
 		asset_server: &AssetServer,
 	) {
-		const PREVIEW_TINT: Color = Color::Hsla { hue: 0., saturation: 0.5, lightness: 1., alpha: 0.7 };
+		const PREVIEW_TINT: Color = Color::hsla(0., 0.5, 1., 0.7);
 
 		match self {
 			Self::Single => {
@@ -244,7 +244,7 @@ fn set_building_preview_start(
 }
 
 fn update_building_preview(
-	mouse: Res<Input<MouseButton>>,
+	mouse: Res<ButtonInput<MouseButton>>,
 	mut commands: Commands,
 	mut preview: Query<(Entity, Option<&mut Children>, &PreviewParent, &mut Visibility)>,
 	preview_children: Query<&mut GridPosition, With<PreviewChild>>,
@@ -418,7 +418,7 @@ fn perform_pitch_type_build(
 }
 
 fn handle_build_interactions(
-	mouse: Res<Input<MouseButton>>,
+	mouse: Res<ButtonInput<MouseButton>>,
 	mut state: ResMut<NextState<InputState>>,
 	mut preview: Query<&mut PreviewParent>,
 	all_interacted: Query<&Interaction, (With<Node>, Changed<Interaction>)>,
@@ -484,7 +484,7 @@ fn destroy_building_preview(mut commands: Commands, preview: Query<Entity, With<
 	}
 }
 
-fn end_building(keys: Res<Input<KeyCode>>, mut state: ResMut<NextState<InputState>>) {
+fn end_building(keys: Res<ButtonInput<KeyCode>>, mut state: ResMut<NextState<InputState>>) {
 	if keys.just_pressed(KeyCode::Escape) {
 		state.set(InputState::Idle);
 	}
