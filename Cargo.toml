@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"                                         # Important! wgpu/Bevy needs this!
-members = ["cmp", "client", "example-mod", "bevy-qoi"]
+members = ["cmp", "client", "bevy-qoi"]
 default-members = ["client"]
 
 [workspace.package]

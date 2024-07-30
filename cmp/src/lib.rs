@@ -34,7 +34,6 @@ use input::GUIInputPlugin;
 use model::area::AreaManagement;
 use model::nav::NavManagement;
 use model::{AccommodationManagement, TileManagement};
-use plugins::ExternalPlugins;
 use ui::UIPlugin;
 use winit::window::Icon;
 
@@ -43,7 +42,6 @@ pub(crate) mod debug;
 pub(crate) mod graphics;
 pub(crate) mod input;
 pub(crate) mod model;
-pub mod plugins;
 pub(crate) mod ui;
 pub mod util;
 
@@ -93,7 +91,7 @@ impl Plugin for CmpPlugin {
 		.register_asset_loader(bevy_qoi::QOIAssetLoader)
 		// Fixed update runs every two seconds and performs slow work that can take this long.
 		.insert_resource(Time::<Fixed>::from_seconds(0.5))
-		.add_plugins((GUIInputPlugin, UIPlugin, TileManagement, AccommodationManagement, AreaManagement, NavManagement, ConfigPlugin(args.clone(), settings.clone()), ExternalPlugins(args)))
+		.add_plugins((GUIInputPlugin, UIPlugin, TileManagement, AccommodationManagement, AreaManagement, NavManagement, ConfigPlugin(args.clone(), settings.clone())))
 		.insert_resource(WindowIcon::default())
 		.add_systems(Startup, (debug::create_stats, setup_window, model::spawn_test_tiles))
 		.add_systems(PostStartup, print_program_info)

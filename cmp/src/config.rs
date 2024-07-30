@@ -12,9 +12,6 @@ pub struct CommandLineArguments {
 	/// an alternative settings file to use instead of the system default
 	#[argh(option)]
 	pub settings_file: Option<PathBuf>,
-	/// external game plugins ("mods") to load; a path to a plugin's shared library file (.dll, .so, ...)
-	#[argh(option)]
-	pub plugins:       Vec<PathBuf>,
 	/// show CMP version information
 	#[argh(switch)]
 	pub version:       bool,

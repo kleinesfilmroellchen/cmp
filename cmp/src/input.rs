@@ -48,6 +48,7 @@ const DRAG_THRESHOLD: f32 = 0.2;
 
 #[derive(Event, Debug, Clone, Copy)]
 pub struct MouseClick {
+	#[allow(unused)]
 	pub screen_position: Vec2,
 	pub engine_position:  Vec2,
 }

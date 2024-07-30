@@ -63,11 +63,12 @@ impl BorderTextures {
 /// Sprite representing a border of a larger area, such as a fence.
 #[derive(Bundle)]
 pub struct BorderSprite {
-	pub side:                 Sides,
-	pub kind:                 BorderKind,
-	pub(crate) sprite_bundle: SpriteSheetBundle,
-	pub offset:               ActorPosition,
-	priority:                 ObjectPriority,
+	pub side:          Sides,
+	pub kind:          BorderKind,
+	pub(crate) sprite: SpriteBundle,
+	pub atlas:         TextureAtlas,
+	pub offset:        ActorPosition,
+	priority:          ObjectPriority,
 }
 
 bitflags! {
@@ -142,12 +143,12 @@ impl BorderSprite {
 			Self {
 				side,
 				kind,
-				sprite_bundle: SpriteSheetBundle {
+				sprite: SpriteBundle {
 					sprite: Sprite { anchor: side.anchor(), ..Default::default() },
 					texture: image,
-					atlas: TextureAtlas { layout, index: side.to_sprite_index() },
 					..Default::default()
 				},
+				atlas: TextureAtlas { layout, index: side.to_sprite_index() },
 				offset: side.world_offset().into(),
 				priority: ObjectPriority::Border,
 			}
