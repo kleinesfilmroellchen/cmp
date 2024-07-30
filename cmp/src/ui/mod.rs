@@ -1,10 +1,10 @@
 use std::time::Duration;
 
+use bevy::color::palettes::css::{DARK_GRAY, GRAY, ORANGE};
 use bevy::prelude::*;
 use bevy::text::BreakLineOn;
 use bevy::ui::FocusPolicy;
 use build::BuildPlugin;
-use bevy::color::palettes::css::{GRAY, DARK_GRAY, WHITE, ORANGE};
 
 use self::animate::{AnimationPlugin, AnimationTargets, UIAnimation};
 use self::controls::{BuildMenuContainer, ALL_BUILD_MENUS};

@@ -176,8 +176,8 @@ impl GroundMap {
 		commands: &mut Commands,
 		asset_server: &AssetServer,
 	) {
-		let smaller_corner = start_position.min(end_position);
-		let larger_corner = start_position.max(end_position);
+		let smaller_corner = start_position.component_wise_min(end_position);
+		let larger_corner = start_position.component_wise_max(end_position);
 		for x in smaller_corner.x ..= larger_corner.x {
 			for y in smaller_corner.y ..= larger_corner.y {
 				let position = (x, y, start_position.z).into();

@@ -2,7 +2,6 @@
 
 use std::cmp::Ordering;
 
-use bevy::ecs::component::StorageType;
 use bevy::math::Vec3A;
 use bevy::prelude::*;
 use itertools::Itertools;
@@ -144,6 +143,16 @@ impl GridPosition {
 				_ => unreachable!(),
 			})
 		})
+	}
+
+	/// Returns the minimum value for each component.
+	pub fn component_wise_min(self, other: Self) -> Self {
+		Self(IVec3 { x: self.x.min(other.x), y: self.y.min(other.y), z: self.z.min(other.z) })
+	}
+	
+	/// Returns the maximum value for each component.
+	pub fn component_wise_max(self, other: Self) -> Self {
+		Self(IVec3 { x: self.x.max(other.x), y: self.y.max(other.y), z: self.z.max(other.z) })
 	}
 }
 

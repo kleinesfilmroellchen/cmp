@@ -176,8 +176,8 @@ impl BuildMode {
 				}
 			},
 			Self::Rect => {
-				let smaller_corner = start_position.min(current_position);
-				let larger_corner = start_position.max(current_position);
+				let smaller_corner = start_position.component_wise_min(current_position);
+				let larger_corner = start_position.component_wise_max(current_position);
 
 				let mut parent = commands.entity(parent_entity);
 				let sprite = preview_sprite_for_buildable(previewed);

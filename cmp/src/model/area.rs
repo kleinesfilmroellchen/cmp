@@ -27,7 +27,9 @@ impl Default for Area {
 
 impl Area {
 	pub fn from_rect(first_corner: GridPosition, second_corner: GridPosition) -> Self {
-		let mut aabb = GridBox::from_corners(first_corner, second_corner);
+		let smallest_corner = first_corner.component_wise_min(second_corner);
+		let largest_corner = first_corner.component_wise_max(second_corner);
+		let mut aabb = GridBox::from_corners(smallest_corner, largest_corner);
 		let tiles = (aabb.smallest().x ..= aabb.largest().x)
 			.cartesian_product(aabb.smallest().y ..= aabb.largest().y)
 			.map(GridPosition::from)
