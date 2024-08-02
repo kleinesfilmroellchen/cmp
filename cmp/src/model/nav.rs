@@ -142,6 +142,7 @@ impl<const N: NavCategory> NavMesh<N> {
 
 	/// Pathfind via A* from start to end.
 	pub fn pathfind(&self, start: GridPosition, end: GridPosition) -> Option<Path> {
+		/// Manhattan distance between X and Y components of the grid position.
 		fn heuristic(from: GridPosition, to: GridPosition) -> u32 {
 			from.x.abs_diff(to.x) + from.y.abs_diff(to.y)
 		}
@@ -215,10 +216,11 @@ impl<const N: NavCategory> NavMesh<N> {
 				return Some(Path { segments });
 			}
 
-			for neighbor in self.graph.neighbors((current_position, 0).into()) {
-				if closed_set.contains(&OpenSetEntry::from(neighbor.position)) {
-					continue;
-				}
+			for neighbor in self
+				.graph
+				.neighbors((current_position, 0).into())
+				.filter(|neighbor| !closed_set.contains(&OpenSetEntry::from(neighbor.position)))
+			{
 				let edge_cost = neighbor.speed;
 				let g = current_g + edge_cost;
 				if let Some(neighbor_in_set) = open_set.get(&neighbor.position.into())

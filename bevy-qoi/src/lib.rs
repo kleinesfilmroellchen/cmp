@@ -1,3 +1,5 @@
+#![doc = include_str!("../README.md")]
+
 use std::error::Error;
 
 use anyhow::anyhow;
@@ -18,7 +20,7 @@ use qoi::Decoder;
 ///
 /// let mut app = App::new();
 /// app.add_plugins(DefaultPlugins);
-/// app.add_asset_loader(QOIAssetLoader);
+/// app.register_asset_loader(QOIAssetLoader);
 /// // Initialize the rest of your game...
 /// app.run();
 /// ```

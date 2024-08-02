@@ -3,6 +3,8 @@ name = "cmp"
 description = "CMP core game engine"
 edition.workspace = true
 version.workspace = true
+rust-version.workspace = true
+repository.workspace = true
 
 [lib]
 crate-type = ["dylib"]
@@ -12,9 +14,7 @@ crate-type = ["dylib"]
 bevy = { version = "0.14", features = [
 	"dynamic_linking"
 ] }
-# Bevy dynamic plugin support, used for first-class modding support in CMP.
-bevy_dynamic_plugin = { version = "0.14" }
-libloading = "0.8"
+moonshine-save = "0.3.9"
 # Direct access to Bevy's windowing library winit for some functionality such as setting a window logo.
 winit = "0.30"
 # Simple loading and saving of game settings in a cross-platform way.

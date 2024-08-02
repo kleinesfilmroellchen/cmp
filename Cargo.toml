@@ -6,8 +6,10 @@ default-members = ["client"]
 [workspace.package]
 version = "0.1.0"
 description = "CMP, the Camping Madness Project game"
+repository = "https://github.com/kleinesfilmroellchen/cmp"
 edition = "2021"
-rust-version = "1.75"
+rust-version = "1.82"
+license = "BSD 2-clause"
 
 [profile.dev]
 opt-level = 1
