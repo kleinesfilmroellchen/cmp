@@ -84,7 +84,7 @@ impl DisplayableError for BuildError {
 }
 
 /// Component for the building preview's parent entity.
-#[derive(Component, Clone, Copy, Debug)]
+#[derive(Component, Reflect, Clone, Copy, Debug)]
 struct PreviewParent {
 	/// What is to be built.
 	pub previewed:        Buildable,
@@ -101,7 +101,7 @@ impl PreviewParent {
 }
 
 /// Marker component for anything that's part of a building preview.
-#[derive(Component)]
+#[derive(Component, Reflect)]
 struct PreviewChild;
 
 /// The way the user performs building, and the way the building is previewed.

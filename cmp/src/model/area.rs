@@ -12,7 +12,7 @@ use crate::ui::world_info::WorldInfoProperties;
 
 /// A continuous area on the ground, containing various tiles (often of a homogenous type) and demarcating some
 /// important region. For example, pools and pitches are fundamentally areas.
-#[derive(Component, Clone, Debug)]
+#[derive(Component, Reflect, Clone, Debug)]
 pub struct Area {
 	tiles: HashSet<GridPosition>,
 	// A bounding box for intersection acceleration.
@@ -131,7 +131,7 @@ impl Area {
 }
 
 /// Stores an area's data, but makes it not participate in area combination anymore.
-#[derive(Component, Debug, Deref, DerefMut)]
+#[derive(Component, Reflect, Debug, Deref, DerefMut)]
 pub struct ImmutableArea(pub Area);
 
 impl From<ImmutableArea> for Area {
@@ -148,7 +148,7 @@ pub trait AreaMarker: Component {
 }
 
 /// Marker for pool areas.
-#[derive(Component, Default)]
+#[derive(Component, Reflect, Default)]
 pub struct Pool;
 
 impl AreaMarker for Pool {
@@ -178,7 +178,7 @@ impl Plugin for AreaManagement {
 #[derive(Event, Default)]
 pub struct UpdateAreas;
 
-#[derive(Component)]
+#[derive(Component, Reflect)]
 pub struct DebugAreaText;
 
 fn update_areas<T: AreaMarker + Default>(

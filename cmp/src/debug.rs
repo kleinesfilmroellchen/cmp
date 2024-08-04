@@ -9,7 +9,7 @@ use crate::graphics::library::{font_for, FontStyle, FontWeight};
 // Account for up to 600fps and the 10 second metrics.
 const FRAME_TIMES_COUNT: usize = 600 * 11;
 /// Marker component for the text that’s responsible for performance statistics display.
-#[derive(Component, Default)]
+#[derive(Component, Reflect, Default)]
 pub struct StatUI {
 	last_frame_times: VecDeque<Duration>,
 }

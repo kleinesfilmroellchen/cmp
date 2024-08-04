@@ -13,7 +13,7 @@ use crate::ui::world_info::{WorldInfoProperties, WorldInfoProperty};
 use crate::util::Tooltipable;
 
 /// The different available types of pitch.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, ConstParamTy)]
+#[derive(Reflect, Clone, Copy, Debug, PartialEq, Eq, ConstParamTy)]
 pub enum PitchType {
 	TentPitch,
 	PermanentTent,
@@ -202,7 +202,7 @@ impl AccommodationBundle {
 	}
 }
 
-#[derive(Component)]
+#[derive(Component, Reflect)]
 pub struct AccommodationBuilding;
 
 #[derive(Bundle)]

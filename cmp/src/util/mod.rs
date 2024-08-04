@@ -65,7 +65,7 @@ impl Lerpable for BackgroundColor {
 }
 
 /// Shows information about a UI element on hover.
-#[derive(Component)]
+#[derive(Component, Reflect)]
 pub struct Tooltip {
 	/// The headline of the tooltip.
 	pub title: String,
@@ -95,12 +95,12 @@ impl Plugin for TooltipPlugin {
 	}
 }
 
-#[derive(Component)]
+#[derive(Component, Reflect)]
 struct TooltipHeaderText;
-#[derive(Component)]
+#[derive(Component, Reflect)]
 struct TooltipBodyText;
 
-#[derive(Component, Default)]
+#[derive(Component, Reflect, Default)]
 struct TooltipUI;
 
 fn tooltip_style(asset_server: &AssetServer, is_body: bool) -> TextStyle {

@@ -1,3 +1,4 @@
+use std::ops::{BitAnd, BitXor, BitXorAssign};
 use std::sync::OnceLock;
 
 use bevy::core_pipeline::contrast_adaptive_sharpening::ContrastAdaptiveSharpeningSettings;
@@ -6,7 +7,6 @@ use bevy::math::Vec3A;
 use bevy::prelude::*;
 use bevy::sprite::Anchor;
 use bevy::utils::HashMap;
-use bitflags::bitflags;
 
 use crate::model::area::{Area, ImmutableArea};
 use crate::model::{ActorPosition, GridBox, GridPosition, GroundMap, WorldPosition};
@@ -31,7 +31,7 @@ impl Plugin for GraphicsPlugin {
 	}
 }
 
-#[derive(Component, Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Component, Reflect, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum BorderKind {
 	Pitch,
 }
@@ -71,18 +71,49 @@ pub struct BorderSprite {
 	priority:          ObjectPriority,
 }
 
-bitflags! {
-	#[repr(transparent)]
-	#[derive(Debug, Component, Clone, Copy, Eq, PartialEq)]
-	pub struct Sides : u8 {
-		const Top = 0b0001;
-		const Right = 0b0010;
-		const Bottom = 0b0100;
-		const Left = 0b1000;
+#[derive(Debug, Component, Reflect, Clone, Copy, Eq, PartialEq)]
+pub struct Sides(u8);
+
+impl BitAnd for Sides {
+	type Output = Self;
+
+	fn bitand(self, rhs: Self) -> Self::Output {
+		Self(self.0 & rhs.0)
+	}
+}
+
+impl BitXor for Sides {
+	type Output = Self;
+
+	fn bitxor(self, rhs: Self) -> Self::Output {
+		Self(self.0 ^ rhs.0)
+	}
+}
+
+impl BitXorAssign for Sides {
+	fn bitxor_assign(&mut self, rhs: Self) {
+		self.0 ^= rhs.0
 	}
 }
 
 impl Sides {
+	pub const Bottom: Self = Self(0b0100);
+	pub const Left: Self = Self(0b1000);
+	pub const Right: Self = Self(0b0010);
+	pub const Top: Self = Self(0b0001);
+
+	pub fn has_side(self, side: Self) -> bool {
+		(side & self).0 > 0
+	}
+
+	pub fn iter(self) -> impl Iterator<Item = Self> {
+		[Self::Bottom, Self::Left, Self::Top, Self::Right].into_iter().filter(move |e| self.has_side(*e))
+	}
+
+	pub const fn all() -> Self {
+		Self(0b1111)
+	}
+
 	pub fn to_sprite_index(self) -> usize {
 		match self {
 			Self::Top => 0,
@@ -138,7 +169,7 @@ impl BorderSprite {
 		texture_atlases: &'a mut Assets<TextureAtlasLayout>,
 		border_textures: &'a mut BorderTextures,
 	) -> impl Iterator<Item = Self> + 'a {
-		sides.iter_names().map(move |(_, side)| {
+		sides.iter().map(move |side| {
 			let (layout, image) = border_textures.get(kind, texture_atlases, asset_server);
 			Self {
 				side,
@@ -201,7 +232,7 @@ fn initialize_graphics(mut commands: Commands, _asset_server: Res<AssetServer>, 
 }
 
 /// Graphical object priorities assist in z-sorting objects at the same position.
-#[derive(Clone, Copy, Debug, Component)]
+#[derive(Clone, Copy, Debug, Component, Reflect)]
 pub enum ObjectPriority {
 	/// Ground objects have the lowest priority.
 	Ground,

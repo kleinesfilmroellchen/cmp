@@ -22,7 +22,7 @@ impl Plugin for TileManagement {
 }
 
 /// The kinds of ground that exist; most have their own graphics.
-#[derive(Component, Clone, Copy, Debug, PartialEq, Eq, ConstParamTy)]
+#[derive(Component, Reflect, Clone, Copy, Debug, PartialEq, Eq, ConstParamTy)]
 pub enum GroundKind {
 	Grass,
 	Pathway,

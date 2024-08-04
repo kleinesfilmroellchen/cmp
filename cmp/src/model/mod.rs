@@ -18,7 +18,7 @@ use crate::ui::controls::BuildMenu;
 use crate::util::Tooltipable;
 
 /// All build-able objects.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, ConstParamTy)]
+#[derive(Reflect, Clone, Copy, Debug, PartialEq, Eq, ConstParamTy)]
 #[repr(u8)]
 pub enum Buildable {
 	/// A [`GroundTile`] of some [`GroundKind`].

@@ -14,16 +14,16 @@ use crate::graphics::{TILE_HEIGHT, TILE_WIDTH};
 use crate::input::MouseClick;
 use crate::model::{Comfort, PitchType};
 
-#[derive(Component, Default)]
+#[derive(Component, Reflect, Default)]
 pub struct WorldInfoUI {
 	attached_entity: Option<Entity>,
 }
-#[derive(Component)]
+#[derive(Component, Reflect)]
 pub struct WorldInfoTitle;
-#[derive(Component)]
+#[derive(Component, Reflect)]
 pub struct WorldInfoBody;
 /// Used for all property columns.
-#[derive(Component)]
+#[derive(Component, Reflect)]
 pub enum WorldInfoPropertyDisplay {
 	Description,
 	Value,

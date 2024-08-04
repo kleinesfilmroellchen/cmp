@@ -20,8 +20,7 @@ use crate::input::MouseClick;
 /// Each kind has its own nav mesh.
 /// Note that many nav categories are subcategories of others, practically speaking. This is expressed with the
 /// category ordering; see [`PartialOrd`].
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, ConstParamTy)]
-#[repr(u8)]
+#[derive(Reflect, Clone, Copy, Debug, Default, Eq, PartialEq, ConstParamTy)]
 pub enum NavCategory {
 	None,
 	#[default]
@@ -45,7 +44,7 @@ impl PartialOrd for NavCategory {
 }
 
 /// A navigable vertex on the ground. The entities with these components make up the nav meshes in the world.
-#[derive(Component, Clone, Copy, Debug)]
+#[derive(Component, Reflect, Clone, Copy, Debug)]
 pub struct NavComponent {
 	/// Which directions this vertex has exits in.
 	pub exits:        Sides,

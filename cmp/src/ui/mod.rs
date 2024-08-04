@@ -57,7 +57,7 @@ pub mod controls {
 	use crate::util::Tooltipable;
 
 	/// The possible build menus.
-	#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+	#[derive(Clone, Copy, PartialEq, Eq, Debug, Reflect)]
 	pub enum BuildMenu {
 		/// Basic objects, like fences and pathways.
 		Basics,
@@ -90,14 +90,14 @@ pub mod controls {
 	pub(super) const ALL_BUILD_MENUS: [BuildMenu; 3] = [BuildMenu::Basics, BuildMenu::Pitch, BuildMenu::Pool];
 
 	/// Marks a button that opens one of the several build menus.
-	#[derive(Component)]
+	#[derive(Component, Reflect)]
 	pub struct BuildMenuButton(pub BuildMenu);
 
-	#[derive(Component)]
+	#[derive(Component, Reflect)]
 	pub struct BuildMenuContainer(pub BuildMenu);
 
 	/// Marks a button that starts the build process for a specific [`Buildable`].
-	#[derive(Component)]
+	#[derive(Component, Reflect)]
 	pub struct StartBuildButton(pub Buildable);
 
 	/// An event notifying that a build menu has been opened.
@@ -108,15 +108,15 @@ pub mod controls {
 	#[derive(Event)]
 	pub struct CloseBuildMenus;
 
-	#[derive(Component, Clone, Copy, Debug)]
+	#[derive(Component, Reflect, Clone, Copy, Debug)]
 	pub struct DialogContainer;
-	#[derive(Component, Clone, Copy, Debug)]
+	#[derive(Component, Reflect, Clone, Copy, Debug)]
 	pub struct DialogBox;
-	#[derive(Component, Clone, Copy, Debug)]
+	#[derive(Component, Reflect, Clone, Copy, Debug)]
 	pub struct DialogTitle;
-	#[derive(Component, Clone, Copy, Debug)]
+	#[derive(Component, Reflect, Clone, Copy, Debug)]
 	pub struct DialogContents;
-	#[derive(Component, Clone, Copy, Debug)]
+	#[derive(Component, Reflect, Clone, Copy, Debug)]
 	pub struct DialogCloseButton;
 }
 
