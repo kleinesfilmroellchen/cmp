@@ -9,11 +9,19 @@ repository.workspace = true
 [lib]
 crate-type = ["dylib"]
 
+[lints.rust]
+missing_docs = "deny"
+incomplete_features = "allow"
+dead_code = "allow"
+
+[lints.clippy]
+all = { level = "deny", priority = -100 }
+type_complexity = "allow"
+too_many_arguments = "allow"
+
 [dependencies]
 # The Bevy game engine.
-bevy = { version = "0.14", features = [
-	"dynamic_linking"
-] }
+bevy = { version = "0.14", features = ["dynamic_linking"] }
 moonshine-save = "0.3.9"
 # Direct access to Bevy's windowing library winit for some functionality such as setting a window logo.
 winit = "0.30"

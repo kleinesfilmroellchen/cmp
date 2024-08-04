@@ -15,8 +15,6 @@
 	const_fn_floating_point_arithmetic,
 	trait_alias
 )]
-#![deny(clippy::all, missing_docs)]
-#![allow(clippy::type_complexity, incomplete_features, clippy::too_many_arguments)]
 
 extern crate test;
 

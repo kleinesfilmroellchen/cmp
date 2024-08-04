@@ -9,6 +9,7 @@ use bevy::prelude::*;
 /// - a mass m at position x trying to reach the target position w
 /// - a spring with spring force `F_S = k_P (w − x)`
 /// - a damper with dampening force `F_D = −k_D ẋ`
+///
 /// A displacement force is omitted, thereby the system is described by the differential equation:
 ///
 /// `m ẍ = k_P (w − x) − k_D ẋ`

@@ -374,14 +374,13 @@ fn initialize_dialogs(mut commands: Commands, asset_server: Res<AssetServer>) {
 								..Default::default()
 							},
 							text: Text {
-								justify: JustifyText::Center,
+								justify:            JustifyText::Center,
 								linebreak_behavior: BreakLineOn::WordBoundary,
-								sections: vec![TextSection::new("", TextStyle {
+								sections:           vec![TextSection::new("", TextStyle {
 									font:      asset_server.load(font_for(FontWeight::Bold, FontStyle::Regular)),
 									font_size: 32.,
 									color:     ORANGE.into(),
 								})],
-								..Default::default()
 							},
 							..Default::default()
 						},

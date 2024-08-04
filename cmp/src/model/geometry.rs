@@ -163,6 +163,7 @@ impl WorldPosition for GridPosition {
 	}
 }
 
+#[allow(clippy::non_canonical_partial_ord_impl)]
 impl PartialOrd for GridPosition {
 	/// A grid position is considered smaller if its distance to negative infinity (sum of all coordinates) is smaller.
 	/// However, if two grid positions have the same distance to negative infinity but distinct coordinates, an order
@@ -424,7 +425,7 @@ impl GridBox {
 		let largest_corner = first_corner.max(second_corner);
 		let real_extents = largest_corner - smallest_corner;
 		debug_assert!(real_extents.x >= 0 && real_extents.y >= 0 && real_extents.z >= 0);
-		Self { corner: smallest_corner.into(), extents: real_extents.as_uvec3().into() }
+		Self { corner: smallest_corner, extents: real_extents.as_uvec3().into() }
 	}
 
 	#[inline]

@@ -75,7 +75,7 @@ impl std::hash::Hash for NavVertex {
 }
 impl PartialOrd for NavVertex {
 	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-		self.position.partial_cmp(&other.position)
+		Some(self.cmp(other))
 	}
 }
 impl Ord for NavVertex {
@@ -168,14 +168,7 @@ impl<const N: NavCategory> NavMesh<N> {
 		}
 		impl PartialOrd for OpenSetEntry {
 			fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-				if self.position == other.position {
-					Some(Ordering::Equal)
-				} else {
-					match self.cost.partial_cmp(&other.cost) {
-						Some(Ordering::Equal) | None => None,
-						Some(ord) => Some(ord),
-					}
-				}
+				Some(self.cmp(other))
 			}
 		}
 		impl Ord for OpenSetEntry {

@@ -13,12 +13,12 @@
 
 extern crate embed_resource;
 
-use std::cell::OnceCell;
 use std::env;
 use std::ffi::OsString;
 use std::fmt::Debug;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::LazyLock;
 
 const ASSET_DIRECTORY: &str = "../assets";
 const PNG_TEMP_SUBDIRECTORY: &str = "png";
@@ -37,11 +37,10 @@ fn main() {
 	let ase_files = find_all_ase_inputs();
 	println!("Converting ase files: {:?}", ase_files);
 
-	let asset_directory = full_asset_directory();
-	if asset_directory.exists() {
-		std::fs::remove_dir_all(asset_directory).unwrap();
+	if FULL_ASSET_DIRECTORY.exists() {
+		std::fs::remove_dir_all(FULL_ASSET_DIRECTORY.as_path()).unwrap();
 	}
-	std::fs::create_dir(full_asset_directory()).unwrap();
+	std::fs::create_dir(FULL_ASSET_DIRECTORY.as_path()).unwrap();
 
 	let png_files = convert_all_ase_to_png(&ase_files);
 	convert_all_png_to_qoi(&png_files);
@@ -114,15 +113,11 @@ fn convert_png_to_qoi(png_file: impl AsRef<Path>) -> std::io::Result<()> {
 	}
 }
 
-const FULL_ASSET_DIRECTORY: OnceCell<PathBuf> = OnceCell::new();
-fn full_asset_directory() -> PathBuf {
-	FULL_ASSET_DIRECTORY
-		.get_or_init(|| Path::new(&env::var_os("OUT_DIR").unwrap_or(".".into())).join(PNG_TEMP_SUBDIRECTORY))
-		.clone()
-}
+static FULL_ASSET_DIRECTORY: LazyLock<PathBuf> =
+	LazyLock::new(|| Path::new(&env::var_os("OUT_DIR").unwrap_or(".".into())).join(PNG_TEMP_SUBDIRECTORY));
 
 fn to_png_temp_output(ase: impl AsRef<Path>) -> std::io::Result<PathBuf> {
-	Ok(full_asset_directory().join(
+	Ok(FULL_ASSET_DIRECTORY.join(
 		ase.as_ref()
 			.with_extension(PNG_EXTENSION)
 			.file_name()

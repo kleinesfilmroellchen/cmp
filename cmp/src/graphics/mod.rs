@@ -96,6 +96,7 @@ impl BitXorAssign for Sides {
 	}
 }
 
+#[allow(non_upper_case_globals)]
 impl Sides {
 	pub const Bottom: Self = Self(0b0100);
 	pub const Left: Self = Self(0b1000);
