@@ -8,7 +8,7 @@ use thiserror::Error;
 use super::error::{DisplayableError, ErrorBox};
 use super::on_start_build_preview;
 use super::world_info::WorldInfoProperties;
-use crate::graphics::library::{anchor_for_sprite, preview_sprite_for_buildable};
+use crate::graphics::library::{anchor_for_image, preview_image_for_buildable};
 use crate::graphics::{engine_to_world_space, ObjectPriority};
 use crate::input::InputState;
 use crate::model::area::{Area, ImmutableArea, Pool, UpdateAreas};
@@ -85,6 +85,7 @@ impl DisplayableError for BuildError {
 
 /// Component for the building preview's parent entity.
 #[derive(Component, Reflect, Clone, Copy, Debug)]
+#[reflect(Component)]
 struct PreviewParent {
 	/// What is to be built.
 	pub previewed:        Buildable,
@@ -102,6 +103,7 @@ impl PreviewParent {
 
 /// Marker component for anything that's part of a building preview.
 #[derive(Component, Reflect)]
+#[reflect(Component)]
 struct PreviewChild;
 
 /// The way the user performs building, and the way the building is previewed.
@@ -134,15 +136,15 @@ impl BuildMode {
 				if let Some((_, mut existing_child)) = any_child {
 					*existing_child = preview_position;
 				} else {
-					let sprite = preview_sprite_for_buildable(previewed);
+					let image = preview_image_for_buildable(previewed);
 					commands.entity(parent_entity).with_children(|parent| {
 						parent.spawn((PreviewChild, preview_position, ObjectPriority::Overlay, SpriteBundle {
 							sprite: Sprite {
 								color: PREVIEW_TINT,
-								anchor: anchor_for_sprite(sprite),
+								anchor: anchor_for_image(image),
 								..Default::default()
 							},
-							texture: asset_server.load(sprite),
+							texture: asset_server.load(image),
 							..Default::default()
 						}));
 					});
@@ -155,15 +157,15 @@ impl BuildMode {
 						EitherOrBoth::Both(position, (_, mut child)) => *child = position,
 						// Create new child.
 						EitherOrBoth::Left(position) => {
-							let sprite = preview_sprite_for_buildable(previewed);
+							let image = preview_image_for_buildable(previewed);
 							commands.entity(parent_entity).with_children(|parent| {
 								parent.spawn((PreviewChild, ObjectPriority::Overlay, position, SpriteBundle {
 									sprite: Sprite {
 										color: PREVIEW_TINT,
-										anchor: anchor_for_sprite(sprite),
+										anchor: anchor_for_image(image),
 										..Default::default()
 									},
-									texture: asset_server.load(sprite),
+									texture: asset_server.load(image),
 									..Default::default()
 								}));
 							});
@@ -180,7 +182,7 @@ impl BuildMode {
 				let larger_corner = start_position.component_wise_max(current_position);
 
 				let mut parent = commands.entity(parent_entity);
-				let sprite = preview_sprite_for_buildable(previewed);
+				let image = preview_image_for_buildable(previewed);
 
 				for x in smaller_corner.x ..= larger_corner.x {
 					for y in smaller_corner.y ..= larger_corner.y {
@@ -196,10 +198,10 @@ impl BuildMode {
 									SpriteBundle {
 										sprite: Sprite {
 											color: PREVIEW_TINT,
-											anchor: anchor_for_sprite(sprite),
+											anchor: anchor_for_image(image),
 											..Default::default()
 										},
-										texture: asset_server.load(sprite),
+										texture: asset_server.load(image),
 										..Default::default()
 									},
 								));

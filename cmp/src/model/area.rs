@@ -2,17 +2,20 @@ use std::collections::VecDeque;
 
 use bevy::color::palettes::css::RED;
 use bevy::prelude::*;
-use bevy::utils::{HashSet, Instant};
+use bevy::utils::Instant;
 use itertools::Itertools;
+use moonshine_save::save::Save;
 
 use super::{BoundingBox, GridBox, GridPosition, GroundKind, GroundMap, Pitch};
 use crate::config::GameSettings;
 use crate::graphics::{BorderSprite, BorderTextures, ObjectPriority, Sides};
 use crate::ui::world_info::WorldInfoProperties;
+use crate::HashSet;
 
 /// A continuous area on the ground, containing various tiles (often of a homogenous type) and demarcating some
 /// important region. For example, pools and pitches are fundamentally areas.
 #[derive(Component, Reflect, Clone, Debug)]
+#[reflect(Component)]
 pub struct Area {
 	tiles: HashSet<GridPosition>,
 	// A bounding box for intersection acceleration.
@@ -33,19 +36,20 @@ impl Area {
 		let tiles = (aabb.smallest().x ..= aabb.largest().x)
 			.cartesian_product(aabb.smallest().y ..= aabb.largest().y)
 			.map(GridPosition::from)
+			.map(|x| (x, ()))
 			.collect();
 		aabb.enlargen((1, 1, 1).into());
 		Self { tiles, aabb }
 	}
 
 	pub fn recompute_bounds(&mut self) {
-		let (smallest_x, largest_x) = self.tiles.iter().map(|tile| tile.x).minmax().into_option().unwrap_or((0, 0));
-		let (smallest_y, largest_y) = self.tiles.iter().map(|tile| tile.y).minmax().into_option().unwrap_or((0, 0));
+		let (smallest_x, largest_x) = self.tiles.keys().map(|tile| tile.x).minmax().into_option().unwrap_or((0, 0));
+		let (smallest_y, largest_y) = self.tiles.keys().map(|tile| tile.y).minmax().into_option().unwrap_or((0, 0));
 		self.aabb = GridBox::from_corners((smallest_x, smallest_y, 0).into(), (largest_x + 1, largest_y + 1, 1).into());
 	}
 
 	pub fn retain_tiles(&mut self, predicate: impl Fn(&GridPosition) -> bool) {
-		self.tiles.retain(predicate);
+		self.tiles.retain(|x, _| predicate(x));
 		self.recompute_bounds();
 	}
 
@@ -62,11 +66,14 @@ impl Area {
 		// Flood fill to determine continuity.
 		let mut candidate_tiles = self.tiles.clone();
 		let mut nearby_tiles = VecDeque::new();
-		nearby_tiles.push_back(*candidate_tiles.iter().next().unwrap());
+		nearby_tiles.push_back(*candidate_tiles.keys().next().unwrap());
 		while !nearby_tiles.is_empty() {
 			let current_tile = nearby_tiles.pop_front().unwrap();
-			for neighbor in
-				current_tile.neighbors().into_iter().filter(|neighbor| candidate_tiles.contains(neighbor)).collect_vec()
+			for neighbor in current_tile
+				.neighbors()
+				.into_iter()
+				.filter(|neighbor| candidate_tiles.contains_key(neighbor))
+				.collect_vec()
 			{
 				nearby_tiles.push_back(neighbor);
 				candidate_tiles.remove(&neighbor);
@@ -83,7 +90,7 @@ impl Area {
 
 	#[inline]
 	pub fn contains(&self, position: &GridPosition) -> bool {
-		self.tiles.contains(position)
+		self.tiles.contains_key(position)
 	}
 
 	pub fn fits(&self, aabb: &GridBox) -> bool {
@@ -92,7 +99,7 @@ impl Area {
 
 	#[inline]
 	pub fn tiles_iter(&self) -> impl Iterator<Item = GridPosition> + '_ {
-		self.tiles.iter().copied()
+		self.tiles.keys().copied()
 	}
 
 	pub fn instantiate_borders(
@@ -103,12 +110,12 @@ impl Area {
 		texture_atlases: &mut Assets<TextureAtlasLayout>,
 		border_textures: &mut BorderTextures,
 	) {
-		for position in &self.tiles {
+		for position in self.tiles.keys() {
 			let (entity, kind) = ground_map.get(position).unwrap();
 			if let Some(border_kind) = kind.border_kind() {
 				let mut sides = Sides::all();
 				for neighbor in position.neighbors().into_iter().filter(|neighbor| {
-					self.tiles.contains(neighbor)
+					self.tiles.contains_key(neighbor)
 						&& ground_map.kind_of(neighbor).is_some_and(|neighbor_kind| neighbor_kind == kind)
 				}) {
 					sides ^= match *(neighbor - *position) {
@@ -132,6 +139,7 @@ impl Area {
 
 /// Stores an area's data, but makes it not participate in area combination anymore.
 #[derive(Component, Reflect, Debug, Deref, DerefMut)]
+#[reflect(Component)]
 pub struct ImmutableArea(pub Area);
 
 impl From<ImmutableArea> for Area {
@@ -149,6 +157,7 @@ pub trait AreaMarker: Component {
 
 /// Marker for pool areas.
 #[derive(Component, Reflect, Default)]
+#[reflect(Component)]
 pub struct Pool;
 
 impl AreaMarker for Pool {
@@ -157,7 +166,7 @@ impl AreaMarker for Pool {
 	}
 
 	fn init_new(area: Area, commands: &mut Commands) {
-		commands.spawn((area, Pool));
+		commands.spawn((area, Pool, Save));
 	}
 }
 
@@ -167,11 +176,16 @@ impl Plugin for AreaManagement {
 	fn build(&self, app: &mut App) {
 		// Add event resource manually to circumvent automatic frame-wise event cleanup.
 		app.init_resource::<Events<UpdateAreas>>()
+			.register_type::<Pool>()
+			.register_type::<DebugAreaText>()
+			.register_type::<Area>()
+			.register_type::<ImmutableArea>()
 			.add_systems(
 				FixedUpdate,
 				(update_areas::<Pool>, update_areas::<Pitch>).before(clean_area_events).before(update_area_world_info),
 			)
-			.add_systems(FixedUpdate, (clean_area_events, update_area_world_info));
+			.add_systems(FixedUpdate, (clean_area_events, update_area_world_info))
+			.add_systems(Update, (add_area_world_info, add_area_transforms));
 	}
 }
 
@@ -179,6 +193,7 @@ impl Plugin for AreaManagement {
 pub struct UpdateAreas;
 
 #[derive(Component, Reflect)]
+#[reflect(Component)]
 pub struct DebugAreaText;
 
 fn update_areas<T: AreaMarker + Default>(
@@ -204,7 +219,7 @@ fn update_areas<T: AreaMarker + Default>(
 		remaining_tiles.extend(
 			area.tiles
 				.iter()
-				.filter(|tile| tiles.kind_of(tile).is_some_and(|kind| marker.is_allowed_ground_type(kind))),
+				.filter(|(tile, _)| tiles.kind_of(tile).is_some_and(|kind| marker.is_allowed_ground_type(kind))),
 		);
 	}
 
@@ -212,7 +227,7 @@ fn update_areas<T: AreaMarker + Default>(
 	let mut active_area = Area::default();
 	let mut adjacent_tiles = VecDeque::new();
 	if !remaining_tiles.is_empty() {
-		adjacent_tiles.push_front(*remaining_tiles.iter().next().unwrap());
+		adjacent_tiles.push_front(*remaining_tiles.keys().next().unwrap());
 	}
 	while !remaining_tiles.is_empty() {
 		// No more adjacent tiles; start new area.
@@ -221,19 +236,19 @@ fn update_areas<T: AreaMarker + Default>(
 			new_areas.push(active_area);
 			active_area = Area::default();
 			// Extract an arbitrary new tile to start the next area.
-			adjacent_tiles.push_front(*remaining_tiles.iter().next().unwrap());
+			adjacent_tiles.push_front(*remaining_tiles.keys().next().unwrap());
 		}
 		let next_tile = adjacent_tiles.pop_back().unwrap();
 
-		let did_remove = remaining_tiles.remove(&next_tile);
+		let did_remove = remaining_tiles.remove(&next_tile).is_some();
 		if !did_remove {
 			debug!("BUG! {:?} wasn’t a remaining tile, but it was in the queue!", next_tile);
 		}
 
-		active_area.tiles.insert(next_tile);
+		active_area.tiles.insert(next_tile, ());
 		for new_tile in next_tile.neighbors() {
 			// Not a queued tile already, but we need to handle it.
-			if !adjacent_tiles.contains(&new_tile) && remaining_tiles.contains(&new_tile) {
+			if !adjacent_tiles.contains(&new_tile) && remaining_tiles.contains_key(&new_tile) {
 				adjacent_tiles.push_front(new_tile);
 			}
 		}
@@ -247,7 +262,7 @@ fn update_areas<T: AreaMarker + Default>(
 	// debugging
 	if settings.show_debug {
 		for (i, area) in new_areas.iter().enumerate() {
-			for tile in &area.tiles {
+			for tile in area.tiles.keys() {
 				commands.spawn((
 					*tile + IVec3::new(0, 0, 3),
 					Text2dBundle {
@@ -288,6 +303,25 @@ fn update_areas<T: AreaMarker + Default>(
 
 fn clean_area_events(mut update: ResMut<Events<UpdateAreas>>) {
 	update.clear();
+}
+
+fn add_area_world_info(
+	finalized_pitches: Query<Entity, (Without<Area>, With<ImmutableArea>, Without<WorldInfoProperties>)>,
+	unfinalized_pitches: Query<Entity, (Without<ImmutableArea>, With<Area>, Without<WorldInfoProperties>)>,
+	mut commands: Commands,
+) {
+	for entity in unfinalized_pitches.iter().chain(finalized_pitches.iter()) {
+		commands.entity(entity).insert(WorldInfoProperties::basic(String::new(), String::new()));
+	}
+}
+
+fn add_area_transforms(
+	area: Query<Entity, (Or<(With<Area>, With<ImmutableArea>)>, Without<GlobalTransform>)>,
+	mut commands: Commands,
+) {
+	for entity in &area {
+		commands.entity(entity).insert((GlobalTransform::default(), Transform::default(), VisibilityBundle::default()));
+	}
 }
 
 fn update_area_world_info(

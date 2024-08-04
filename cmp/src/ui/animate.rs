@@ -96,6 +96,7 @@ impl TransitionTimes {
 
 /// A component that is necessary to animate any [`Animatable`] component on the same entity.
 #[derive(Component, Reflect)]
+#[reflect(Component)]
 pub struct UIAnimation<D: Lerpable + Sync + Send + 'static, C: Component, P: AnimatedProperty<C, D>> {
 	/// Currently playing animation.
 	target:           Interaction,

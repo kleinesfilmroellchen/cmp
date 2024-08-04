@@ -3,14 +3,15 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use bevy::prelude::*;
-use bevy::utils::HashSet;
+use moonshine_save::save::Save;
 
 use super::area::{Area, AreaMarker, ImmutableArea, UpdateAreas};
 use super::{BoundingBox, GridBox, GridPosition, GroundKind, GroundMap, Metric};
-use crate::graphics::library::{anchor_for_sprite, sprite_for_pitch};
+use crate::graphics::library::{anchor_for_image, image_for_pitch};
 use crate::graphics::ObjectPriority;
 use crate::ui::world_info::{WorldInfoProperties, WorldInfoProperty};
 use crate::util::Tooltipable;
+use crate::HashSet;
 
 /// The different available types of pitch.
 #[derive(Reflect, Clone, Copy, Debug, PartialEq, Eq, ConstParamTy)]
@@ -112,7 +113,8 @@ impl Tooltipable for PitchType {
 type AccommodationMultiplicity = Metric<1, 2>;
 
 /// A proper pitch for guests; essentially an instance of [`PitchType`].
-#[derive(Component, Default)]
+#[derive(Component, Reflect, Default)]
+#[reflect(Component)]
 pub struct Pitch {
 	/// When the kind is [`None`], the pitch type is unassigned and this pitch is not functional.
 	pub kind:         Option<PitchType>,
@@ -163,6 +165,7 @@ pub struct AccommodationBundle {
 	inherited_visibility: InheritedVisibility,
 	visibility:           Visibility,
 	properties:           WorldInfoProperties,
+	save:                 Save,
 }
 
 impl AccommodationBundle {
@@ -177,6 +180,7 @@ impl AccommodationBundle {
 			view_visibility:      ViewVisibility::default(),
 			visibility:           Visibility::Visible,
 			properties:           Self::info_base(),
+			save:                 Save,
 		}
 	}
 
@@ -190,6 +194,7 @@ impl AccommodationBundle {
 			view_visibility: ViewVisibility::default(),
 			visibility: Visibility::Visible,
 			properties: Self::info_base(),
+			save: Save,
 		}
 	}
 
@@ -203,6 +208,7 @@ impl AccommodationBundle {
 }
 
 #[derive(Component, Reflect)]
+#[reflect(Component)]
 pub struct AccommodationBuilding;
 
 #[derive(Bundle)]
@@ -211,6 +217,7 @@ pub struct AccommodationBuildingBundle {
 	pub sprite:   SpriteBundle,
 	marker:       AccommodationBuilding,
 	priority:     ObjectPriority,
+	save:         Save,
 }
 
 impl AccommodationBuildingBundle {
@@ -218,16 +225,17 @@ impl AccommodationBuildingBundle {
 		if !kind.is_real_building() {
 			None
 		} else {
-			let sprite = sprite_for_pitch(kind);
-			Some(AccommodationBuildingBundle {
+			let image = image_for_pitch(kind);
+			Some(Self {
 				position: GridBox::around(position, kind.size().flat()),
 				sprite:   SpriteBundle {
-					sprite: Sprite { anchor: anchor_for_sprite(sprite), ..Default::default() },
-					texture: asset_server.load(sprite),
+					sprite: Sprite { anchor: anchor_for_image(image), ..Default::default() },
+					texture: asset_server.load(image),
 					..Default::default()
 				},
 				marker:   AccommodationBuilding,
 				priority: ObjectPriority::Normal,
+				save:     Save,
 			})
 		}
 	}
@@ -236,7 +244,13 @@ impl AccommodationBuildingBundle {
 pub struct AccommodationManagement;
 impl Plugin for AccommodationManagement {
 	fn build(&self, app: &mut App) {
-		app.add_systems(FixedUpdate, update_built_pitches)
+		app.register_type::<AccommodationBuilding>()
+			.register_type::<PitchType>()
+			.register_type::<Pitch>()
+			.register_type::<Comfort>()
+			.register_type::<AccommodationMultiplicity>()
+			.add_systems(Update, add_pitch_graphics)
+			.add_systems(FixedUpdate, update_built_pitches)
 			.add_systems(FixedUpdate, update_pitch_world_info.after(update_built_pitches));
 	}
 }
@@ -253,13 +267,15 @@ fn update_built_pitches(
 		let relevant_tiles = |tile: &'_ _| ground_map.kind_of(tile).is_some_and(|kind| kind == Pitch::GROUND_TYPE);
 		// When the player places pitch tiles over this finalized pitch, we have to detect that and
 		// delete the tiles from our area.
-		let foreign_area_tiles =
-			other_areas.into_iter().flat_map(|area| area.tiles_iter().filter(relevant_tiles)).collect::<HashSet<_>>();
+		let foreign_area_tiles = other_areas
+			.into_iter()
+			.flat_map(|area| area.tiles_iter().filter(relevant_tiles).map(|x| (x, ())))
+			.collect::<HashSet<_>>();
 
 		let needs_update = Arc::new(AtomicBool::new(false));
 
 		pitches.par_iter_mut().for_each(|(entity, mut pitch, children, mut area)| {
-			area.retain_tiles(|tile| relevant_tiles(tile) && !foreign_area_tiles.contains(tile));
+			area.retain_tiles(|tile| relevant_tiles(tile) && !foreign_area_tiles.contains_key(tile));
 			let mut should_destroy = false;
 			// Check the three conditions for destroying an updated pitch:
 			// 1. Area doesn't provide enough tiles for the pitch type.
@@ -312,5 +328,27 @@ fn update_pitch_world_info(
 	}
 	for (mut properties, pitch, area) in immutable_pitches.iter_mut().filter(|(_, _, a)| a.is_changed()) {
 		pitch.apply_properties(&mut properties, &area.0);
+	}
+}
+
+fn add_pitch_graphics(
+	buildings: Query<Entity, (With<AccommodationBuilding>, Without<Handle<Image>>, Without<Sprite>)>,
+	pitches: Query<(&Pitch, &Children), Without<AccommodationBuilding>>,
+	mut commands: Commands,
+	asset_server: Res<AssetServer>,
+) {
+	for entity in &buildings {
+		let result: Option<()> = try {
+			let (parent_pitch, _) = pitches.iter().find(|(_, children)| children.contains(&entity))?;
+			let image = image_for_pitch(parent_pitch.kind?);
+			commands.entity(entity).insert(SpriteBundle {
+				sprite: Sprite { anchor: anchor_for_image(image), ..Default::default() },
+				texture: asset_server.load(image),
+				..Default::default()
+			});
+		};
+		if result.is_none() {
+			commands.entity(entity).despawn_recursive();
+		}
 	}
 }

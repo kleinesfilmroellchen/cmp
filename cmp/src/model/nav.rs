@@ -8,7 +8,7 @@ use std::marker::ConstParamTy;
 use bevy::color::palettes::css::{BLUE, RED};
 use bevy::math::Vec3A;
 use bevy::prelude::*;
-use bevy::utils::{HashSet, Instant};
+use bevy::utils::Instant;
 use petgraph::graphmap::DiGraphMap;
 
 use super::{GridPosition, WorldPosition};
@@ -45,6 +45,7 @@ impl PartialOrd for NavCategory {
 
 /// A navigable vertex on the ground. The entities with these components make up the nav meshes in the world.
 #[derive(Component, Reflect, Clone, Copy, Debug)]
+#[reflect(Component)]
 pub struct NavComponent {
 	/// Which directions this vertex has exits in.
 	pub exits:        Sides,
@@ -190,7 +191,7 @@ impl<const N: NavCategory> NavMesh<N> {
 		}
 
 		let mut open_set = BTreeSet::new();
-		let mut closed_set: HashSet<OpenSetEntry> = HashSet::new();
+		let mut closed_set: bevy::utils::HashSet<OpenSetEntry> = bevy::utils::HashSet::new();
 
 		open_set.insert(OpenSetEntry { position: start, cost: 0, g: 0, predecessor: start });
 		while let Some(current @ OpenSetEntry { position: current_position, g: current_g, .. }) = open_set.pop_first() {
@@ -311,6 +312,8 @@ impl Plugin for NavManagement {
 	fn build(&self, app: &mut App) {
 		app.init_resource::<NavMesh<{ NavCategory::People }>>()
 			.init_resource::<NavMesh<{ NavCategory::Vehicles }>>()
+			.register_type::<NavComponent>()
+			.register_type::<NavCategory>()
 			.add_systems(
 				FixedUpdate,
 				(update_navmesh::<{ NavCategory::People }>, update_navmesh::<{ NavCategory::Vehicles }>),

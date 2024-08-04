@@ -31,7 +31,7 @@ pub enum Buildable {
 	PitchType(PitchType),
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, ConstParamTy)]
+#[derive(Clone, Reflect, Copy, Debug, PartialEq, Eq, ConstParamTy)]
 #[repr(u8)]
 pub enum BuildableType {
 	Ground,
@@ -42,7 +42,12 @@ pub enum BuildableType {
 
 impl From<Buildable> for BuildableType {
 	fn from(value: Buildable) -> Self {
-		unsafe { *(((&value) as *const Buildable) as *const Self) }
+		match value {
+			 Buildable::Ground(_) => Self::Ground,
+			 Buildable::PoolArea => Self::PoolArea,
+			 Buildable::Pitch => Self::Pitch,
+			 Buildable::PitchType(_) => Self::PitchType,
+		}
 	}
 }
 
@@ -110,7 +115,7 @@ impl Buildable {
 
 /// A general-purpose metric with a specific range. Metrics are always natural numbers to simplify UI and corresponding
 /// game mechanics. Specific subsystems will define their own metric-derived types with specific ranges.
-#[derive(Clone, Copy, Debug, Eq, Ord, Deref)]
+#[derive(Clone, Copy, Debug, Eq, Ord, Deref, Reflect)]
 pub struct Metric<const MIN: u64, const MAX: u64>(u64);
 
 impl<const MIN: u64, const MAX: u64> TryFrom<u64> for Metric<MIN, MAX> {

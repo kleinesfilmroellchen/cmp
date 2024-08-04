@@ -28,8 +28,8 @@ winit = "0.30"
 # Simple loading and saving of game settings in a cross-platform way.
 confy = "0.5.1"
 # Setting and game state serialization/deserialization from and to disk.
-serde = { version = "1.0.188", features = ["derive"] }
-serde_derive = "1.0.188"
+serde = { version = "1", features = ["derive"] }
+serde_derive = "1"
 # CLI Arguments for the various executables.
 argh = "0.1.12"
 # Iteration utilities for internal functionality.

@@ -2,10 +2,11 @@ use std::marker::ConstParamTy;
 
 use bevy::prelude::*;
 use bevy::utils::HashMap;
+use moonshine_save::save::Save;
 
 use super::nav::{NavCategory, NavComponent};
 use super::GridPosition;
-use crate::graphics::library::{anchor_for_sprite, sprite_for_ground};
+use crate::graphics::library::{anchor_for_image, image_for_ground};
 use crate::graphics::{BorderKind, ObjectPriority, Sides};
 use crate::ui::world_info::WorldInfoProperties;
 use crate::util::Tooltipable;
@@ -14,15 +15,20 @@ pub struct TileManagement;
 
 impl Plugin for TileManagement {
 	fn build(&self, app: &mut App) {
-		app.insert_resource(GroundMap::new()).add_systems(PostUpdate, update_ground_textures).add_systems(
-			FixedUpdate,
-			(add_navigability.after(update_navigability_properties), update_navigability_properties),
-		);
+		app.register_type::<GroundKind>()
+			.insert_resource(GroundMap::new())
+			.add_systems(PreUpdate, update_map_from_world)
+			.add_systems(PostUpdate, (update_ground_textures, add_ground_textures, add_world_info))
+			.add_systems(
+				FixedUpdate,
+				(check_save, add_navigability.after(update_navigability_properties), update_navigability_properties),
+			);
 	}
 }
 
 /// The kinds of ground that exist; most have their own graphics.
 #[derive(Component, Reflect, Clone, Copy, Debug, PartialEq, Eq, ConstParamTy)]
+#[reflect(Component)]
 pub enum GroundKind {
 	Grass,
 	Pathway,
@@ -97,20 +103,25 @@ pub struct GroundTile {
 	kind:       GroundKind,
 	world_info: WorldInfoProperties,
 	navigable:  NavComponent,
+	save:       Save,
+}
+
+fn sprite_object_for_image(image: &str) -> Sprite {
+	Sprite {
+		anchor: anchor_for_image(image),
+		// flip_x: ((position.x % 5) ^ (position.y % 7) ^ (position.z % 11)) & (1 << 3) == 0,
+		..Default::default()
+	}
 }
 
 impl GroundTile {
 	pub fn new(kind: GroundKind, position: GridPosition, asset_server: &AssetServer) -> Self {
-		let sprite = sprite_for_ground(kind);
+		let image = image_for_ground(kind);
 		GroundTile {
 			position,
 			sprite: SpriteBundle {
-				sprite: Sprite {
-					anchor: anchor_for_sprite(sprite),
-					// flip_x: ((position.x % 5) ^ (position.y % 7) ^ (position.z % 11)) & (1 << 3) == 0,
-					..Default::default()
-				},
-				texture: asset_server.load(sprite),
+				sprite: sprite_object_for_image(image),
+				texture: asset_server.load(image),
 				..Default::default()
 			},
 			priority: ObjectPriority::Ground,
@@ -121,6 +132,7 @@ impl GroundTile {
 				speed:        kind.traversal_speed(),
 				navigability: kind.navigability(),
 			},
+			save: Save,
 		}
 	}
 }
@@ -193,6 +205,21 @@ impl GroundMap {
 	pub fn get(&self, position: &GridPosition) -> Option<(Entity, GroundKind)> {
 		self.map.get(position).cloned()
 	}
+
+	/// Enter an existing tile into the ground map. This is only to be used with already correctly set up tiles (from a
+	/// game load), and not for entering tile changes and additions into the map.
+	pub(super) fn update_with_existing_tile(&mut self, entity: Entity, position: GridPosition, kind: GroundKind) {
+		self.map.insert(position, (entity, kind));
+	}
+}
+
+fn update_map_from_world(
+	new_entries: Query<(Entity, &GridPosition, &GroundKind), Added<GroundKind>>,
+	mut map: ResMut<GroundMap>,
+) {
+	for (entity, position, kind) in &new_entries {
+		map.update_with_existing_tile(entity, *position, *kind);
+	}
 }
 
 // For testing purposes:
@@ -211,6 +238,10 @@ pub fn spawn_test_tiles(
 	}
 }
 
+fn check_save(saved: Query<(&GroundKind, &Save)>) {
+	debug!("{}", saved.iter().count());
+}
+
 pub fn update_ground_textures(
 	mut ground_textures: Query<(Entity, &GroundKind, &mut Handle<Image>), Changed<GroundKind>>,
 	asset_server: Res<AssetServer>,
@@ -219,12 +250,25 @@ pub fn update_ground_textures(
 	for (entity, kind, mut texture) in &mut ground_textures {
 		// remove any children of the old tile
 		commands.entity(entity).despawn_descendants();
-		let sprite = sprite_for_ground(*kind);
-		*texture = asset_server.load(sprite);
+		let image = image_for_ground(*kind);
+		*texture = asset_server.load(image);
 	}
 }
 
-pub fn add_navigability(mut ground_vertices: Query<(Entity, &GroundKind), Without<NavComponent>>, mut commands: Commands) {
+pub fn add_ground_textures(
+	mut ground_textures: Query<(Entity, &GroundKind), (Without<Handle<Image>>, Without<Sprite>)>,
+	asset_server: Res<AssetServer>,
+	mut commands: Commands,
+) {
+	for (entity, kind) in &mut ground_textures {
+		let image = image_for_ground(*kind);
+		let texture: Handle<Image> = asset_server.load(image);
+		let sprite = sprite_object_for_image(image);
+		commands.entity(entity).insert((texture, sprite));
+	}
+}
+
+fn add_navigability(mut ground_vertices: Query<(Entity, &GroundKind), Without<NavComponent>>, mut commands: Commands) {
 	for (entity, kind) in &mut ground_vertices {
 		commands.entity(entity).insert(NavComponent {
 			navigability: kind.navigability(),
@@ -234,11 +278,17 @@ pub fn add_navigability(mut ground_vertices: Query<(Entity, &GroundKind), Withou
 	}
 }
 
-pub fn update_navigability_properties(mut ground_vertices: Query<(&GroundKind, &mut NavComponent), Changed<GroundKind>>) {
+fn update_navigability_properties(mut ground_vertices: Query<(&GroundKind, &mut NavComponent), Changed<GroundKind>>) {
 	for (kind, mut vertex) in &mut ground_vertices {
 		vertex.navigability = kind.navigability();
 		// TODO: Check border objects in another system and remove sides with borders.
 		vertex.exits = Sides::all();
 		vertex.speed = kind.traversal_speed();
+	}
+}
+
+fn add_world_info(mut commands: Commands, ground_vertices: Query<(Entity, &GroundKind), Without<WorldInfoProperties>>) {
+	for (entity, kind) in &ground_vertices {
+		commands.entity(entity).insert(WorldInfoProperties::basic(kind.to_string(), kind.description().to_string()));
 	}
 }

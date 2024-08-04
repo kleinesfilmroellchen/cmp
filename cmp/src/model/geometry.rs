@@ -5,6 +5,7 @@ use std::cmp::Ordering;
 use bevy::math::Vec3A;
 use bevy::prelude::*;
 use itertools::Itertools;
+use serde::{Deserialize, Serialize};
 
 use crate::graphics::Sides;
 
@@ -20,6 +21,7 @@ pub trait WorldPosition: Component {
 
 /// An actor’s position is unconstrained in all three axes, and it can have non-grid-aligned values.
 #[derive(Component, Reflect, Default, Clone, Copy, Debug, Deref, PartialEq)]
+#[reflect(Component)]
 pub struct ActorPosition(pub(crate) Vec3A);
 
 impl ActorPosition {
@@ -62,8 +64,11 @@ impl<T: Into<Vec3>> std::ops::Sub<T> for ActorPosition {
 }
 
 /// A grid position can only take exact grid values.
-#[derive(Component, Reflect, Default, Copy, Clone, Debug, Deref, DerefMut, Eq, PartialEq, Hash)]
+#[derive(
+	Component, Reflect, Default, Copy, Clone, Debug, Deref, DerefMut, Eq, PartialEq, Hash, Serialize, Deserialize,
+)]
 #[repr(transparent)]
+#[reflect(Component, Hash, PartialEq, Serialize, Deserialize)]
 pub struct GridPosition(pub(crate) IVec3);
 
 impl GridPosition {
@@ -149,7 +154,7 @@ impl GridPosition {
 	pub fn component_wise_min(self, other: Self) -> Self {
 		Self(IVec3 { x: self.x.min(other.x), y: self.y.min(other.y), z: self.z.min(other.z) })
 	}
-	
+
 	/// Returns the maximum value for each component.
 	pub fn component_wise_max(self, other: Self) -> Self {
 		Self(IVec3 { x: self.x.max(other.x), y: self.y.max(other.y), z: self.z.max(other.z) })
@@ -288,7 +293,9 @@ impl std::fmt::Display for GridPosition {
 /// A rectangular bounding box around an entity. The entity’s position is in the corner with the smallest distance to
 /// negative infinity on all axes, so the box extends define how far the box stretches in each positive axis direction.
 
-#[derive(Component, Reflect, Clone, Copy, Debug, Default, Deref, DerefMut, PartialEq, Eq)]
+#[derive(Component, Reflect, Clone, Copy, Debug, Default, Deref, DerefMut, PartialEq, Eq, Serialize, Deserialize)]
+#[repr(transparent)]
+#[reflect(Component, Serialize, Deserialize)]
 pub struct BoundingBox(pub UVec3);
 
 impl BoundingBox {
@@ -348,7 +355,8 @@ impl std::ops::Div<u32> for BoundingBox {
 /// An axis-aligned bounding box (AABB) internal to CMP world space. It usually defines the extents of some permanent
 /// structure like a building, and effectively combines a [`GridPosition`] with a [`BoundingBox`]. Collisions are
 /// primarily computed between GridBox objects.
-#[derive(Component, Reflect, Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Component, Reflect, Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[reflect(Component, Serialize, Deserialize)]
 pub struct GridBox {
 	/// Lower left corner; the point with the smallest distance to negative infinity inside the box on all axes.
 	pub corner: GridPosition,

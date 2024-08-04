@@ -31,7 +31,10 @@ use config::{CommandLineArguments, ConfigPlugin, GameSettings};
 use input::GUIInputPlugin;
 use model::area::AreaManagement;
 use model::nav::NavManagement;
-use model::{AccommodationManagement, TileManagement};
+use model::{
+	AccommodationManagement, ActorPosition, BoundingBox, Buildable, BuildableType, GridBox, GridPosition,
+	TileManagement,
+};
 use save::Saving;
 use ui::UIPlugin;
 use winit::window::Icon;
@@ -47,8 +50,56 @@ pub mod util;
 
 pub use graphics::GraphicsPlugin;
 
-/// Concurrent set implementation with the fast AHash algorithm.
-pub type DashSet<K> = dashmap::DashSet<K, std::hash::BuildHasherDefault<bevy::utils::AHasher>>;
+/// Hash set wrapper, because bevy doesn't have a serialization implementation for HashSet.
+pub type HashSet<T> = bevy::utils::HashMap<T, ()>;
+
+// /// Hash set wrapper, because bevy doesn't have a serialization implementation here.
+// #[derive(Debug, PartialEq, Eq, Default, Clone, Deref, DerefMut, Reflect, Serialize, Deserialize)]
+// #[serde(bound(serialize = "T: serde::Serialize", deserialize = "T: serde::Deserialize<'de>"))]
+// #[reflect(PartialEq, Serialize, Deserialize)]
+// pub struct HashSet<T>(bevy::utils::HashSet<T>)
+// where
+// 	T: Eq + std::hash::Hash;
+
+// impl<T> From<bevy::utils::HashSet<T>> for HashSet<T>
+// where
+// 	T: Eq + std::hash::Hash,
+// {
+// 	fn from(value: bevy::utils::HashSet<T>) -> Self {
+// 		Self(value)
+// 	}
+// }
+
+// impl<'a, T> IntoIterator for &'a HashSet<T>
+// where
+// 	T: Eq + std::hash::Hash,
+// {
+// 	type IntoIter = <&'a bevy::utils::HashSet<T> as IntoIterator>::IntoIter;
+// 	type Item = &'a T;
+
+// 	fn into_iter(self) -> Self::IntoIter {
+// 		(&self.0).into_iter()
+// 	}
+// }
+
+// impl<A> FromIterator<A> for HashSet<A>
+// where
+// 	A: Eq + std::hash::Hash,
+// {
+// 	fn from_iter<T: IntoIterator<Item = A>>(iter: T) -> Self {
+// 		Self(bevy::utils::HashSet::<A>::from_iter(iter))
+// 	}
+// }
+
+// impl<T> HashSet<T>
+// where
+// 	T: Eq + std::hash::Hash,
+// {
+// 	/// create a new hashset.
+// 	pub fn new() -> Self {
+// 		Self(bevy::utils::HashSet::new())
+// 	}
+// }
 
 const VERSION: &str =
 	env!("CARGO_PKG_VERSION", "CMP must be built under Cargo, or set the CARGO_PKG_VERSION variable manually.");
@@ -88,12 +139,19 @@ impl Plugin for CmpPlugin {
 					..Default::default()
 				}),
 		)
+		.register_type::<HashSet<GridPosition>>()
+		.register_type::<GridBox>()
+		.register_type::<BoundingBox>()
+		.register_type::<Buildable>()
+		.register_type::<GridPosition>()
+		.register_type::<BuildableType>()
+		.register_type::<ActorPosition>()
 		.register_asset_loader(bevy_qoi::QOIAssetLoader)
 		// Fixed update runs every two seconds and performs slow work that can take this long.
 		.insert_resource(Time::<Fixed>::from_seconds(0.5))
 		.add_plugins((GUIInputPlugin, UIPlugin, TileManagement, AccommodationManagement, AreaManagement, NavManagement, Saving, ConfigPlugin(args.clone(), settings.clone())))
 		.insert_resource(WindowIcon::default())
-		.add_systems(Startup, (debug::create_stats, setup_window, model::spawn_test_tiles))
+		.add_systems(Startup, (debug::create_stats, setup_window))
 		.add_systems(PostStartup, print_program_info)
 		.add_systems(Update, (set_window_icon, debug::print_stats, apply_window_settings));
 	}

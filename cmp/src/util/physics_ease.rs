@@ -33,6 +33,7 @@ use bevy::prelude::*;
 /// small time step. Since in practice the simulation is run frame rate bound, this could lead to incorrect simulation
 /// due to large time steps, so we split the time step up into sufficiently small steps (<1/100 s).
 #[derive(Clone, Copy, Debug, Component, Reflect)]
+#[reflect(Component)]
 pub struct MassDamperSystem {
 	/// State space vector `x̄ = [x, ẋ]ᵀ`, consisting of position and velocity.
 	state:            Vec2,

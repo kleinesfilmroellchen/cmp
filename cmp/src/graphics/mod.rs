@@ -7,6 +7,7 @@ use bevy::math::Vec3A;
 use bevy::prelude::*;
 use bevy::sprite::Anchor;
 use bevy::utils::HashMap;
+use moonshine_save::save::Save;
 
 use crate::model::area::{Area, ImmutableArea};
 use crate::model::{ActorPosition, GridBox, GridPosition, GroundMap, WorldPosition};
@@ -20,7 +21,14 @@ impl Plugin for GraphicsPlugin {
 	fn build(&self, app: &mut App) {
 		app.insert_resource(Msaa::default())
 			.init_resource::<BorderTextures>()
+			.register_type::<BorderKind>()
+			.register_type::<Sides>()
+			.register_type::<ObjectPriority>()
 			.add_systems(Startup, initialize_graphics)
+			.add_systems(
+				PreUpdate,
+				(add_transforms::<ActorPosition>, add_transforms::<GridPosition>, add_transforms::<GridBox>),
+			)
 			.add_systems(
 				PostUpdate,
 				(position_objects::<ActorPosition>, position_objects::<GridPosition>, position_objects::<GridBox>)
@@ -32,6 +40,7 @@ impl Plugin for GraphicsPlugin {
 }
 
 #[derive(Component, Reflect, Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[reflect(Component)]
 pub enum BorderKind {
 	Pitch,
 }
@@ -48,8 +57,8 @@ impl BorderTextures {
 		atlas: &mut Assets<TextureAtlasLayout>,
 		asset_server: &AssetServer,
 	) -> (Handle<TextureAtlasLayout>, Handle<Image>) {
-		let sprite = library::sprite_for_border_kind(kind);
-		let image = asset_server.load(sprite);
+		let image_path = library::image_for_border_kind(kind);
+		let image = asset_server.load(image_path);
 		(
 			self.textures
 				.entry(kind)
@@ -69,9 +78,11 @@ pub struct BorderSprite {
 	pub atlas:         TextureAtlas,
 	pub offset:        ActorPosition,
 	priority:          ObjectPriority,
+	save:              Save,
 }
 
 #[derive(Debug, Component, Reflect, Clone, Copy, Eq, PartialEq)]
+#[reflect(Component)]
 pub struct Sides(u8);
 
 impl BitAnd for Sides {
@@ -183,6 +194,7 @@ impl BorderSprite {
 				atlas: TextureAtlas { layout, index: side.to_sprite_index() },
 				offset: side.world_offset().into(),
 				priority: ObjectPriority::Border,
+				save: Save,
 			}
 		})
 	}
@@ -234,6 +246,7 @@ fn initialize_graphics(mut commands: Commands, _asset_server: Res<AssetServer>, 
 
 /// Graphical object priorities assist in z-sorting objects at the same position.
 #[derive(Clone, Copy, Debug, Component, Reflect)]
+#[reflect(Component)]
 pub enum ObjectPriority {
 	/// Ground objects have the lowest priority.
 	Ground,
@@ -294,6 +307,21 @@ fn position_objects<PositionType: WorldPosition>(
 		bevy_transform.translation = (matrix * world_position).round().into();
 		bevy_transform.translation.z =
 			-world_position.x - world_position.y + priority.map(ObjectPriority::index).unwrap_or(0.);
+	}
+}
+
+fn add_transforms<PositionType: WorldPosition>(
+	mut entities: Query<Entity, (With<PositionType>, Without<Transform>)>,
+	mut commands: Commands,
+) {
+	for entity in &mut entities {
+		commands.entity(entity).insert((
+			Transform::default(),
+			GlobalTransform::default(),
+			Visibility::default(),
+			ViewVisibility::default(),
+			InheritedVisibility::default(),
+		));
 	}
 }
 

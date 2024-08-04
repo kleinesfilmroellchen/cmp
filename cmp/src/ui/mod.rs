@@ -91,13 +91,16 @@ pub mod controls {
 
 	/// Marks a button that opens one of the several build menus.
 	#[derive(Component, Reflect)]
+	#[reflect(Component)]
 	pub struct BuildMenuButton(pub BuildMenu);
 
 	#[derive(Component, Reflect)]
+	#[reflect(Component)]
 	pub struct BuildMenuContainer(pub BuildMenu);
 
 	/// Marks a button that starts the build process for a specific [`Buildable`].
 	#[derive(Component, Reflect)]
+	#[reflect(Component)]
 	pub struct StartBuildButton(pub Buildable);
 
 	/// An event notifying that a build menu has been opened.
@@ -109,14 +112,19 @@ pub mod controls {
 	pub struct CloseBuildMenus;
 
 	#[derive(Component, Reflect, Clone, Copy, Debug)]
+	#[reflect(Component)]
 	pub struct DialogContainer;
 	#[derive(Component, Reflect, Clone, Copy, Debug)]
+	#[reflect(Component)]
 	pub struct DialogBox;
 	#[derive(Component, Reflect, Clone, Copy, Debug)]
+	#[reflect(Component)]
 	pub struct DialogTitle;
 	#[derive(Component, Reflect, Clone, Copy, Debug)]
+	#[reflect(Component)]
 	pub struct DialogContents;
 	#[derive(Component, Reflect, Clone, Copy, Debug)]
+	#[reflect(Component)]
 	pub struct DialogCloseButton;
 }
 

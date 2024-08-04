@@ -34,7 +34,7 @@ pub enum WorldInfoPropertyDisplay {
 /// Since this is a large sum type which is unwieldy to access, the data stored in here is not the primary source of
 /// data for the game logic. Instead, various systems update these properties with the real data which is stored
 /// somewhere else.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Reflect)]
 pub enum WorldInfoProperty {
 	/// Current area of some object.
 	Area(usize),
@@ -72,7 +72,8 @@ impl WorldInfoProperty {
 	}
 }
 
-#[derive(Component, Clone)]
+#[derive(Component, Reflect, Clone)]
+#[reflect(Component)]
 pub struct WorldInfoProperties {
 	properties:      Vec<WorldInfoProperty>,
 	pub name:        String,
