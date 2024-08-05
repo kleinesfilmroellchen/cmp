@@ -53,54 +53,6 @@ pub use graphics::GraphicsPlugin;
 /// Hash set wrapper, because bevy doesn't have a serialization implementation for HashSet.
 pub type HashSet<T> = bevy::utils::HashMap<T, ()>;
 
-// /// Hash set wrapper, because bevy doesn't have a serialization implementation here.
-// #[derive(Debug, PartialEq, Eq, Default, Clone, Deref, DerefMut, Reflect, Serialize, Deserialize)]
-// #[serde(bound(serialize = "T: serde::Serialize", deserialize = "T: serde::Deserialize<'de>"))]
-// #[reflect(PartialEq, Serialize, Deserialize)]
-// pub struct HashSet<T>(bevy::utils::HashSet<T>)
-// where
-// 	T: Eq + std::hash::Hash;
-
-// impl<T> From<bevy::utils::HashSet<T>> for HashSet<T>
-// where
-// 	T: Eq + std::hash::Hash,
-// {
-// 	fn from(value: bevy::utils::HashSet<T>) -> Self {
-// 		Self(value)
-// 	}
-// }
-
-// impl<'a, T> IntoIterator for &'a HashSet<T>
-// where
-// 	T: Eq + std::hash::Hash,
-// {
-// 	type IntoIter = <&'a bevy::utils::HashSet<T> as IntoIterator>::IntoIter;
-// 	type Item = &'a T;
-
-// 	fn into_iter(self) -> Self::IntoIter {
-// 		(&self.0).into_iter()
-// 	}
-// }
-
-// impl<A> FromIterator<A> for HashSet<A>
-// where
-// 	A: Eq + std::hash::Hash,
-// {
-// 	fn from_iter<T: IntoIterator<Item = A>>(iter: T) -> Self {
-// 		Self(bevy::utils::HashSet::<A>::from_iter(iter))
-// 	}
-// }
-
-// impl<T> HashSet<T>
-// where
-// 	T: Eq + std::hash::Hash,
-// {
-// 	/// create a new hashset.
-// 	pub fn new() -> Self {
-// 		Self(bevy::utils::HashSet::new())
-// 	}
-// }
-
 const VERSION: &str =
 	env!("CARGO_PKG_VERSION", "CMP must be built under Cargo, or set the CARGO_PKG_VERSION variable manually.");
 
