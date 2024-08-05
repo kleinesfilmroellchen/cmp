@@ -40,6 +40,10 @@ dashmap = "5.5.3"
 bevy_qoi = { path = "../bevy-qoi" }
 petgraph = "0.6.5"
 thiserror = "1.0"
+tempfile = "3.11.0"
+brotli = { version = "6.0.0", features = ["simd", "disable-timer"] }
+anyhow = "1.0.86"
+directories = "4.0.1"
 
 [build-dependencies]
 embed-resource = "1.6.3"

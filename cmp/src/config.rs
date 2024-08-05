@@ -63,7 +63,7 @@ impl GameSettings {
 	}
 }
 
-const APP_NAME: &str = "cmp";
+pub const APP_NAME: &str = "cmp";
 const CONFIG_NAME: &str = "game-settings";
 
 pub struct ConfigPlugin(pub Arc<CommandLineArguments>, pub Arc<GameSettings>);
