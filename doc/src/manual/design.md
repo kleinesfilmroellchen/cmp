@@ -72,3 +72,34 @@ It should be noted that many basic tasks, like janitor and chauffer tasks, don't
 As discussed, task have a skill category that they require proficiency in. They can have a specific lower bound for this category, if they are particularly difficult (such as medical tasks to be executed by a doctor), but all tasks have a recommended skill level that measures their difficulty. Successful completion of the task will result in the employee executing them increasing the corresponding skill level. The harder the task was for the employee (measured by the relative skill level required vs. what the employee had), the higher this reward. Even failure increases the skill level a little bit.
 
 The duration of a task can depend on multiple things. Some tasks have a defined fixed period. Some task's duration depends on external factors, like the time (and distance) it takes for the chauffer to move the vehicle to the destination. For many basic tasks, the time the task takes for success is determined by the relative skill level of the employee in relation to the required skill level of the task, in that one skill category the task requires. For most tasks, if they do not succeed (the game determines this at the start of the task execution), the time until failure or mistake is shorter than the success time, which balances the severity of these events. (Especially mistakes happen relatively fast.) 
+
+### Visitors
+
+Visitors are people that visit the camp site for a limited period of time. Visitors can have all kinds of different properties, which determine what they do on the camp site, what accommodations they pick, and what the player needs to do to make them happy.
+
+A visitor’s stay at the camp site follows these steps:
+
+- The visitor is created with specific stats and a stay duration. Visitors are never generated alone, but as a visiting group that will occupy one accommodation. The accommodation type is picked based on the group archetype. If the camp site can receive reservations, this visitor group may be generated well in advance of their stay, otherwise generation happens right before the visitors arrive. If a reservating group was generated, the reservation is attempted to be registered at the camp site, which will then already inform the player (e.g. so they can build more accommodations if necessary, or cancel reservations that won’t be able to be fulfilled)
+- On arrival, the visitor and its group go to the reception, where the camp site assigns them to a specific accommodation. If there is no accommodation of the required type available, this is the (latest) point where the group is rejected. Such an event will lower the popularity of the camp site with the visitor group archetype slightly.
+- After arrival, and before departure, the visitors in the group pick activities to do based on their current state, the time of day, etc. Visitors can either pick solo activities independent of the group, or all visitors of a group can pick an activity together. Such a group activity can also be picked while one of the visitors in the group is towards the end of their solo activity. The activity tree of visitors therefore mainly consists of the states “Idle” and “Doing Activity”.
+- Any activity can raise or lower the temporary properties of the visitors. If the happiness falls too far, the visitor may cancel their trip and leave immediately. For groups, this limit is taken as the average of all group visitor’s happiness.
+- When the group leaves, they check out at the reception, at which point their accommodation is freed up. Depending on their final happiness state, the group may increase or decrease the popularity of the camp site with its archetype.
+
+The visitor properties are split into permanent stats (unlike employee skills, they can actually never change) and temporary properties. The stats are:
+
+- **Age**: This property is split into coarse categories: Child, Teenager, Young Adult, Adult, Senior. Age also determines some of the other properties, but it’s most important to determine what free-time activities a visitor is interested in and how a group is constituted.
+- **Hardiness**: Visitors with higher hardiness are more used to basic camping without many amenities. This property most importantly determines acceptable accommodations, and what kind of sanitary conditions the visitor expects.
+- **Fitness**: Visitors with higher fitness will traverse the site faster and won’t rely as much on transportation offerings. They are more likely to bring bikes (and not arrive by car) and use more fitness-oriented free-time activities, including pools.
+- **Culinarity**: Visitors with higher culinarity expect restaurants of higher quality to be available, while those with lower culinarity will usually cook for themselves.
+
+Group archetypes are the basic kinds of visitor groups. They determine how many visitors are in the group, with what property distribution, and what accommodation type a group can pick. The camp site has a popularity with each group archetype, which determines how many visitor groups of that archetype will visit the site. Higher popularity means both more frequent and more probable generation of that group.
+
+The group archetypes are:
+
+- **Party Group**: Low Hardiness and Fitness, higher culinarity. Group size is between 2 and 6, and all visitors in the group are either adults or young adults.
+- **Fitness Group**: Like party group, but high fitness and relatively high hardiness, lower culinarity.
+- **Camper Family**: High hardiness, medium and lower culinarity, medium fitness. Consists of two adults and one to four children, who can either be Child or Teenager age. Can also occasionally include one or two seniors.
+- **Hotel Family**: Like camper family, but low hardiness, medium fitness, and high culinarity.
+- **Fitness Couple**: 2 young adults or adults, high fitness, medium hardiness and culinarity.
+- **Elderly Couple**: 2 seniors, low fitness, relatively low hardiness and relatively high culinarity.
+- **Adult**: A single adult, with any distribution of properties.
