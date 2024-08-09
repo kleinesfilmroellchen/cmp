@@ -8,6 +8,7 @@ use moonshine_save::save::Save;
 
 use super::{BoundingBox, GridBox, GridPosition, GroundKind, GroundMap, Pitch};
 use crate::config::GameSettings;
+use crate::gamemode::GameState;
 use crate::graphics::{BorderSprite, BorderTextures, ObjectPriority, Sides};
 use crate::ui::world_info::WorldInfoProperties;
 use crate::HashSet;
@@ -111,27 +112,28 @@ impl Area {
 		border_textures: &mut BorderTextures,
 	) {
 		for position in self.tiles.keys() {
-			let (entity, kind) = ground_map.get(position).unwrap();
-			if let Some(border_kind) = kind.border_kind() {
-				let mut sides = Sides::all();
-				for neighbor in position.neighbors().into_iter().filter(|neighbor| {
-					self.tiles.contains_key(neighbor)
-						&& ground_map.kind_of(neighbor).is_some_and(|neighbor_kind| neighbor_kind == kind)
-				}) {
-					sides ^= match *(neighbor - *position) {
-						IVec3::X => Sides::Right,
-						IVec3::NEG_X => Sides::Left,
-						IVec3::Y => Sides::Top,
-						IVec3::NEG_Y => Sides::Bottom,
-						_ => unreachable!(),
-					};
-				}
-				let borders = BorderSprite::new(sides, border_kind, asset_server, texture_atlases, border_textures);
-				commands.entity(entity).despawn_descendants().with_children(|tile_parent| {
-					for border in borders {
-						tile_parent.spawn(border);
+			if let Some((entity, kind)) = ground_map.get(position) {
+				if let Some(border_kind) = kind.border_kind() {
+					let mut sides = Sides::all();
+					for neighbor in position.neighbors().into_iter().filter(|neighbor| {
+						self.tiles.contains_key(neighbor)
+							&& ground_map.kind_of(neighbor).is_some_and(|neighbor_kind| neighbor_kind == kind)
+					}) {
+						sides ^= match *(neighbor - *position) {
+							IVec3::X => Sides::Right,
+							IVec3::NEG_X => Sides::Left,
+							IVec3::Y => Sides::Top,
+							IVec3::NEG_Y => Sides::Bottom,
+							_ => unreachable!(),
+						};
 					}
-				});
+					let borders = BorderSprite::new(sides, border_kind, asset_server, texture_atlases, border_textures);
+					commands.entity(entity).despawn_descendants().with_children(|tile_parent| {
+						for border in borders {
+							tile_parent.spawn(border);
+						}
+					});
+				}
 			}
 		}
 	}
@@ -182,10 +184,13 @@ impl Plugin for AreaManagement {
 			.register_type::<ImmutableArea>()
 			.add_systems(
 				FixedUpdate,
-				(update_areas::<Pool>, update_areas::<Pitch>).before(clean_area_events).before(update_area_world_info),
+				(update_areas::<Pool>, update_areas::<Pitch>)
+					.before(clean_area_events)
+					.before(update_area_world_info)
+					.run_if(in_state(GameState::InGame)),
 			)
-			.add_systems(FixedUpdate, (clean_area_events, update_area_world_info))
-			.add_systems(Update, (add_area_world_info, add_area_transforms));
+			.add_systems(FixedUpdate, (clean_area_events, update_area_world_info).run_if(in_state(GameState::InGame)))
+			.add_systems(Update, (add_area_world_info, add_area_transforms).run_if(in_state(GameState::InGame)));
 	}
 }
 

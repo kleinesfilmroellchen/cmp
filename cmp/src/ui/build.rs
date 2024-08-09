@@ -8,6 +8,7 @@ use thiserror::Error;
 use super::error::{DisplayableError, ErrorBox};
 use super::on_start_build_preview;
 use super::world_info::WorldInfoProperties;
+use crate::gamemode::GameState;
 use crate::graphics::library::{anchor_for_image, preview_image_for_buildable};
 use crate::graphics::{engine_to_world_space, ObjectPriority};
 use crate::input::InputState;
@@ -33,18 +34,24 @@ impl Plugin for BuildPlugin {
 				update_building_preview
 					.after(create_building_preview)
 					.after(on_start_build_preview)
-					.run_if(in_state(InputState::Building)),
+					.run_if(in_state(InputState::Building))
+					.run_if(in_state(GameState::InGame)),
 			)
 			.add_systems(
 				Update,
 				(handle_build_interactions, set_building_preview_start, end_building)
-					.run_if(in_state(InputState::Building)),
+					.run_if(in_state(InputState::Building))
+					.run_if(in_state(GameState::InGame)),
 			)
-			.add_systems(Update, create_building_preview)
-			.add_systems(OnExit(InputState::Building), destroy_building_preview.after(update_building_preview))
+			.add_systems(Update, create_building_preview.run_if(in_state(GameState::InGame)))
+			.add_systems(
+				OnExit(InputState::Building),
+				destroy_building_preview.after(update_building_preview).run_if(in_state(GameState::InGame)),
+			)
 			.add_systems(
 				Update,
-				(perform_pitch_build, perform_pitch_type_build, perform_ground_build, perform_pool_area_build),
+				(perform_pitch_build, perform_pitch_type_build, perform_ground_build, perform_pool_area_build)
+					.run_if(in_state(GameState::InGame)),
 			);
 	}
 }

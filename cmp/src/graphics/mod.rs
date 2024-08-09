@@ -285,7 +285,10 @@ pub const TILE_HEIGHT: f32 = 11.999;
 pub const TILE_WIDTH: f32 = 16.;
 
 fn position_objects<PositionType: WorldPosition>(
-	mut entities: Query<(&mut Transform, &PositionType, Option<&ObjectPriority>), Changed<PositionType>>,
+	mut entities: Query<
+		(&mut Transform, &PositionType, Option<&ObjectPriority>),
+		Or<(Changed<PositionType>, Added<PositionType>, Added<Transform>)>,
+	>,
 ) {
 	TRANSFORMATION_MATRIX.get_or_init(|| {
 		// Our iso grid is a simple affine transform away from the real world position.
@@ -311,9 +314,12 @@ fn position_objects<PositionType: WorldPosition>(
 }
 
 fn add_transforms<PositionType: WorldPosition>(
-	mut entities: Query<Entity, (With<PositionType>, Without<Transform>)>,
+	mut entities: Query<Entity, (With<PositionType>, Or<(Without<Transform>, Without<GlobalTransform>)>)>,
 	mut commands: Commands,
 ) {
+	if !entities.is_empty() {
+		debug!("adding transforms to {} entities", entities.iter().count());
+	}
 	for entity in &mut entities {
 		commands.entity(entity).insert((
 			Transform::default(),

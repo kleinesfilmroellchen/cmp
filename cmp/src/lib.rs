@@ -23,11 +23,13 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use bevy::asset::AssetMetaCheck;
+use bevy::ecs::schedule::ScheduleLabel;
 use bevy::log::{Level, LogPlugin};
 use bevy::prelude::*;
 use bevy::window::{PresentMode, PrimaryWindow};
 use bevy::winit::WinitWindows;
 use config::{CommandLineArguments, ConfigPlugin, GameSettings};
+use gamemode::{pause_fixed_timer, GameState};
 use input::GUIInputPlugin;
 use model::area::AreaManagement;
 use model::nav::NavManagement;
@@ -41,6 +43,7 @@ use winit::window::Icon;
 
 pub(crate) mod config;
 pub(crate) mod debug;
+pub(crate) mod gamemode;
 pub(crate) mod graphics;
 pub(crate) mod input;
 pub(crate) mod model;
@@ -101,12 +104,39 @@ impl Plugin for CmpPlugin {
 		.register_asset_loader(bevy_qoi::QOIAssetLoader)
 		// Fixed update runs every two seconds and performs slow work that can take this long.
 		.insert_resource(Time::<Fixed>::from_seconds(0.5))
+		.init_state::<GameState>()
 		.add_plugins((GUIInputPlugin, UIPlugin, TileManagement, AccommodationManagement, AreaManagement, NavManagement, Saving, ConfigPlugin(args.clone(), settings.clone())))
 		.insert_resource(WindowIcon::default())
 		.add_systems(Startup, (debug::create_stats, setup_window))
 		.add_systems(PostStartup, print_program_info)
-		.add_systems(Update, (set_window_icon, debug::print_stats, apply_window_settings));
+		.add_systems(Update, (set_window_icon, debug::print_stats, apply_window_settings))
+		.add_systems(Update, pause_fixed_timer.run_if(state_changed::<GameState>));
+
+		configure_set(app, PreUpdate);
+		configure_set(app, Update);
+		configure_set(app, FixedPostUpdate);
+		configure_set(app, FixedPreUpdate);
+		configure_set(app, FixedUpdate);
+		configure_set(app, First);
+		configure_set(app, Last);
+		configure_set(app, Startup);
+		configure_set(app, PreStartup);
+		configure_set(app, PostStartup);
 	}
+}
+
+fn configure_set<S>(app: &mut App, set: S)
+where
+	S: ScheduleLabel,
+{
+	app.configure_sets(
+		set,
+		(
+			GameState::InGame.run_if(in_state(GameState::InGame)),
+			GameState::MainMenu.run_if(in_state(GameState::MainMenu)),
+			GameState::Paused.run_if(in_state(GameState::Paused)),
+		),
+	);
 }
 
 fn print_program_info() {

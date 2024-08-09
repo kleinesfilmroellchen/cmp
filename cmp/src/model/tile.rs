@@ -6,6 +6,7 @@ use moonshine_save::save::Save;
 
 use super::nav::{NavCategory, NavComponent};
 use super::GridPosition;
+use crate::gamemode::GameState;
 use crate::graphics::library::{anchor_for_image, image_for_ground};
 use crate::graphics::{BorderKind, ObjectPriority, Sides};
 use crate::ui::world_info::WorldInfoProperties;
@@ -17,11 +18,15 @@ impl Plugin for TileManagement {
 	fn build(&self, app: &mut App) {
 		app.register_type::<GroundKind>()
 			.insert_resource(GroundMap::new())
-			.add_systems(PreUpdate, update_map_from_world)
-			.add_systems(PostUpdate, (update_ground_textures, add_ground_textures, add_world_info))
+			.add_systems(PreUpdate, update_map_from_world.run_if(in_state(GameState::InGame)))
+			.add_systems(
+				PostUpdate,
+				(update_ground_textures, add_ground_textures, add_world_info).run_if(in_state(GameState::InGame)),
+			)
 			.add_systems(
 				FixedUpdate,
-				(check_save, add_navigability.after(update_navigability_properties), update_navigability_properties),
+				(add_navigability.after(update_navigability_properties), update_navigability_properties)
+					.run_if(in_state(GameState::InGame)),
 			);
 	}
 }
@@ -236,10 +241,6 @@ pub fn spawn_test_tiles(
 			map.set((x, y, 0).into(), kind, &mut tile_query, &mut commands, &asset_server);
 		}
 	}
-}
-
-fn check_save(saved: Query<(&GroundKind, &Save)>) {
-	debug!("{}", saved.iter().count());
 }
 
 pub fn update_ground_textures(

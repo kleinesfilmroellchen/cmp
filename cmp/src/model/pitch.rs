@@ -7,6 +7,7 @@ use moonshine_save::save::Save;
 
 use super::area::{Area, AreaMarker, ImmutableArea, UpdateAreas};
 use super::{BoundingBox, GridBox, GridPosition, GroundKind, GroundMap, Metric};
+use crate::gamemode::GameState;
 use crate::graphics::library::{anchor_for_image, image_for_pitch};
 use crate::graphics::ObjectPriority;
 use crate::ui::world_info::{WorldInfoProperties, WorldInfoProperty};
@@ -249,9 +250,9 @@ impl Plugin for AccommodationManagement {
 			.register_type::<Pitch>()
 			.register_type::<Comfort>()
 			.register_type::<AccommodationMultiplicity>()
-			.add_systems(Update, add_pitch_graphics)
-			.add_systems(FixedUpdate, update_built_pitches)
-			.add_systems(FixedUpdate, update_pitch_world_info.after(update_built_pitches));
+			.add_systems(Update, add_pitch_graphics.run_if(in_state(GameState::InGame)))
+			.add_systems(FixedUpdate, update_built_pitches.run_if(in_state(GameState::InGame)))
+			.add_systems(FixedUpdate, update_pitch_world_info.after(update_built_pitches).run_if(in_state(GameState::InGame)));
 	}
 }
 

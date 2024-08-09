@@ -2,6 +2,8 @@ use bevy::input::mouse::MouseWheel;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
+use crate::gamemode::GameState;
+
 /// What the player is currently doing in the UI.
 #[derive(States, Hash, Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
@@ -33,7 +35,7 @@ impl Plugin for GUIInputPlugin {
 					move_camera.run_if(in_state(InputState::Idle)),
 					fix_camera.run_if(not(in_state(InputState::Idle))),
 					zoom_camera,
-				),
+				).in_set(GameState::InGame),
 			);
 	}
 }

@@ -13,6 +13,7 @@ use petgraph::graphmap::DiGraphMap;
 
 use super::{GridPosition, WorldPosition};
 use crate::config::GameSettings;
+use crate::gamemode::GameState;
 use crate::graphics::{engine_to_world_space, Sides, TRANSFORMATION_MATRIX};
 use crate::input::MouseClick;
 
@@ -316,11 +317,11 @@ impl Plugin for NavManagement {
 			.register_type::<NavCategory>()
 			.add_systems(
 				FixedUpdate,
-				(update_navmesh::<{ NavCategory::People }>, update_navmesh::<{ NavCategory::Vehicles }>),
+				(update_navmesh::<{ NavCategory::People }>, update_navmesh::<{ NavCategory::Vehicles }>).run_if(in_state(GameState::InGame)),
 			)
 			.add_systems(
 				Update,
-				(visualize_navmesh::<{ NavCategory::Vehicles }>, debug_pathfinding::<{ NavCategory::Vehicles }>),
+				(visualize_navmesh::<{ NavCategory::Vehicles }>, debug_pathfinding::<{ NavCategory::Vehicles }>).run_if(in_state(GameState::InGame)),
 			);
 	}
 }

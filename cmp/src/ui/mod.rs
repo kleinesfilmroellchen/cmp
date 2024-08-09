@@ -1,3 +1,4 @@
+use std::sync::LazyLock;
 use std::time::Duration;
 
 use bevy::color::palettes::css::{DARK_GRAY, GRAY, ORANGE};
@@ -5,9 +6,11 @@ use bevy::prelude::*;
 use bevy::text::BreakLineOn;
 use bevy::ui::FocusPolicy;
 use build::BuildPlugin;
+use main_menu::MainMenuPlugin;
 
 use self::animate::{AnimationPlugin, AnimationTargets, UIAnimation};
 use self::controls::{BuildMenuContainer, ALL_BUILD_MENUS};
+use crate::gamemode::GameState;
 use crate::graphics::library::{font_for, logo_for_build_menu, logo_for_buildable, FontStyle, FontWeight};
 use crate::input::InputState;
 use crate::model::ALL_BUILDABLES;
@@ -17,24 +20,32 @@ use crate::util::{Tooltip, TooltipPlugin};
 pub(crate) mod animate;
 pub(crate) mod build;
 pub mod error;
+pub(crate) mod main_menu;
 pub(crate) mod world_info;
 
 pub struct UIPlugin;
 
 impl Plugin for UIPlugin {
 	fn build(&self, app: &mut App) {
-		app.add_plugins((BuildPlugin, TooltipPlugin, AnimationPlugin))
+		app.add_plugins((BuildPlugin, TooltipPlugin, AnimationPlugin, MainMenuPlugin))
 			.add_event::<controls::OpenBuildMenu>()
 			.add_event::<controls::CloseBuildMenus>()
 			.add_event::<error::ErrorBox>()
-			.add_systems(Startup, (initialize_ui, initialize_dialogs, world_info::setup_world_info))
 			.add_systems(
-				Update,
-				(world_info::reassign_world_info, world_info::update_world_info).run_if(in_state(InputState::Idle)),
+				OnEnter(GameState::InGame),
+				(initialize_ingame_ui, initialize_dialogs, world_info::setup_world_info),
 			)
 			.add_systems(
 				Update,
-				(world_info::move_world_info, world_info::hide_world_info).before(world_info::update_world_info),
+				(world_info::reassign_world_info, world_info::update_world_info)
+					.run_if(in_state(InputState::Idle))
+					.run_if(in_state(GameState::InGame)),
+			)
+			.add_systems(
+				Update,
+				(world_info::move_world_info, world_info::hide_world_info)
+					.before(world_info::update_world_info)
+					.run_if(in_state(GameState::InGame)),
 			)
 			.add_systems(
 				Update,
@@ -43,9 +54,10 @@ impl Plugin for UIPlugin {
 					on_build_menu_button_press,
 					on_start_build_preview.after(on_build_menu_button_press),
 					close_dialog,
-				),
+				)
+					.run_if(in_state(GameState::InGame)),
 			)
-			.add_systems(PostUpdate, (error::show_errors, error::print_errors));
+			.add_systems(PostUpdate, (error::show_errors, error::print_errors).run_if(in_state(GameState::InGame)));
 	}
 }
 
@@ -130,7 +142,18 @@ pub mod controls {
 
 const BUTTON_SPACING: Val = Val::Px(5.);
 
-fn initialize_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
+static COLUMN_TEMPLATE: LazyLock<Vec<RepeatedGridTrack>> = LazyLock::new(|| {
+	vec![
+		// Left spacing column
+		RepeatedGridTrack::percent(1, 8.),
+		// Center column for main UI
+		RepeatedGridTrack::auto(1),
+		// Right spacing column
+		RepeatedGridTrack::percent(1, 8.),
+	]
+});
+
+fn initialize_ingame_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
 	commands
 		.spawn(NodeBundle {
 			style: Style {
@@ -139,14 +162,7 @@ fn initialize_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
 				display: Display::Grid,
 				// Absolute positioning for top-level containers allows us to make all UI layers independent.
 				position_type: PositionType::Absolute,
-				grid_template_columns: vec![
-					// Left spacing column
-					RepeatedGridTrack::percent(1, 8.),
-					// Center column for main UI
-					RepeatedGridTrack::auto(1),
-					// Right spacing column
-					RepeatedGridTrack::percent(1, 8.),
-				],
+				grid_template_columns: COLUMN_TEMPLATE.clone(),
 				grid_template_rows: vec![
 					// Top controls (main statistics, global game menus)
 					RepeatedGridTrack::percent(1, 5.),

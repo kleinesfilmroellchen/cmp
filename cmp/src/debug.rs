@@ -87,7 +87,7 @@ pub fn create_stats(mut commands: Commands) {
 }
 
 pub fn print_stats(
-	time: Res<Time>,
+	time: Res<Time<Real>>,
 	settings: Res<GameSettings>,
 	mut stat_ui: Query<(&mut Text, &mut StatUI)>,
 	asset_server: Res<AssetServer>,
