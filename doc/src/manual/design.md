@@ -103,3 +103,21 @@ The group archetypes are:
 - **Fitness Couple**: 2 young adults or adults, high fitness, medium hardiness and culinarity.
 - **Elderly Couple**: 2 seniors, low fitness, relatively low hardiness and relatively high culinarity.
 - **Adult**: A single adult, with any distribution of properties.
+
+### Units
+
+CMP uses fictional units that don't really correlate to real-world units to make it easier to "invent" certain parameters without the appearance of unrealistic values. CMP is, after all, not a simulation and by using these units we make sure noone compares the quantities to real-world values.
+
+- Length: **"Imaginary Tile Size", i**, the side length of one CMP world tile. One i corresponds to roughly 2-5 m in building scale and 1-2 m in human scale (since CMP people are "too large" in comparison to buildings). Correspondingly, area and volume units **i²** and **i³** respectively are used. Importantly, one tile has an area of exactly 1 i², which is commonly referred in the UI to specify tile counts as areas.
+- Time: **Time unit, t**, the duration of 1/1440'th of a CMP day. This is equivalent to the displayed in-game minutes, with a normal game speed of 10t per real world second (i.e. roughly 2.5 real world minutes per in-game day).
+- Speed: Derived as **i/t**. Dividing this value by 10 provides the speed in tiles per real world second (at normal game speed), which is why most speeds are given in multiples of 10.
+- Volumetric flow: Derived as **i³/t**.
+- Electricity: Energy in general is measured in **Energy, e**, where one e corresponds very roughly to 600 kJ (such that 1 e/t corresponds roughly to 1 kW). Correspondingly, power is measured derived as **e/t**, which for simplification purposes is also the unit for electric current.
+
+The time system requires some additional discussion. As stated, one time unit t is equivalent to one minute of in-game time, since CMP runs a hour-minute clock always displayed to the user. The normal 24h-clock was chosen for simplicity purposes. Since normal game speed is 10t/s, to keep visual noise low, the clock advances by 10 "minutes"/t in a jump every second, meaning that the last digit of the clock is always 0. The normal game speed results in 144 seconds per CMP day (24 in-game hours, or 24 * 60 = 1440 t), 2 min 24s. CMP doesn't simulate changing seasons, therefore the game always has sunrise at 06:00 and sunset at 20:00, leading to 14 hours (840 t) of daylight. There is a conventional seven-day week affecting various activities (more visitors arrive and depart on weekends, and management employees are always free on weekends), but beyond that, there is no further time structure. Weeks serve as the most coarse-grained time unit, e.g. for reservations.
+
+### Utilities
+
+CMP has two primary utility systems, water and electricity, as well as secondary utilities, garbage and wastewater.
+
+- **Water**: Water consumption is measured in i³/t (there is no water storage). Many buildings consume water, but in fact many only have a very small or no water consumption.
