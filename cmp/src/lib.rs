@@ -12,7 +12,6 @@
 	extract_if,
 	adt_const_params,
 	trivial_bounds,
-	const_fn_floating_point_arithmetic,
 	trait_alias
 )]
 

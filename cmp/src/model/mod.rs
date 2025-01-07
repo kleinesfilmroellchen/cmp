@@ -43,10 +43,10 @@ pub enum BuildableType {
 impl From<Buildable> for BuildableType {
 	fn from(value: Buildable) -> Self {
 		match value {
-			 Buildable::Ground(_) => Self::Ground,
-			 Buildable::PoolArea => Self::PoolArea,
-			 Buildable::Pitch => Self::Pitch,
-			 Buildable::PitchType(_) => Self::PitchType,
+			Buildable::Ground(_) => Self::Ground,
+			Buildable::PoolArea => Self::PoolArea,
+			Buildable::Pitch => Self::Pitch,
+			Buildable::PitchType(_) => Self::PitchType,
 		}
 	}
 }

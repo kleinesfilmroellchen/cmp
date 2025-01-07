@@ -2,6 +2,10 @@
 
 This is a quick-reference page for anyone interested in testing and developing cmp right now. Much of this information will be obsoleted.
 
+## Asset preprocessing
+
+CMP uses libresprite for automatically exporting .ase files on build. This is optional, as the QOI image source files are also committed to the repository. Simply install the latest release of libresprite for this step to work.
+
 ## Paths and files
 
 CMP uses system paths for storing settings and save files. Settings are saved in the system-dependent config directory for an app. Save files are saved in the system-dependent data directory for an app. The logs contain information on where that path is exactly.

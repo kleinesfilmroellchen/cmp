@@ -47,3 +47,8 @@ directories = "4.0.1"
 
 [build-dependencies]
 embed-resource = "1.6.3"
+image = { version = "0.25", default-features = false, features = [
+	"png",
+	"qoi",
+] }
+anyhow = "1"

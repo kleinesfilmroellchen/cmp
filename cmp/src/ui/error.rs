@@ -1,6 +1,6 @@
 //! Error display in the UI.
-use bevy::prelude::*;
 use bevy::color::palettes::css::{ORANGE, WHITE};
+use bevy::prelude::*;
 
 use super::controls::{DialogBox, DialogContainer, DialogContents, DialogTitle};
 use crate::graphics::library::{font_for, FontStyle, FontWeight};

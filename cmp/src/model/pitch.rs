@@ -252,7 +252,10 @@ impl Plugin for AccommodationManagement {
 			.register_type::<AccommodationMultiplicity>()
 			.add_systems(Update, add_pitch_graphics.run_if(in_state(GameState::InGame)))
 			.add_systems(FixedUpdate, update_built_pitches.run_if(in_state(GameState::InGame)))
-			.add_systems(FixedUpdate, update_pitch_world_info.after(update_built_pitches).run_if(in_state(GameState::InGame)));
+			.add_systems(
+				FixedUpdate,
+				update_pitch_world_info.after(update_built_pitches).run_if(in_state(GameState::InGame)),
+			);
 	}
 }
 

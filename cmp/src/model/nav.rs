@@ -317,11 +317,13 @@ impl Plugin for NavManagement {
 			.register_type::<NavCategory>()
 			.add_systems(
 				FixedUpdate,
-				(update_navmesh::<{ NavCategory::People }>, update_navmesh::<{ NavCategory::Vehicles }>).run_if(in_state(GameState::InGame)),
+				(update_navmesh::<{ NavCategory::People }>, update_navmesh::<{ NavCategory::Vehicles }>)
+					.run_if(in_state(GameState::InGame)),
 			)
 			.add_systems(
 				Update,
-				(visualize_navmesh::<{ NavCategory::Vehicles }>, debug_pathfinding::<{ NavCategory::Vehicles }>).run_if(in_state(GameState::InGame)),
+				(visualize_navmesh::<{ NavCategory::Vehicles }>, debug_pathfinding::<{ NavCategory::Vehicles }>)
+					.run_if(in_state(GameState::InGame)),
 			);
 	}
 }

@@ -35,7 +35,8 @@ impl Plugin for GUIInputPlugin {
 					move_camera.run_if(in_state(InputState::Idle)),
 					fix_camera.run_if(not(in_state(InputState::Idle))),
 					zoom_camera,
-				).in_set(GameState::InGame),
+				)
+					.in_set(GameState::InGame),
 			);
 	}
 }
@@ -52,7 +53,7 @@ const DRAG_THRESHOLD: f32 = 0.2;
 pub struct MouseClick {
 	#[allow(unused)]
 	pub screen_position: Vec2,
-	pub engine_position:  Vec2,
+	pub engine_position: Vec2,
 }
 
 fn move_camera(
@@ -96,7 +97,7 @@ fn move_camera(
 			if delta.length() < DRAG_THRESHOLD {
 				click_event.send(MouseClick {
 					screen_position: current_screen_position,
-					engine_position:  current_engine_position,
+					engine_position: current_engine_position,
 				});
 			}
 		}
