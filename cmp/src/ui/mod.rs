@@ -394,6 +394,7 @@ fn initialize_dialogs(mut commands: Commands, asset_server: Res<AssetServer>) {
 							min_height: Val::Px(30.),
 							..Default::default()
 						},
+						Button,
 						BackgroundColor(Color::BLACK),
 						controls::DialogCloseButton,
 					));
