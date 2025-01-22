@@ -67,7 +67,7 @@ pub fn camera_to_world(
 	let height_size_ratio = window.height() / RES_HEIGHT as f32;
 	// Transform the window position into the kind of position that the pixel perfect camera would see
 	let real_position = position / Vec2::new(width_size_ratio, height_size_ratio);
-	camera.viewport_to_world_2d(camera_transform, real_position).ok()
+	camera.viewport_to_world(camera_transform, real_position).map(|p| p.origin.truncate()).ok()
 }
 
 pub fn world_to_camera(

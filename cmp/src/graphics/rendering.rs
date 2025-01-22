@@ -10,10 +10,10 @@ use bevy::render::view::RenderLayers;
 use bevy::window::WindowResized;
 
 /// In-game resolution width.
-pub const RES_WIDTH: u32 = 160 * 3;
+pub const RES_WIDTH: u32 = 160 * 2;
 
 /// In-game resolution height.
-pub const RES_HEIGHT: u32 = 90 * 3;
+pub const RES_HEIGHT: u32 = 90 * 2;
 
 /// Default render layers for pixel-perfect rendering.
 /// You can skip adding this component, as this is the default.
