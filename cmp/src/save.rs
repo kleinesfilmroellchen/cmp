@@ -1,16 +1,13 @@
 //! Saving and loading.
 
-use std::path::{Path, PathBuf};
-use std::sync::{Arc, OnceLock};
+use std::path::PathBuf;
 
 use bevy::prelude::*;
 use bevy::render::primitives::Aabb;
 use brotli::enc::BrotliEncoderParams;
-use brotli::{BrotliCompress, BrotliDecompress};
 use directories::ProjectDirs;
-use moonshine_save::load::{load_from_file_on_event, load_from_file_on_request};
 use moonshine_save::prelude::*;
-use tempfile::NamedTempFile;
+use moonshine_save::{stream_from_resource, GetStream};
 
 use crate::config::APP_NAME;
 use crate::gamemode::GameState;
@@ -19,7 +16,6 @@ use crate::ui::world_info::WorldInfoProperties;
 
 #[derive(Resource, Event, Debug, Clone)]
 pub struct LoadSave {
-	temp_file: Arc<OnceLock<NamedTempFile>>,
 	save_name: String,
 }
 
@@ -27,62 +23,55 @@ pub struct LoadSave {
 /// event.
 #[derive(Resource, Event, Debug, Clone)]
 pub struct StoreSave {
-	temp_file: Arc<OnceLock<NamedTempFile>>,
 	save_name: String,
 }
 
+const BUFFER_SIZE: usize = 10 * 1024;
+
 impl StoreSave {
 	pub fn new(save_name: String) -> Self {
-		Self { temp_file: Arc::new(OnceLock::new()), save_name }
+		Self { save_name }
 	}
 
-	pub fn transfer_compressed_save(&self) {
-		let result: anyhow::Result<()> = try {
-			let mut file = self.temp_file.get().ok_or(anyhow::anyhow!("save didn't complete"))?;
-			let mut params = BrotliEncoderParams::default();
-			params.quality = 9;
-			params.lgwin = 20;
-			let output_path =
-				path_for_slot(&self.save_name).ok_or(anyhow::anyhow!("couldn’t get project directory"))?;
-			let mut output = std::fs::File::options().write(true).truncate(true).create(true).open(&output_path)?;
-			BrotliCompress(&mut file, &mut output, &params)?;
-			info!("slot {}: saved to {:?}", self.save_name, output_path);
-		};
-		if let Err(error) = result {
-			error!("slot {}: save failed: {}", self.save_name, error);
-		}
+	fn save_file(&self) -> anyhow::Result<std::fs::File> {
+		let output_path = path_for_slot(&self.save_name).ok_or(anyhow::anyhow!("couldn’t get project directory"))?;
+		debug!("initiated save to {output_path:?}");
+		Ok(std::fs::File::options().write(true).truncate(true).create(true).open(&output_path)?)
+	}
+
+	fn brotli_params() -> BrotliEncoderParams {
+		let mut params = BrotliEncoderParams::default();
+		params.quality = 9;
+		params.lgwin = 20;
+		params
 	}
 }
 
 impl LoadSave {
 	pub fn new(save_name: String) -> Self {
-		Self { temp_file: Arc::new(OnceLock::new()), save_name }
+		Self { save_name }
 	}
 
-	pub fn decompress_save(&self) {
-		let result: anyhow::Result<()> = try {
-			let source_path =
-				path_for_slot(&self.save_name).ok_or(anyhow::anyhow!("couldn’t get project directory"))?;
-			let mut source = std::fs::File::options().read(true).open(&source_path)?;
-			let mut temp_file = self.temp_file.get_or_init(|| NamedTempFile::new().unwrap());
-			BrotliDecompress(&mut source, &mut temp_file)?;
-			info!("slot {}: decompressed from {:?}", self.save_name, source_path);
-		};
-		if let Err(error) = result {
-			error!("slot {}: decompression failed: {}", self.save_name, error);
-		}
+	fn save_file(&self) -> anyhow::Result<std::fs::File> {
+		let output_path = path_for_slot(&self.save_name).ok_or(anyhow::anyhow!("couldn’t get project directory"))?;
+		debug!("initiated load from {output_path:?}");
+		Ok(std::fs::File::options().read(true).open(&output_path)?)
 	}
 }
 
-impl GetFilePath for LoadSave {
-	fn path(&self) -> &Path {
-		self.temp_file.get().unwrap().path()
+impl GetStream for StoreSave {
+	type Stream = brotli::CompressorWriter<std::fs::File>;
+
+	fn stream(&self) -> Self::Stream {
+		brotli::CompressorWriter::with_params(self.save_file().unwrap(), BUFFER_SIZE, &Self::brotli_params())
 	}
 }
 
-impl GetFilePath for StoreSave {
-	fn path(&self) -> &Path {
-		self.temp_file.get_or_init(|| NamedTempFile::new().unwrap()).path()
+impl GetStream for LoadSave {
+	type Stream = brotli::Decompressor<std::fs::File>;
+
+	fn stream(&self) -> Self::Stream {
+		brotli::Decompressor::new(self.save_file().unwrap(), BUFFER_SIZE)
 	}
 }
 
@@ -101,11 +90,11 @@ impl Plugin for Saving {
 		app.add_plugins((SavePlugin, LoadPlugin)).add_event::<StoreSave>().add_event::<LoadSave>();
 
 		// TODO: Disable this line when debugging loading.
-		app.add_systems(Startup, crate::model::spawn_test_tiles);
+		// app.add_systems(Startup, crate::model::spawn_test_tiles);
 		// TODO: Enable this line when debugging loading.
 
 		app.add_systems(
-			First,
+			FixedPreUpdate,
 			(
 				save_default()
 					.exclude_component::<Sprite>()
@@ -117,48 +106,26 @@ impl Plugin for Saving {
 					.exclude_component::<Aabb>()
 					.exclude_component::<NavComponent>()
 					.exclude_component::<WorldInfoProperties>()
-					.into_file_on_request::<StoreSave>()
-					.before(transfer_save)
-					.after(cause_test_save),
-				load_from_file_on_request::<LoadSave>().after(cause_test_load),
-				transfer_save,
-				cause_test_save.before(clone_save_to_resource).run_if(in_state(GameState::InGame)),
-				cause_test_load.before(clone_load_to_resource).run_if(in_state(GameState::InGame)),
-				clone_save_to_resource,
-				clone_load_to_resource,
+					.into(stream_from_resource::<StoreSave>()),
+				load(stream_from_resource::<LoadSave>()),
 			),
+		);
+
+		app.add_systems(
+			First,
+			(cause_test_save.run_if(in_state(GameState::InGame)), cause_test_load.run_if(in_state(GameState::InGame))),
 		);
 	}
 }
 
-/// HACK: Clones the store event into a resource so that moonshine_save sees it.
-fn clone_save_to_resource(mut save_event: EventReader<StoreSave>, mut commands: Commands) {
-	if let Some(event) = save_event.read().next() {
-		commands.insert_resource(event.clone());
-	}
-}
-
-fn clone_load_to_resource(mut load_event: EventReader<LoadSave>, mut commands: Commands) {
-	if let Some(event) = load_event.read().next() {
-		event.decompress_save();
-		commands.insert_resource(event.clone());
-	}
-}
-
-fn transfer_save(mut save_event: EventReader<StoreSave>) {
-	if let Some(event) = save_event.read().next() {
-		event.transfer_compressed_save();
-	}
-}
-
-fn cause_test_save(input: Res<ButtonInput<KeyCode>>, mut events: EventWriter<StoreSave>) {
+fn cause_test_save(input: Res<ButtonInput<KeyCode>>, mut commands: Commands) {
 	if input.just_pressed(KeyCode::KeyS) && input.any_pressed([KeyCode::ControlLeft, KeyCode::ControlRight]) {
-		events.send(StoreSave::new("Test".to_string()));
+		commands.insert_resource(StoreSave::new("Test".to_string()));
 	}
 }
 
-fn cause_test_load(input: Res<ButtonInput<KeyCode>>, mut events: EventWriter<LoadSave>) {
+fn cause_test_load(input: Res<ButtonInput<KeyCode>>, mut commands: Commands) {
 	if input.just_pressed(KeyCode::KeyO) && input.any_pressed([KeyCode::ControlLeft, KeyCode::ControlRight]) {
-		events.send(LoadSave::new("Test".to_string()));
+		commands.insert_resource(LoadSave::new("Test".to_string()));
 	}
 }
