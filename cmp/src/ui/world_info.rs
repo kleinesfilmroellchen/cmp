@@ -10,8 +10,8 @@ use bevy::utils::Instant;
 use parking_lot::Mutex;
 
 use crate::graphics::library::{font_for, FontStyle, FontWeight};
-use crate::graphics::{TILE_HEIGHT, TILE_WIDTH};
-use crate::input::MouseClick;
+use crate::graphics::{InGameCamera, TILE_HEIGHT, TILE_WIDTH};
+use crate::input::{world_to_camera, MouseClick};
 use crate::model::{Comfort, PitchType};
 
 #[derive(Component, Reflect, Default)]
@@ -158,7 +158,7 @@ pub fn setup_world_info(mut commands: Commands, asset_server: Res<AssetServer>) 
 
 pub fn move_world_info(
 	windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
-	camera_q: Query<(&Camera, &GlobalTransform)>,
+	camera_q: Query<(&Camera, &GlobalTransform), With<InGameCamera>>,
 	mut world_info: Query<(&mut Node, &mut Visibility, &WorldInfoUI)>,
 	interactable_world_info_entities: Query<&GlobalTransform>,
 ) {
@@ -179,7 +179,7 @@ pub fn move_world_info(
 	{
 		world_info_visibility.set_if_neq(Visibility::Visible);
 		let bevy_world_position = attached_transform.translation() + Vec3::from((0., TILE_HEIGHT / 2., 0.));
-		if let Ok(screen_position) = camera.world_to_viewport(camera_transform, bevy_world_position) {
+		if let Some(screen_position) = world_to_camera(bevy_world_position, window, camera, camera_transform) {
 			world_info_style.bottom = Val::Px(-screen_position.y + window.height());
 			world_info_style.left = Val::Px(screen_position.x);
 		}

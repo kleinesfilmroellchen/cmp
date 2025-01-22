@@ -1,18 +1,19 @@
 use std::ops::{BitAnd, BitXor, BitXorAssign};
 use std::sync::OnceLock;
 
-use bevy::core_pipeline::contrast_adaptive_sharpening::ContrastAdaptiveSharpening;
-use bevy::core_pipeline::tonemapping::DebandDither;
 use bevy::math::Vec3A;
 use bevy::prelude::*;
 use bevy::sprite::Anchor;
 use bevy::utils::HashMap;
 use moonshine_save::save::Save;
 
+pub use self::rendering::{InGameCamera, RES_HEIGHT, RES_WIDTH, HIGH_RES_LAYERS};
+use self::rendering::*;
 use crate::model::area::{Area, ImmutableArea};
 use crate::model::{ActorPosition, GridBox, GridPosition, GroundMap, WorldPosition};
 
 pub(crate) mod library;
+mod rendering;
 
 /// Plugin responsible for setting up a window and running and initializing graphics.
 pub struct GraphicsPlugin;
@@ -23,7 +24,7 @@ impl Plugin for GraphicsPlugin {
 			.register_type::<BorderKind>()
 			.register_type::<Sides>()
 			.register_type::<ObjectPriority>()
-			.add_systems(Startup, initialize_graphics)
+			.add_systems(Startup, initialize_rendering)
 			.add_systems(
 				PreUpdate,
 				(add_transforms::<ActorPosition>, add_transforms::<GridPosition>, add_transforms::<GridBox>),
@@ -34,7 +35,7 @@ impl Plugin for GraphicsPlugin {
 					.before(move_edge_objects_in_front_of_boxes),
 			)
 			.add_systems(PostUpdate, move_edge_objects_in_front_of_boxes)
-			.add_systems(Update, (update_area_borders, update_immutable_area_borders));
+			.add_systems(Update, (fit_canvas, update_area_borders, update_immutable_area_borders));
 	}
 }
 
@@ -219,18 +220,6 @@ fn update_immutable_area_borders(
 	for area in &mut areas {
 		area.instantiate_borders(&ground_map, &mut commands, &asset_server, &mut texture_atlases, &mut border_textures);
 	}
-}
-
-fn initialize_graphics(mut commands: Commands, _asset_server: Res<AssetServer>) {
-	let projection = OrthographicProjection { scale: 1. / 4., near: -100000., ..OrthographicProjection::default_2d() };
-	commands.spawn((
-		projection,
-		DebandDither::Enabled,
-		Camera2d,
-		Camera { hdr: true, ..Default::default() },
-		ContrastAdaptiveSharpening { enabled: false, sharpening_strength: 0.3, denoise: false },
-		Msaa::Off,
-	));
 }
 
 /// Graphical object priorities assist in z-sorting objects at the same position.

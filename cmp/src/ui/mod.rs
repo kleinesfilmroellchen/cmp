@@ -12,6 +12,7 @@ use self::animate::{AnimationPlugin, AnimationTargets, UIAnimation};
 use self::controls::{BuildMenuContainer, ALL_BUILD_MENUS};
 use crate::gamemode::GameState;
 use crate::graphics::library::{font_for, logo_for_build_menu, logo_for_buildable, FontStyle, FontWeight};
+use crate::graphics::HIGH_RES_LAYERS;
 use crate::input::InputState;
 use crate::model::ALL_BUILDABLES;
 use crate::ui::animate::{StyleHeight, TransitionTimes};
@@ -155,23 +156,30 @@ static COLUMN_TEMPLATE: LazyLock<Vec<RepeatedGridTrack>> = LazyLock::new(|| {
 
 fn initialize_ingame_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
 	commands
-		.spawn(Node {
-			width: Val::Percent(100.),
-			height: Val::Percent(100.),
-			display: Display::Grid,
-			// Absolute positioning for top-level containers allows us to make all UI layers independent.
-			position_type: PositionType::Absolute,
-			grid_template_columns: COLUMN_TEMPLATE.clone(),
-			grid_template_rows: vec![
-				// Top controls (main statistics, global game menus)
-				RepeatedGridTrack::percent(1, 5.),
-				// Center spacing for viewing the world.
-				RepeatedGridTrack::auto(1),
-				// Bottom controls (build menu); expandable from a minimum size since the menus open upwards
-				RepeatedGridTrack::minmax(1, MinTrackSizingFunction::Percent(5.), MaxTrackSizingFunction::MaxContent),
-			],
-			..Default::default()
-		})
+		.spawn((
+			Node {
+				width: Val::Percent(100.),
+				height: Val::Percent(100.),
+				display: Display::Grid,
+				// Absolute positioning for top-level containers allows us to make all UI layers independent.
+				position_type: PositionType::Absolute,
+				grid_template_columns: COLUMN_TEMPLATE.clone(),
+				grid_template_rows: vec![
+					// Top controls (main statistics, global game menus)
+					RepeatedGridTrack::percent(1, 5.),
+					// Center spacing for viewing the world.
+					RepeatedGridTrack::auto(1),
+					// Bottom controls (build menu); expandable from a minimum size since the menus open upwards
+					RepeatedGridTrack::minmax(
+						1,
+						MinTrackSizingFunction::Percent(5.),
+						MaxTrackSizingFunction::MaxContent,
+					),
+				],
+				..Default::default()
+			},
+			HIGH_RES_LAYERS,
+		))
 		.with_children(|parent| {
 			parent
 				.spawn(Node {
@@ -342,6 +350,7 @@ fn initialize_dialogs(mut commands: Commands, asset_server: Res<AssetServer>) {
 				],
 				..Default::default()
 			},
+			HIGH_RES_LAYERS,
 			Visibility::Hidden,
 			BackgroundColor(Color::Srgba(DARK_GRAY).with_alpha(0.5)),
 			controls::DialogContainer,

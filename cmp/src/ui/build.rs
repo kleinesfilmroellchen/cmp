@@ -10,8 +10,8 @@ use super::on_start_build_preview;
 use super::world_info::WorldInfoProperties;
 use crate::gamemode::GameState;
 use crate::graphics::library::{anchor_for_image, preview_image_for_buildable};
-use crate::graphics::{engine_to_world_space, ObjectPriority};
-use crate::input::InputState;
+use crate::graphics::{engine_to_world_space, InGameCamera, ObjectPriority};
+use crate::input::{camera_to_world, InputState};
 use crate::model::area::{Area, ImmutableArea, Pool, UpdateAreas};
 use crate::model::pitch::Pitch;
 use crate::model::{
@@ -221,14 +221,14 @@ impl BuildMode {
 /// into the start point when needed.
 fn set_building_preview_start(
 	windows: Query<&Window, With<PrimaryWindow>>,
-	camera_q: Query<(&Camera, &GlobalTransform)>,
+	camera_q: Query<(&Camera, &GlobalTransform), With<InGameCamera>>,
 	mut preview: Query<&mut PreviewParent>,
 ) {
 	let (camera, camera_transform) = camera_q.single();
 	let window = windows.single();
 
 	let cursor_position =
-		window.cursor_position().and_then(|cursor| camera.viewport_to_world_2d(camera_transform, cursor).ok());
+		window.cursor_position().and_then(|cursor| camera_to_world(cursor, window, camera, camera_transform));
 	if cursor_position.is_none() {
 		return;
 	}

@@ -3,6 +3,7 @@ use bevy::prelude::*;
 
 use super::{BUTTON_SPACING, COLUMN_TEMPLATE};
 use crate::graphics::library::{font_for, FontStyle, FontWeight};
+use crate::graphics::HIGH_RES_LAYERS;
 
 pub struct MainMenuPlugin;
 
@@ -14,19 +15,22 @@ impl Plugin for MainMenuPlugin {
 
 pub fn setup_main_menu(mut commands: Commands, assets: Res<AssetServer>) {
 	commands
-		.spawn(Node {
-			width: Val::Vw(100.),
-			height: Val::Vh(100.),
-			display: Display::Grid,
-			position_type: PositionType::Absolute,
-			grid_template_columns: COLUMN_TEMPLATE.clone(),
-			grid_template_rows: vec![
-				RepeatedGridTrack::percent(1, 10.),
-				RepeatedGridTrack::minmax(10, MinTrackSizingFunction::Px(1.), MaxTrackSizingFunction::MinContent),
-				RepeatedGridTrack::percent(1, 10.),
-			],
-			..Default::default()
-		})
+		.spawn((
+			Node {
+				width: Val::Vw(100.),
+				height: Val::Vh(100.),
+				display: Display::Grid,
+				position_type: PositionType::Absolute,
+				grid_template_columns: COLUMN_TEMPLATE.clone(),
+				grid_template_rows: vec![
+					RepeatedGridTrack::percent(1, 10.),
+					RepeatedGridTrack::minmax(10, MinTrackSizingFunction::Px(1.), MaxTrackSizingFunction::MinContent),
+					RepeatedGridTrack::percent(1, 10.),
+				],
+				..Default::default()
+			},
+			HIGH_RES_LAYERS,
+		))
 		.with_children(|parent| {
 			parent
 				.spawn((
