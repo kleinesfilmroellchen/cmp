@@ -72,7 +72,7 @@ impl WorldInfoProperty {
 	}
 }
 
-#[derive(Component, Reflect, Clone)]
+#[derive(Component, Reflect, Clone, Default)]
 #[reflect(Component)]
 pub struct WorldInfoProperties {
 	properties:      Vec<WorldInfoProperty>,

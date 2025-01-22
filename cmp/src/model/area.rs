@@ -17,6 +17,7 @@ use crate::HashSet;
 /// important region. For example, pools and pitches are fundamentally areas.
 #[derive(Component, Reflect, Clone, Debug)]
 #[reflect(Component)]
+#[require(WorldInfoProperties, Transform, Visibility)]
 pub struct Area {
 	tiles: HashSet<GridPosition>,
 	// A bounding box for intersection acceleration.
@@ -142,6 +143,7 @@ impl Area {
 /// Stores an area's data, but makes it not participate in area combination anymore.
 #[derive(Component, Reflect, Debug, Deref, DerefMut)]
 #[reflect(Component)]
+#[require(WorldInfoProperties, Transform, Visibility)]
 pub struct ImmutableArea(pub Area);
 
 impl From<ImmutableArea> for Area {
@@ -189,8 +191,7 @@ impl Plugin for AreaManagement {
 					.before(update_area_world_info)
 					.run_if(in_state(GameState::InGame)),
 			)
-			.add_systems(FixedUpdate, (clean_area_events, update_area_world_info).run_if(in_state(GameState::InGame)))
-			.add_systems(Update, (add_area_world_info, add_area_transforms).run_if(in_state(GameState::InGame)));
+			.add_systems(FixedUpdate, (clean_area_events, update_area_world_info).run_if(in_state(GameState::InGame)));
 	}
 }
 
@@ -272,7 +273,7 @@ fn update_areas<T: AreaMarker + Default>(
 					*tile + IVec3::new(0, 0, 3),
 					Text2d(format!("{}", i)),
 					TextFont {
-						font:      asset_server.load(crate::graphics::library::font_for(
+						font: asset_server.load(crate::graphics::library::font_for(
 							crate::graphics::library::FontWeight::Regular,
 							crate::graphics::library::FontStyle::Regular,
 						)),
@@ -309,25 +310,6 @@ fn clean_area_events(mut update: ResMut<Events<UpdateAreas>>) {
 	update.clear();
 }
 
-fn add_area_world_info(
-	finalized_pitches: Query<Entity, (Without<Area>, With<ImmutableArea>, Without<WorldInfoProperties>)>,
-	unfinalized_pitches: Query<Entity, (Without<ImmutableArea>, With<Area>, Without<WorldInfoProperties>)>,
-	mut commands: Commands,
-) {
-	for entity in unfinalized_pitches.iter().chain(finalized_pitches.iter()) {
-		commands.entity(entity).insert(WorldInfoProperties::basic(String::new(), String::new()));
-	}
-}
-
-fn add_area_transforms(
-	area: Query<Entity, (Or<(With<Area>, With<ImmutableArea>)>, Without<GlobalTransform>)>,
-	mut commands: Commands,
-) {
-	for entity in &area {
-		commands.entity(entity).insert((GlobalTransform::default(), Transform::default(), Visibility::default()));
-	}
-}
-
 fn update_area_world_info(
 	finalized_pitches: Query<(&WorldInfoProperties, &ImmutableArea), (Without<Area>, Changed<WorldInfoProperties>)>,
 	unfinalized_pitches: Query<(&WorldInfoProperties, &Area), (Without<ImmutableArea>, Changed<WorldInfoProperties>)>,
@@ -338,9 +320,10 @@ fn update_area_world_info(
 		unfinalized_pitches.iter().chain(finalized_pitches.iter().map(|(properties, area)| (properties, &area.0)))
 	{
 		for tile in area.tiles_iter() {
-			let (tile_entity, _) = ground_map.get(&tile).unwrap();
-			if let Ok(mut tile_properties) = tiles.get_mut(tile_entity) {
-				*tile_properties = properties.clone();
+			if let Some((tile_entity, _)) = ground_map.get(&tile) {
+				if let Ok(mut tile_properties) = tiles.get_mut(tile_entity) {
+					*tile_properties = properties.clone();
+				}
 			}
 		}
 	}
