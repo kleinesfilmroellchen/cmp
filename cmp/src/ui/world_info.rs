@@ -4,7 +4,7 @@ use std::sync::Arc;
 use bevy::color::palettes::css::{ANTIQUE_WHITE, DARK_GRAY, WHITE};
 use bevy::math::Vec3A;
 use bevy::prelude::*;
-use bevy::text::BreakLineOn;
+use bevy::text::LineBreak;
 use bevy::ui::FocusPolicy;
 use bevy::utils::Instant;
 use parking_lot::Mutex;
@@ -100,58 +100,66 @@ impl WorldInfoProperties {
 	}
 }
 
-pub fn setup_world_info(mut commands: Commands) {
+pub fn setup_world_info(mut commands: Commands, asset_server: Res<AssetServer>) {
 	commands
 		.spawn((
-			NodeBundle {
-				style: Style {
-					position_type: PositionType::Absolute,
-					display: Display::Grid,
-					grid_template_rows: vec![
-						RepeatedGridTrack::min_content(1),
-						RepeatedGridTrack::min_content(1),
-						RepeatedGridTrack::repeat_many(GridTrackRepetition::AutoFit, vec![GridTrack::auto()]),
-					],
-					grid_auto_columns: vec![],
-					grid_auto_rows: vec![],
-					grid_template_columns: vec![
-						RepeatedGridTrack::auto(1),
-						RepeatedGridTrack::fit_content_percent(1, 30.),
-					],
-					grid_auto_flow: GridAutoFlow::Row,
-					padding: UiRect::all(Val::Px(5.)),
-					row_gap: Val::Px(5.),
-					width: Val::Percent(20.),
-					min_height: Val::Percent(10.),
-					..Default::default()
-				},
-				background_color: BackgroundColor(DARK_GRAY.into()),
-				focus_policy: FocusPolicy::Block,
-				z_index: ZIndex::Global(1),
-				visibility: Visibility::Hidden,
+			Node {
+				position_type: PositionType::Absolute,
+				display: Display::Grid,
+				grid_template_rows: vec![
+					RepeatedGridTrack::min_content(1),
+					RepeatedGridTrack::min_content(1),
+					RepeatedGridTrack::repeat_many(GridTrackRepetition::AutoFit, vec![GridTrack::auto()]),
+				],
+				grid_auto_columns: vec![],
+				grid_auto_rows: vec![],
+				grid_template_columns: vec![RepeatedGridTrack::auto(1), RepeatedGridTrack::fit_content_percent(1, 30.)],
+				grid_auto_flow: GridAutoFlow::Row,
+				padding: UiRect::all(Val::Px(5.)),
+				row_gap: Val::Px(5.),
+				width: Val::Percent(20.),
+				min_height: Val::Percent(10.),
 				..Default::default()
 			},
+			BackgroundColor(DARK_GRAY.into()),
+			FocusPolicy::Block,
+			GlobalZIndex(1),
+			Visibility::Hidden,
 			Interaction::default(),
 			WorldInfoUI::default(),
 		))
 		.with_children(|parent| {
-			parent.spawn((WorldInfoTitle, TextBundle {
-				text: Text { linebreak_behavior: BreakLineOn::WordBoundary, ..Default::default() },
-				style: Style { grid_column: GridPlacement::start_span(1, 2), ..Default::default() },
-				..Default::default()
-			}));
-			parent.spawn((WorldInfoBody, TextBundle {
-				text: Text { linebreak_behavior: BreakLineOn::WordBoundary, ..Default::default() },
-				style: Style { grid_column: GridPlacement::start_span(1, 2), ..Default::default() },
-				..Default::default()
-			}));
+			parent.spawn((
+				WorldInfoTitle,
+				Text::default(),
+				TextFont {
+					font: asset_server.load(font_for(FontWeight::Bold, FontStyle::Regular)),
+					font_size: 24.,
+					..Default::default()
+				},
+				TextColor(WHITE.into()),
+				TextLayout { linebreak: LineBreak::WordBoundary, ..Default::default() },
+				Node { grid_column: GridPlacement::start_span(1, 2), ..Default::default() },
+			));
+			parent.spawn((
+				WorldInfoBody,
+				Text::default(),
+				TextFont {
+					font: asset_server.load(font_for(FontWeight::Regular, FontStyle::Regular)),
+					font_size: 16.,
+					..Default::default()
+				},
+				TextColor(WHITE.into()),
+				TextLayout { linebreak: LineBreak::WordBoundary, ..Default::default() },
+				Node { grid_column: GridPlacement::start_span(1, 2), ..Default::default() },
+			));
 		});
 }
 
 pub fn move_world_info(
 	windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
 	camera_q: Query<(&Camera, &GlobalTransform)>,
-	mut world_info: Query<(&mut Style, &mut Visibility, &WorldInfoUI)>,
+	mut world_info: Query<(&mut Node, &mut Visibility, &WorldInfoUI)>,
 	interactable_world_info_entities: Query<&GlobalTransform>,
 ) {
 	let (camera, camera_transform) = camera_q.single();
@@ -171,7 +179,7 @@ pub fn move_world_info(
 	{
 		world_info_visibility.set_if_neq(Visibility::Visible);
 		let bevy_world_position = attached_transform.translation() + Vec3::from((0., TILE_HEIGHT / 2., 0.));
-		if let Some(screen_position) = camera.world_to_viewport(camera_transform, bevy_world_position) {
+		if let Ok(screen_position) = camera.world_to_viewport(camera_transform, bevy_world_position) {
 			world_info_style.bottom = Val::Px(-screen_position.y + window.height());
 			world_info_style.left = Val::Px(screen_position.x);
 		}
@@ -259,16 +267,8 @@ pub fn update_world_info(
 			commands.entity(entity).despawn_recursive();
 		}
 
-		world_info_header.sections = vec![TextSection::new(&node_under_cursor.name, TextStyle {
-			font:      asset_server.load(font_for(FontWeight::Bold, FontStyle::Regular)),
-			font_size: 24.,
-			color:     WHITE.into(),
-		})];
-		world_info_body.sections = vec![TextSection::new(&node_under_cursor.description, TextStyle {
-			font:      asset_server.load(font_for(FontWeight::Regular, FontStyle::Regular)),
-			font_size: 16.,
-			color:     WHITE.into(),
-		})];
+		**world_info_header = node_under_cursor.name.clone();
+		**world_info_body = node_under_cursor.description.clone();
 
 		let mut info_ui = commands.entity(world_info_style);
 		info_ui.with_children(|parent| {
@@ -276,33 +276,31 @@ pub fn update_world_info(
 				let property_name = property.property_name();
 				let property_value = property.property_value();
 				parent.spawn((
-					TextBundle {
-						text: Text::from_section(property_name, TextStyle {
-							font:      asset_server.load(font_for(FontWeight::Regular, FontStyle::Regular)),
-							font_size: 18.,
-							color:     WHITE.into(),
-						}),
+					Text(property_name),
+					TextFont {
+						font: asset_server.load(font_for(FontWeight::Regular, FontStyle::Regular)),
+						font_size: 18.,
 						..Default::default()
 					},
+					TextColor(WHITE.into()),
 					WorldInfoPropertyDisplay::Description,
 				));
 				parent.spawn((
-					TextBundle {
-						style: Style { align_self: AlignSelf::End, ..Default::default() },
-						text: Text::from_section(property_value, TextStyle {
-							font:      asset_server.load(font_for(FontWeight::Regular, FontStyle::Regular)),
-							font_size: 18.,
-							color:     ANTIQUE_WHITE.into(),
-						}),
+					Node { align_self: AlignSelf::End, ..Default::default() },
+					Text(property_value),
+					TextFont {
+						font: asset_server.load(font_for(FontWeight::Regular, FontStyle::Regular)),
+						font_size: 18.,
 						..Default::default()
 					},
+					TextColor(ANTIQUE_WHITE.into()),
 					WorldInfoPropertyDisplay::Value,
 				));
 			}
 		});
 	} else {
 		world_info_ui.attached_entity = None;
-		world_info_header.sections.clear();
-		world_info_body.sections.clear();
+		world_info_header.clear();
+		world_info_body.clear();
 	}
 }

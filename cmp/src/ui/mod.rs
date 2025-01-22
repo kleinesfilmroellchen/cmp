@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use bevy::color::palettes::css::{DARK_GRAY, GRAY, ORANGE};
 use bevy::prelude::*;
-use bevy::text::BreakLineOn;
+use bevy::text::LineBreak;
 use bevy::ui::FocusPolicy;
 use build::BuildPlugin;
 use main_menu::MainMenuPlugin;
@@ -155,45 +155,35 @@ static COLUMN_TEMPLATE: LazyLock<Vec<RepeatedGridTrack>> = LazyLock::new(|| {
 
 fn initialize_ingame_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
 	commands
-		.spawn(NodeBundle {
-			style: Style {
-				width: Val::Percent(100.),
-				height: Val::Percent(100.),
-				display: Display::Grid,
-				// Absolute positioning for top-level containers allows us to make all UI layers independent.
-				position_type: PositionType::Absolute,
-				grid_template_columns: COLUMN_TEMPLATE.clone(),
-				grid_template_rows: vec![
-					// Top controls (main statistics, global game menus)
-					RepeatedGridTrack::percent(1, 5.),
-					// Center spacing for viewing the world.
-					RepeatedGridTrack::auto(1),
-					// Bottom controls (build menu); expandable from a minimum size since the menus open upwards
-					RepeatedGridTrack::minmax(
-						1,
-						MinTrackSizingFunction::Percent(5.),
-						MaxTrackSizingFunction::MaxContent,
-					),
-				],
-				..Default::default()
-			},
+		.spawn(Node {
+			width: Val::Percent(100.),
+			height: Val::Percent(100.),
+			display: Display::Grid,
+			// Absolute positioning for top-level containers allows us to make all UI layers independent.
+			position_type: PositionType::Absolute,
+			grid_template_columns: COLUMN_TEMPLATE.clone(),
+			grid_template_rows: vec![
+				// Top controls (main statistics, global game menus)
+				RepeatedGridTrack::percent(1, 5.),
+				// Center spacing for viewing the world.
+				RepeatedGridTrack::auto(1),
+				// Bottom controls (build menu); expandable from a minimum size since the menus open upwards
+				RepeatedGridTrack::minmax(1, MinTrackSizingFunction::Percent(5.), MaxTrackSizingFunction::MaxContent),
+			],
 			..Default::default()
 		})
 		.with_children(|parent| {
 			parent
-				.spawn(NodeBundle {
-					style: Style {
-						grid_row: GridPlacement::start(3),
-						grid_column: GridPlacement::start(2),
-						display: Display::Grid,
-						align_items: AlignItems::End,
-						align_content: AlignContent::End,
-						grid_template_columns: vec![RepeatedGridTrack::auto(1)],
-						grid_template_rows: vec![RepeatedGridTrack::auto(1), RepeatedGridTrack::min_content(1)],
-						padding: UiRect::all(BUTTON_SPACING),
-						row_gap: BUTTON_SPACING,
-						..Default::default()
-					},
+				.spawn(Node {
+					grid_row: GridPlacement::start(3),
+					grid_column: GridPlacement::start(2),
+					display: Display::Grid,
+					align_items: AlignItems::End,
+					align_content: AlignContent::End,
+					grid_template_columns: vec![RepeatedGridTrack::auto(1)],
+					grid_template_rows: vec![RepeatedGridTrack::auto(1), RepeatedGridTrack::min_content(1)],
+					padding: UiRect::all(BUTTON_SPACING),
+					row_gap: BUTTON_SPACING,
 					..Default::default()
 				})
 				.with_children(|parent| {
@@ -226,24 +216,21 @@ fn initialize_ingame_ui(mut commands: Commands, asset_server: Res<AssetServer>) 
 					);
 					parent
 						.spawn((
-							NodeBundle {
-								style: Style {
-									grid_row: GridPlacement::start(2),
-									display: Display::Flex,
-									flex_direction: FlexDirection::Row,
-									align_items: AlignItems::Baseline,
-									column_gap: BUTTON_SPACING,
-									..Default::default()
-								},
-								focus_policy: FocusPolicy::Block,
+							Node {
+								grid_row: GridPlacement::start(2),
+								display: Display::Flex,
+								flex_direction: FlexDirection::Row,
+								align_items: AlignItems::Baseline,
+								column_gap: BUTTON_SPACING,
 								..Default::default()
 							},
+							FocusPolicy::Block,
 							Interaction::default(),
 						))
 						.with_children(|parent| {
 							// TODO: Use iter_variants to dynamically access all variants.
 							for menu_type in controls::ALL_BUILD_MENUS {
-								let style = Style {
+								let node = Node {
 									justify_content: JustifyContent::Center,
 									align_items: AlignItems::Center,
 									width: Val::Px(PIXEL_SIZE),
@@ -252,21 +239,22 @@ fn initialize_ingame_ui(mut commands: Commands, asset_server: Res<AssetServer>) 
 								};
 								parent
 									.spawn((
+										Button,
 										height_animation.clone(),
 										press_animation.clone(),
-										ButtonBundle { style, background_color, ..Default::default() },
+										node,
+										background_color,
 										controls::BuildMenuButton(menu_type),
 										Tooltip::from(&menu_type),
 									))
 									.with_children(|button| {
-										button.spawn(ImageBundle {
-											image: UiImage {
-												texture: asset_server.load(logo_for_build_menu(menu_type)),
+										button.spawn((
+											ImageNode {
+												image: asset_server.load(logo_for_build_menu(menu_type)),
 												..Default::default()
 											},
-											style: Style { width: Val::Percent(90.), ..Default::default() },
-											..Default::default()
-										});
+											Node { width: Val::Percent(90.), ..Default::default() },
+										));
 									});
 							}
 						});
@@ -274,22 +262,19 @@ fn initialize_ingame_ui(mut commands: Commands, asset_server: Res<AssetServer>) 
 					for menu_type in ALL_BUILD_MENUS {
 						parent
 							.spawn((
-								NodeBundle {
-									style: Style {
-										grid_row: GridPlacement::start(1),
-										display: Display::None,
-										flex_direction: FlexDirection::Row,
-										align_items: AlignItems::Baseline,
-										align_self: AlignSelf::Baseline,
-										column_gap: BUTTON_SPACING,
-										padding: UiRect::all(BUTTON_SPACING),
-										min_height: Val::Px(50.),
-										..Default::default()
-									},
-									background_color: BackgroundColor(GRAY.into()),
-									focus_policy: FocusPolicy::Block,
+								Node {
+									grid_row: GridPlacement::start(1),
+									display: Display::None,
+									flex_direction: FlexDirection::Row,
+									align_items: AlignItems::Baseline,
+									align_self: AlignSelf::Baseline,
+									column_gap: BUTTON_SPACING,
+									padding: UiRect::all(BUTTON_SPACING),
+									min_height: Val::Px(50.),
 									..Default::default()
 								},
+								BackgroundColor(GRAY.into()),
+								FocusPolicy::Block,
 								BuildMenuContainer(menu_type),
 								Interaction::default(),
 							))
@@ -299,7 +284,7 @@ fn initialize_ingame_ui(mut commands: Commands, asset_server: Res<AssetServer>) 
 								for buildable in ALL_BUILDABLES.iter().filter(|buildable| buildable.menu() == menu_type)
 								{
 									let background_color = BackgroundColor(DARK_GRAY.into());
-									let style = Style {
+									let node = Node {
 										justify_content: JustifyContent::Center,
 										align_items: AlignItems::Center,
 										width: Val::Px(50.),
@@ -308,21 +293,22 @@ fn initialize_ingame_ui(mut commands: Commands, asset_server: Res<AssetServer>) 
 									};
 									build_menu
 										.spawn((
+											Button,
 											height_animation.clone(),
 											press_animation.clone(),
-											ButtonBundle { style, background_color, ..Default::default() },
+											node,
+											background_color,
 											Tooltip::from(buildable),
 											controls::StartBuildButton(*buildable),
 										))
 										.with_children(|button| {
-											button.spawn(ImageBundle {
-												image: UiImage {
-													texture: asset_server.load(logo_for_buildable(*buildable)),
+											button.spawn((
+												ImageNode {
+													image: asset_server.load(logo_for_buildable(*buildable)),
 													..Default::default()
 												},
-												style: Style { width: Val::Percent(90.), ..Default::default() },
-												..Default::default()
-											});
+												Node { width: Val::Percent(90.), ..Default::default() },
+											));
 										});
 								}
 							});
@@ -334,94 +320,81 @@ fn initialize_ingame_ui(mut commands: Commands, asset_server: Res<AssetServer>) 
 fn initialize_dialogs(mut commands: Commands, asset_server: Res<AssetServer>) {
 	commands
 		.spawn((
-			NodeBundle {
-				style: Style {
-					width: Val::Percent(100.),
-					height: Val::Percent(100.),
-					display: Display::Grid,
-					// Absolute positioning for top-level containers allows us to make all UI layers independent.
-					position_type: PositionType::Absolute,
-					grid_template_columns: vec![
-						RepeatedGridTrack::fr(1, 1.),
-						RepeatedGridTrack::percent(1, 50.),
-						RepeatedGridTrack::fr(1, 1.),
-					],
-					grid_template_rows: vec![
-						RepeatedGridTrack::fr(1, 1.),
-						RepeatedGridTrack::minmax(
-							1,
-							MinTrackSizingFunction::Percent(50.),
-							MaxTrackSizingFunction::MinContent,
-						),
-						RepeatedGridTrack::fr(1, 1.),
-					],
-					..Default::default()
-				},
-				visibility: Visibility::Hidden,
-				background_color: BackgroundColor(Color::Srgba(DARK_GRAY).with_alpha(0.5)),
+			Node {
+				width: Val::Percent(100.),
+				height: Val::Percent(100.),
+				display: Display::Grid,
+				// Absolute positioning for top-level containers allows us to make all UI layers independent.
+				position_type: PositionType::Absolute,
+				grid_template_columns: vec![
+					RepeatedGridTrack::fr(1, 1.),
+					RepeatedGridTrack::percent(1, 50.),
+					RepeatedGridTrack::fr(1, 1.),
+				],
+				grid_template_rows: vec![
+					RepeatedGridTrack::fr(1, 1.),
+					RepeatedGridTrack::minmax(
+						1,
+						MinTrackSizingFunction::Percent(50.),
+						MaxTrackSizingFunction::MinContent,
+					),
+					RepeatedGridTrack::fr(1, 1.),
+				],
 				..Default::default()
 			},
+			Visibility::Hidden,
+			BackgroundColor(Color::Srgba(DARK_GRAY).with_alpha(0.5)),
 			controls::DialogContainer,
 		))
 		.with_children(|parent| {
 			parent
 				.spawn((
-					NodeBundle {
-						style: Style {
-							grid_row: GridPlacement::start(2),
-							grid_column: GridPlacement::start(2),
-							display: Display::Grid,
-							align_items: AlignItems::Start,
-							justify_content: JustifyContent::Center,
-							align_content: AlignContent::Center,
-							grid_template_columns: vec![RepeatedGridTrack::auto(1), RepeatedGridTrack::min_content(1)],
-							grid_template_rows: vec![RepeatedGridTrack::min_content(1), RepeatedGridTrack::auto(1)],
-							padding: UiRect::all(BUTTON_SPACING),
-							row_gap: BUTTON_SPACING,
-							..Default::default()
-						},
-						focus_policy: FocusPolicy::Block,
-						background_color: BackgroundColor(DARK_GRAY.into()),
+					Node {
+						grid_row: GridPlacement::start(2),
+						grid_column: GridPlacement::start(2),
+						display: Display::Grid,
+						align_items: AlignItems::Start,
+						justify_content: JustifyContent::Center,
+						align_content: AlignContent::Center,
+						grid_template_columns: vec![RepeatedGridTrack::auto(1), RepeatedGridTrack::min_content(1)],
+						grid_template_rows: vec![RepeatedGridTrack::min_content(1), RepeatedGridTrack::auto(1)],
+						padding: UiRect::all(BUTTON_SPACING),
+						row_gap: BUTTON_SPACING,
 						..Default::default()
 					},
+					FocusPolicy::Block,
+					BackgroundColor(DARK_GRAY.into()),
 					Interaction::default(),
 					controls::DialogBox,
 				))
 				.with_children(|parent| {
 					parent.spawn((
-						TextBundle {
-							style: Style {
-								grid_row: GridPlacement::start(1),
-								grid_column: GridPlacement::span(1),
-								justify_self: JustifySelf::Center,
-								align_self: AlignSelf::Center,
-								..Default::default()
-							},
-							text: Text {
-								justify:            JustifyText::Center,
-								linebreak_behavior: BreakLineOn::WordBoundary,
-								sections:           vec![TextSection::new("", TextStyle {
-									font:      asset_server.load(font_for(FontWeight::Bold, FontStyle::Regular)),
-									font_size: 32.,
-									color:     ORANGE.into(),
-								})],
-							},
+						Node {
+							grid_row: GridPlacement::start(1),
+							grid_column: GridPlacement::span(1),
+							justify_self: JustifySelf::Center,
+							align_self: AlignSelf::Center,
+							..Default::default()
+						},
+						Text(String::new()),
+						TextLayout { justify: JustifyText::Center, linebreak: LineBreak::WordBoundary },
+						TextColor(ORANGE.into()),
+						TextFont {
+							font: asset_server.load(font_for(FontWeight::Bold, FontStyle::Regular)),
+							font_size: 32.,
 							..Default::default()
 						},
 						controls::DialogTitle,
 					));
 					parent.spawn((
-						ButtonBundle {
-							style: Style {
-								grid_row: GridPlacement::start(1),
-								grid_column: GridPlacement::start(2),
-								min_width: Val::Px(30.),
-								min_height: Val::Px(30.),
-								..Default::default()
-							},
-							background_color: BackgroundColor(Color::BLACK),
+						Node {
+							grid_row: GridPlacement::start(1),
+							grid_column: GridPlacement::start(2),
+							min_width: Val::Px(30.),
+							min_height: Val::Px(30.),
 							..Default::default()
 						},
+						BackgroundColor(Color::BLACK),
 						controls::DialogCloseButton,
 					));
 				});
@@ -465,21 +438,21 @@ fn on_start_build_preview(
 }
 
 fn update_build_menu_state(
-	mut build_menus: Query<(&controls::BuildMenuContainer, &mut Style)>,
+	mut build_menus: Query<(&controls::BuildMenuContainer, &mut Node)>,
 	mut open_menu_event: EventReader<controls::OpenBuildMenu>,
 	mut close_menu_event: EventReader<controls::CloseBuildMenus>,
 ) {
 	for open_event in open_menu_event.read() {
 		let kind = open_event.0;
-		for (container_type, mut style) in &mut build_menus {
+		for (container_type, mut node) in &mut build_menus {
 			// The second check will also close any currently-open menu on second click.
-			style.display =
-				if container_type.0 == kind && style.display == Display::None { Display::Flex } else { Display::None };
+			node.display =
+				if container_type.0 == kind && node.display == Display::None { Display::Flex } else { Display::None };
 		}
 	}
 	for _ in close_menu_event.read() {
-		for (_, mut style) in &mut build_menus {
-			style.display = Display::None;
+		for (_, mut node) in &mut build_menus {
+			node.display = Display::None;
 		}
 	}
 }

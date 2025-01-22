@@ -104,16 +104,17 @@ impl GroundKind {
 pub struct GroundTile {
 	position:   GridPosition,
 	priority:   ObjectPriority,
-	sprite:     SpriteBundle,
+	sprite:     Sprite,
 	kind:       GroundKind,
 	world_info: WorldInfoProperties,
 	navigable:  NavComponent,
 	save:       Save,
 }
 
-fn sprite_object_for_image(image: &str) -> Sprite {
+fn sprite_object_for_image(image: &str, asset_server: &AssetServer) -> Sprite {
 	Sprite {
 		anchor: anchor_for_image(image),
+		image: asset_server.load(image),
 		// flip_x: ((position.x % 5) ^ (position.y % 7) ^ (position.z % 11)) & (1 << 3) == 0,
 		..Default::default()
 	}
@@ -124,11 +125,7 @@ impl GroundTile {
 		let image = image_for_ground(kind);
 		GroundTile {
 			position,
-			sprite: SpriteBundle {
-				sprite: sprite_object_for_image(image),
-				texture: asset_server.load(image),
-				..Default::default()
-			},
+			sprite: sprite_object_for_image(image, asset_server),
 			priority: ObjectPriority::Ground,
 			kind,
 			world_info: WorldInfoProperties::basic(kind.to_string(), kind.description().to_string()),
@@ -244,28 +241,27 @@ pub fn spawn_test_tiles(
 }
 
 pub fn update_ground_textures(
-	mut ground_textures: Query<(Entity, &GroundKind, &mut Handle<Image>), Changed<GroundKind>>,
+	mut ground_textures: Query<(Entity, &GroundKind, &mut Sprite), Changed<GroundKind>>,
 	asset_server: Res<AssetServer>,
 	mut commands: Commands,
 ) {
-	for (entity, kind, mut texture) in &mut ground_textures {
+	for (entity, kind, mut sprite) in &mut ground_textures {
 		// remove any children of the old tile
 		commands.entity(entity).despawn_descendants();
 		let image = image_for_ground(*kind);
-		*texture = asset_server.load(image);
+		sprite.image = asset_server.load(image);
 	}
 }
 
 pub fn add_ground_textures(
-	mut ground_textures: Query<(Entity, &GroundKind), (Without<Handle<Image>>, Without<Sprite>)>,
+	mut ground_textures: Query<(Entity, &GroundKind), Without<Sprite>>,
 	asset_server: Res<AssetServer>,
 	mut commands: Commands,
 ) {
 	for (entity, kind) in &mut ground_textures {
 		let image = image_for_ground(*kind);
-		let texture: Handle<Image> = asset_server.load(image);
-		let sprite = sprite_object_for_image(image);
-		commands.entity(entity).insert((texture, sprite));
+		let sprite = sprite_object_for_image(image, &asset_server);
+		commands.entity(entity).insert(sprite);
 	}
 }
 

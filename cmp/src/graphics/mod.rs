@@ -1,7 +1,7 @@
 use std::ops::{BitAnd, BitXor, BitXorAssign};
 use std::sync::OnceLock;
 
-use bevy::core_pipeline::contrast_adaptive_sharpening::ContrastAdaptiveSharpeningSettings;
+use bevy::core_pipeline::contrast_adaptive_sharpening::ContrastAdaptiveSharpening;
 use bevy::core_pipeline::tonemapping::DebandDither;
 use bevy::math::Vec3A;
 use bevy::prelude::*;
@@ -19,8 +19,7 @@ pub struct GraphicsPlugin;
 
 impl Plugin for GraphicsPlugin {
 	fn build(&self, app: &mut App) {
-		app.insert_resource(Msaa::default())
-			.init_resource::<BorderTextures>()
+		app.init_resource::<BorderTextures>()
 			.register_type::<BorderKind>()
 			.register_type::<Sides>()
 			.register_type::<ObjectPriority>()
@@ -74,8 +73,7 @@ impl BorderTextures {
 pub struct BorderSprite {
 	pub side:          Sides,
 	pub kind:          BorderKind,
-	pub(crate) sprite: SpriteBundle,
-	pub atlas:         TextureAtlas,
+	pub(crate) sprite: Sprite,
 	pub offset:        ActorPosition,
 	priority:          ObjectPriority,
 	save:              Save,
@@ -183,19 +181,16 @@ impl BorderSprite {
 	) -> impl Iterator<Item = Self> + 'a {
 		sides.iter().map(move |side| {
 			let (layout, image) = border_textures.get(kind, texture_atlases, asset_server);
-			Self {
+			let mut this = Self {
 				side,
 				kind,
-				sprite: SpriteBundle {
-					sprite: Sprite { anchor: side.anchor(), ..Default::default() },
-					texture: image,
-					..Default::default()
-				},
-				atlas: TextureAtlas { layout, index: side.to_sprite_index() },
+				sprite: Sprite::from_atlas_image(image, TextureAtlas { layout, index: side.to_sprite_index() }),
 				offset: side.world_offset().into(),
 				priority: ObjectPriority::Border,
 				save: Save,
-			}
+			};
+			this.sprite.anchor = side.anchor();
+			this
 		})
 	}
 }
@@ -226,22 +221,16 @@ fn update_immutable_area_borders(
 	}
 }
 
-fn initialize_graphics(mut commands: Commands, _asset_server: Res<AssetServer>, mut msaa: ResMut<Msaa>) {
-	let projection = OrthographicProjection { scale: 1. / 4., near: -100000., ..Default::default() };
+fn initialize_graphics(mut commands: Commands, _asset_server: Res<AssetServer>) {
+	let projection = OrthographicProjection { scale: 1. / 4., near: -100000., ..OrthographicProjection::default_2d() };
 	commands.spawn((
-		Camera2dBundle {
-			projection,
-			deband_dither: DebandDither::Enabled,
-			camera: Camera { hdr: true, ..Default::default() },
-			..Default::default()
-		},
-		ContrastAdaptiveSharpeningSettings {
-			enabled:             false,
-			sharpening_strength: 0.3,
-			denoise:             false,
-		},
+		projection,
+		DebandDither::Enabled,
+		Camera2d,
+		Camera { hdr: true, ..Default::default() },
+		ContrastAdaptiveSharpening { enabled: false, sharpening_strength: 0.3, denoise: false },
+		Msaa::Off,
 	));
-	*msaa = Msaa::Off;
 }
 
 /// Graphical object priorities assist in z-sorting objects at the same position.

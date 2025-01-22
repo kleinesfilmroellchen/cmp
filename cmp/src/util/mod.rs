@@ -2,7 +2,7 @@
 
 use bevy::color::palettes::css::DARK_GRAY;
 use bevy::prelude::*;
-use bevy::text::BreakLineOn;
+use bevy::text::LineBreak;
 
 use crate::graphics::library::{font_for, FontStyle, FontWeight};
 
@@ -103,62 +103,60 @@ struct TooltipBodyText;
 #[derive(Component, Reflect, Default)]
 struct TooltipUI;
 
-fn tooltip_style(asset_server: &AssetServer, is_body: bool) -> TextStyle {
-	TextStyle {
-		font:      asset_server
-			.load(font_for(if is_body { FontWeight::Regular } else { FontWeight::Bold }, FontStyle::Regular)),
-		font_size: if is_body { 20. } else { 30. },
-		color:     Color::WHITE,
-	}
+fn tooltip_style(asset_server: &AssetServer, is_body: bool) -> impl Bundle {
+	(
+		TextFont {
+			font: asset_server
+				.load(font_for(if is_body { FontWeight::Regular } else { FontWeight::Bold }, FontStyle::Regular)),
+			font_size: if is_body { 20. } else { 30. },
+			..Default::default()
+		},
+		TextColor(Color::WHITE),
+	)
 }
 
-fn setup_tooltip(mut commands: Commands) {
+fn setup_tooltip(mut commands: Commands, asset_server: Res<AssetServer>) {
 	commands
 		.spawn((
-			NodeBundle {
-				style: Style {
-					min_width: Val::Percent(2.),
-					min_height: Val::Percent(2.),
-					max_width: Val::Percent(30.),
-					display: Display::Grid,
-					position_type: PositionType::Absolute,
-					grid_template_columns: vec![RepeatedGridTrack::auto(1)],
-					padding: UiRect::all(Val::Px(5.)),
-					grid_template_rows: vec![
-						// Heading
-						RepeatedGridTrack::min_content(1),
-						// Body
-						RepeatedGridTrack::auto(1),
-					],
-					row_gap: Val::Px(5.),
-					..Default::default()
-				},
-				background_color: BackgroundColor(DARK_GRAY.into()),
+			Node {
+				min_width: Val::Percent(2.),
+				min_height: Val::Percent(2.),
+				max_width: Val::Percent(30.),
+				display: Display::Grid,
+				position_type: PositionType::Absolute,
+				grid_template_columns: vec![RepeatedGridTrack::auto(1)],
+				padding: UiRect::all(Val::Px(5.)),
+				grid_template_rows: vec![
+					// Heading
+					RepeatedGridTrack::min_content(1),
+					// Body
+					RepeatedGridTrack::auto(1),
+				],
+				row_gap: Val::Px(5.),
 				..Default::default()
 			},
+			BackgroundColor(DARK_GRAY.into()),
 			TooltipUI,
 		))
 		.with_children(|container| {
 			container.spawn((
-				TextBundle {
-					text: Text { linebreak_behavior: BreakLineOn::WordBoundary, ..Default::default() },
-					..Default::default()
-				},
+				Text::default(),
+				TextLayout { linebreak: LineBreak::WordBoundary, ..Default::default() },
 				TooltipHeaderText,
+				tooltip_style(&asset_server, false),
 			));
 			container.spawn((
-				TextBundle {
-					text: Text { linebreak_behavior: BreakLineOn::WordBoundary, ..Default::default() },
-					..Default::default()
-				},
+				Text::default(),
+				TextLayout { linebreak: LineBreak::WordBoundary, ..Default::default() },
 				TooltipBodyText,
+				tooltip_style(&asset_server, true),
 			));
 		});
 }
 
 fn move_tooltip_to_mouse(
 	windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
-	mut tooltip: Query<&mut Style, With<TooltipUI>>,
+	mut tooltip: Query<&mut Node, With<TooltipUI>>,
 ) {
 	let window = windows.single();
 	let mut tooltip_style = tooltip.single_mut();
@@ -173,7 +171,6 @@ fn update_tooltip(
 	mut tooltip_header_text: Query<(&mut Text, &TooltipHeaderText), Without<TooltipBodyText>>,
 	mut tooltip_body_text: Query<(&mut Text, &TooltipBodyText), Without<TooltipHeaderText>>,
 	interacted_tooltipable_node: Query<(&Interaction, &Tooltip), (Changed<Interaction>, With<Node>)>,
-	asset_server: Res<AssetServer>,
 ) {
 	let (mut tooltip_header_text, _) = tooltip_header_text.single_mut();
 	let (mut tooltip_body_text, _) = tooltip_body_text.single_mut();
@@ -181,14 +178,13 @@ fn update_tooltip(
 		if interaction == &Interaction::None {
 			continue;
 		}
-		tooltip_header_text.sections =
-			vec![TextSection::new(tooltip.title.clone(), tooltip_style(&asset_server, false))];
-		tooltip_body_text.sections = vec![TextSection::new(tooltip.body.clone(), tooltip_style(&asset_server, true))];
+		**tooltip_header_text = tooltip.title.clone();
+		**tooltip_body_text = tooltip.body.clone();
 	}
 }
 
 fn show_tooltip(
-	mut tooltip: Query<&mut Style, With<TooltipUI>>,
+	mut tooltip: Query<&mut Node, With<TooltipUI>>,
 	any_tooltipable_node: Query<(&Interaction, &Tooltip), With<Node>>,
 ) {
 	let mut hovers_any = false;

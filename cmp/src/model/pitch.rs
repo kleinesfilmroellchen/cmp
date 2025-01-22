@@ -215,7 +215,7 @@ pub struct AccommodationBuilding;
 #[derive(Bundle)]
 pub struct AccommodationBuildingBundle {
 	pub position: GridBox,
-	pub sprite:   SpriteBundle,
+	pub sprite:   Sprite,
 	marker:       AccommodationBuilding,
 	priority:     ObjectPriority,
 	save:         Save,
@@ -229,9 +229,9 @@ impl AccommodationBuildingBundle {
 			let image = image_for_pitch(kind);
 			Some(Self {
 				position: GridBox::around(position, kind.size().flat()),
-				sprite:   SpriteBundle {
-					sprite: Sprite { anchor: anchor_for_image(image), ..Default::default() },
-					texture: asset_server.load(image),
+				sprite:   Sprite {
+					anchor: anchor_for_image(image),
+					image: asset_server.load(image),
 					..Default::default()
 				},
 				marker:   AccommodationBuilding,
@@ -336,7 +336,7 @@ fn update_pitch_world_info(
 }
 
 fn add_pitch_graphics(
-	buildings: Query<Entity, (With<AccommodationBuilding>, Without<Handle<Image>>, Without<Sprite>)>,
+	buildings: Query<Entity, (With<AccommodationBuilding>, Without<Sprite>)>,
 	pitches: Query<(&Pitch, &Children), Without<AccommodationBuilding>>,
 	mut commands: Commands,
 	asset_server: Res<AssetServer>,
@@ -345,9 +345,9 @@ fn add_pitch_graphics(
 		let result: Option<()> = try {
 			let (parent_pitch, _) = pitches.iter().find(|(_, children)| children.contains(&entity))?;
 			let image = image_for_pitch(parent_pitch.kind?);
-			commands.entity(entity).insert(SpriteBundle {
-				sprite: Sprite { anchor: anchor_for_image(image), ..Default::default() },
-				texture: asset_server.load(image),
+			commands.entity(entity).insert(Sprite {
+				anchor: anchor_for_image(image),
+				image: asset_server.load(image),
 				..Default::default()
 			});
 		};

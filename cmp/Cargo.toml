@@ -21,8 +21,8 @@ too_many_arguments = "allow"
 
 [dependencies]
 # The Bevy game engine.
-bevy = { version = "0.14", features = ["dynamic_linking"] }
-moonshine-save = "0.3.9"
+bevy = { version = "0.15", features = ["dynamic_linking"] }
+moonshine-save = "0.3.10"
 # Direct access to Bevy's windowing library winit for some functionality such as setting a window logo.
 winit = "0.30"
 # Simple loading and saving of game settings in a cross-platform way.

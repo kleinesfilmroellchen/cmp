@@ -109,7 +109,8 @@ impl Plugin for CmpPlugin {
 		.add_systems(Startup, (debug::create_stats, setup_window))
 		.add_systems(PostStartup, print_program_info)
 		.add_systems(Update, (set_window_icon, debug::print_stats, apply_window_settings))
-		.add_systems(Update, pause_fixed_timer.run_if(state_changed::<GameState>));
+		.add_systems(Update, pause_fixed_timer.run_if(state_changed::<GameState>))
+		.add_systems(PreStartup, go_to_game);
 
 		configure_set(app, PreUpdate);
 		configure_set(app, Update);
@@ -168,8 +169,8 @@ fn apply_window_settings(
 	mut windows: Query<&mut bevy::prelude::Window, With<PrimaryWindow>>,
 	settings: Res<GameSettings>,
 ) {
-	let mut window = windows.single_mut();
 	if settings.is_changed() {
+		let mut window = windows.single_mut();
 		window.present_mode = if settings.use_vsync { PresentMode::AutoVsync } else { PresentMode::AutoNoVsync };
 	}
 }
@@ -207,4 +208,8 @@ fn set_window_icon(
 			}
 		}
 	}
+}
+
+fn go_to_game(mut next: ResMut<NextState<GameState>>) {
+	next.set(GameState::InGame);
 }

@@ -270,19 +270,18 @@ fn update_areas<T: AreaMarker + Default>(
 			for tile in area.tiles.keys() {
 				commands.spawn((
 					*tile + IVec3::new(0, 0, 3),
-					Text2dBundle {
-						text: Text::from_section(format!("{}", i), TextStyle {
-							font:      asset_server.load(crate::graphics::library::font_for(
-								crate::graphics::library::FontWeight::Regular,
-								crate::graphics::library::FontStyle::Regular,
-							)),
-							font_size: 16.,
-							color:     RED.into(),
-						}),
-						text_anchor: bevy::sprite::Anchor::BottomCenter,
-						visibility: Visibility::Visible,
+					Text2d(format!("{}", i)),
+					TextFont {
+						font:      asset_server.load(crate::graphics::library::font_for(
+							crate::graphics::library::FontWeight::Regular,
+							crate::graphics::library::FontStyle::Regular,
+						)),
+						font_size: 16.,
 						..default()
 					},
+					TextColor(RED.into()),
+					bevy::sprite::Anchor::BottomCenter,
+					Visibility::Visible,
 					DebugAreaText,
 					ObjectPriority::Overlay,
 				));
@@ -325,7 +324,7 @@ fn add_area_transforms(
 	mut commands: Commands,
 ) {
 	for entity in &area {
-		commands.entity(entity).insert((GlobalTransform::default(), Transform::default(), VisibilityBundle::default()));
+		commands.entity(entity).insert((GlobalTransform::default(), Transform::default(), Visibility::default()));
 	}
 }
 

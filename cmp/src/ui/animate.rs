@@ -26,8 +26,8 @@ impl<C: Lerpable + Component + Clone> AnimatedProperty<C, C> for C {
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct StyleHeight;
-impl AnimatedProperty<Style, Val> for StyleHeight {
-	fn set_data(component: &mut Style, data: Val) {
+impl AnimatedProperty<Node, Val> for StyleHeight {
+	fn set_data(component: &mut Node, data: Val) {
 		component.height = data;
 	}
 }
@@ -167,7 +167,7 @@ impl<D: Lerpable + Sync + Send + 'static, C: Component, P: AnimatedProperty<C, D
 		P::set_data(component, current_value);
 	}
 
-	// pub fn update(&mut self, time: &Time, color: &mut BackgroundColor, style: &mut Style) {
+	// pub fn update(&mut self, time: &Time, color: &mut BackgroundColor, style: &mut Node) {
 	// 	let normalized_delta = time.delta().as_secs_f32() / Self::transition_time_to(self.target).as_secs_f32();
 	// 	self.height_system.simulate(normalized_delta);
 	// 	self.color_system.simulate(normalized_delta);
@@ -218,14 +218,14 @@ impl Plugin for AnimationPlugin {
 		app.add_systems(
 			Update,
 			(
-				transition_animation::<Val, Style, StyleHeight>,
+				transition_animation::<Val, Node, StyleHeight>,
 				transition_animation::<BackgroundColor, BackgroundColor, BackgroundColor>,
 			),
 		)
 		.add_systems(
 			Update,
 			(
-				update_animation::<Val, Style, StyleHeight>,
+				update_animation::<Val, Node, StyleHeight>,
 				update_animation::<BackgroundColor, BackgroundColor, BackgroundColor>,
 			),
 		);

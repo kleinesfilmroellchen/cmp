@@ -4,7 +4,7 @@ use std::error::Error;
 
 use anyhow::anyhow;
 use bevy::asset::io::Reader;
-use bevy::asset::{AssetLoader, AsyncReadExt, LoadContext};
+use bevy::asset::{AssetLoader, LoadContext};
 use bevy::prelude::*;
 use bevy::render::render_asset::RenderAssetUsages;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
@@ -33,11 +33,11 @@ impl AssetLoader for QOIAssetLoader {
 	type Error = Box<dyn Error + Send + Sync + 'static>;
 	type Settings = ();
 
-	async fn load<'a>(
-		&'a self,
-		reader: &'a mut Reader<'_>,
-		_: &'a Self::Settings,
-		_: &'a mut LoadContext<'_>,
+	async fn load(
+		&self,
+		reader: &mut dyn Reader,
+		_: &Self::Settings,
+		_: &mut LoadContext<'_>,
 	) -> Result<Self::Asset, Self::Error> {
 		let mut bytes = Vec::new();
 		reader.read_to_end(&mut bytes).await?;

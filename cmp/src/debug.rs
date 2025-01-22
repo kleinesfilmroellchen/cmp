@@ -62,10 +62,10 @@ impl StatUI {
 	}
 }
 
-pub fn create_stats(mut commands: Commands) {
+pub fn create_stats(mut commands: Commands, asset_server: Res<AssetServer>) {
 	commands
-		.spawn(NodeBundle {
-			style: Style {
+		.spawn((
+			Node {
 				width: Val::Percent(100.),
 				height: Val::Percent(100.),
 				display: Display::Flex,
@@ -73,14 +73,19 @@ pub fn create_stats(mut commands: Commands) {
 				..default()
 			},
 			// Debug stats should always appear on top.
-			z_index: ZIndex::Global(1000),
-			..default()
-		})
+			GlobalZIndex(1000),
+		))
 		.with_children(|parent| {
 			parent.spawn((
-				TextBundle::from_section("FPS Data", TextStyle::default())
-					.with_style(Style { margin: UiRect::all(Val::Px(5.0)), ..default() })
-					.with_text_justify(JustifyText::Left),
+				Text("FPS Data".into()),
+				Node { margin: UiRect::all(Val::Px(5.0)), ..default() },
+				TextLayout { justify: JustifyText::Left, ..default() },
+				TextFont {
+					font: asset_server.load(font_for(FontWeight::Regular, FontStyle::Regular)),
+					font_size: 15.0,
+					..default()
+				},
+				TextColor(Color::WHITE),
 				StatUI::default(),
 			));
 		});
@@ -90,7 +95,6 @@ pub fn print_stats(
 	time: Res<Time<Real>>,
 	settings: Res<GameSettings>,
 	mut stat_ui: Query<(&mut Text, &mut StatUI)>,
-	asset_server: Res<AssetServer>,
 ) {
 	let (mut ui, mut stats) = stat_ui.single_mut();
 
@@ -106,31 +110,23 @@ pub fn print_stats(
 		let last_10s_95p = stats.percentile(Duration::SECOND * 10, 0.95);
 		let worst = stats.worst();
 
-		*ui = Text::from_section(
-			format!(
-				"Current: {:4.1} fps, {:6.2}ms\nLast second: {:4.1} fps, {:6.2}ms\nLast second (95%): {:4.1} fps, \
-				 {:6.2}ms\n10s: {:4.1} fps, {:6.2}ms\n10s (95%): {:4.1} fps, {:6.2}ms\nWorst frame: {:4.1} fps, \
-				 {:6.2}ms",
-				1. / time.delta_seconds_f64(),
-				time.delta_seconds_f64() * 1000.,
-				1. / last_second_avg.as_secs_f64(),
-				last_second_avg.as_secs_f64() * 1000.,
-				1. / last_second_95p.as_secs_f64(),
-				last_second_95p.as_secs_f64() * 1000.,
-				1. / last_10s_avg.as_secs_f64(),
-				last_10s_avg.as_secs_f64() * 1000.,
-				1. / last_10s_95p.as_secs_f64(),
-				last_10s_95p.as_secs_f64() * 1000.,
-				1. / worst.as_secs_f64(),
-				worst.as_secs_f64() * 1000.,
-			),
-			TextStyle {
-				font:      asset_server.load(font_for(FontWeight::Regular, FontStyle::Regular)),
-				font_size: 15.0,
-				color:     Color::WHITE,
-			},
-		);
+		*ui = Text(format!(
+			"Current: {:4.1} fps, {:6.2}ms\nLast second: {:4.1} fps, {:6.2}ms\nLast second (95%): {:4.1} fps, \
+			 {:6.2}ms\n10s: {:4.1} fps, {:6.2}ms\n10s (95%): {:4.1} fps, {:6.2}ms\nWorst frame: {:4.1} fps, {:6.2}ms",
+			1. / time.delta_secs_f64(),
+			time.delta_secs_f64() * 1000.,
+			1. / last_second_avg.as_secs_f64(),
+			last_second_avg.as_secs_f64() * 1000.,
+			1. / last_second_95p.as_secs_f64(),
+			last_second_95p.as_secs_f64() * 1000.,
+			1. / last_10s_avg.as_secs_f64(),
+			last_10s_avg.as_secs_f64() * 1000.,
+			1. / last_10s_95p.as_secs_f64(),
+			last_10s_95p.as_secs_f64() * 1000.,
+			1. / worst.as_secs_f64(),
+			worst.as_secs_f64() * 1000.,
+		));
 	} else {
-		ui.sections.clear();
+		*ui = Text::default();
 	}
 }

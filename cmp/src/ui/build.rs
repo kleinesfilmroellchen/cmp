@@ -145,13 +145,10 @@ impl BuildMode {
 				} else {
 					let image = preview_image_for_buildable(previewed);
 					commands.entity(parent_entity).with_children(|parent| {
-						parent.spawn((PreviewChild, preview_position, ObjectPriority::Overlay, SpriteBundle {
-							sprite: Sprite {
-								color: PREVIEW_TINT,
-								anchor: anchor_for_image(image),
-								..Default::default()
-							},
-							texture: asset_server.load(image),
+						parent.spawn((PreviewChild, preview_position, ObjectPriority::Overlay, Sprite {
+							color: PREVIEW_TINT,
+							anchor: anchor_for_image(image),
+							image: asset_server.load(image),
 							..Default::default()
 						}));
 					});
@@ -166,13 +163,10 @@ impl BuildMode {
 						EitherOrBoth::Left(position) => {
 							let image = preview_image_for_buildable(previewed);
 							commands.entity(parent_entity).with_children(|parent| {
-								parent.spawn((PreviewChild, ObjectPriority::Overlay, position, SpriteBundle {
-									sprite: Sprite {
-										color: PREVIEW_TINT,
-										anchor: anchor_for_image(image),
-										..Default::default()
-									},
-									texture: asset_server.load(image),
+								parent.spawn((PreviewChild, ObjectPriority::Overlay, position, Sprite {
+									color: PREVIEW_TINT,
+									anchor: anchor_for_image(image),
+									image: asset_server.load(image),
 									..Default::default()
 								}));
 							});
@@ -202,13 +196,10 @@ impl BuildMode {
 									PreviewChild,
 									ObjectPriority::Overlay,
 									GridPosition::from((x, y, start_position.z)),
-									SpriteBundle {
-										sprite: Sprite {
-											color: PREVIEW_TINT,
-											anchor: anchor_for_image(image),
-											..Default::default()
-										},
-										texture: asset_server.load(image),
+									Sprite {
+										color: PREVIEW_TINT,
+										anchor: anchor_for_image(image),
+										image: asset_server.load(image),
 										..Default::default()
 									},
 								));
@@ -237,7 +228,7 @@ fn set_building_preview_start(
 	let window = windows.single();
 
 	let cursor_position =
-		window.cursor_position().and_then(|cursor| camera.viewport_to_world_2d(camera_transform, cursor));
+		window.cursor_position().and_then(|cursor| camera.viewport_to_world_2d(camera_transform, cursor).ok());
 	if cursor_position.is_none() {
 		return;
 	}

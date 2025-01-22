@@ -8,6 +8,7 @@ use bevy::render::primitives::Aabb;
 use brotli::enc::BrotliEncoderParams;
 use brotli::{BrotliCompress, BrotliDecompress};
 use directories::ProjectDirs;
+use moonshine_save::load::{load_from_file_on_event, load_from_file_on_request};
 use moonshine_save::prelude::*;
 use tempfile::NamedTempFile;
 
@@ -73,13 +74,13 @@ impl LoadSave {
 	}
 }
 
-impl FilePath for LoadSave {
+impl GetFilePath for LoadSave {
 	fn path(&self) -> &Path {
 		self.temp_file.get().unwrap().path()
 	}
 }
 
-impl FilePath for StoreSave {
+impl GetFilePath for StoreSave {
 	fn path(&self) -> &Path {
 		self.temp_file.get_or_init(|| NamedTempFile::new().unwrap()).path()
 	}
@@ -100,14 +101,13 @@ impl Plugin for Saving {
 		app.add_plugins((SavePlugin, LoadPlugin)).add_event::<StoreSave>().add_event::<LoadSave>();
 
 		// TODO: Disable this line when debugging loading.
-		// app.add_systems(Startup, crate::model::spawn_test_tiles);
+		app.add_systems(Startup, crate::model::spawn_test_tiles);
 		// TODO: Enable this line when debugging loading.
 
 		app.add_systems(
 			First,
 			(
 				save_default()
-					.exclude_component::<Handle<Image>>()
 					.exclude_component::<Sprite>()
 					.exclude_component::<Transform>()
 					.exclude_component::<GlobalTransform>()

@@ -32,7 +32,7 @@ pub(super) fn show_errors(
 	mut errors: EventReader<ErrorBox>,
 	mut dialog_container: Query<&mut Visibility, With<DialogContainer>>,
 	dialog_box: Query<Entity, With<DialogBox>>,
-	mut dialog_title: Query<&mut Text, With<DialogTitle>>,
+	mut dialog_title: Query<(&mut Text, &mut TextColor), With<DialogTitle>>,
 	mut dialog_contents: Query<Entity, With<DialogContents>>,
 	asset_server: Res<AssetServer>,
 	mut commands: Commands,
@@ -47,22 +47,23 @@ pub(super) fn show_errors(
 		let title = error.name();
 		let text = error.to_string();
 
-		let mut dialog_title = dialog_title.single_mut();
+		let (mut dialog_title, mut dialog_title_color) = dialog_title.single_mut();
 		let dialog_box = dialog_box.single();
 
 		dialog_contents.iter_mut().for_each(|entity| commands.entity(entity).despawn_recursive());
 
-		let dialog_title_text = dialog_title.sections.first_mut().unwrap();
-		dialog_title_text.value = title.into();
-		dialog_title_text.style.color = ORANGE.into();
+		*dialog_title = Text(title.into());
+		*dialog_title_color = TextColor(ORANGE.into());
 
 		commands.entity(dialog_box).with_children(|dialog_content_commands| {
 			dialog_content_commands.spawn((
-				TextBundle::from_section(text, TextStyle {
-					font:      asset_server.load(font_for(FontWeight::Regular, FontStyle::Regular)),
+				Text(text),
+				TextFont {
+					font: asset_server.load(font_for(FontWeight::Regular, FontStyle::Regular)),
 					font_size: 24.,
-					color:     WHITE.into(),
-				}),
+					..Default::default()
+				},
+				TextColor(WHITE.into()),
 				DialogContents,
 			));
 		});

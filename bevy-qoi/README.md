@@ -5,7 +5,7 @@ Provides support for the [QOI image format](https://qoiformat.org) in Bevy apps.
 - lossless and not much larger than PNG (usually 20% larger)
 - bare-bones, but feature-complete format (supports 8-bit RGB or RGBA, both sRGB and linear color spaces, no metadata)
 
-This asset loader is heavily based on <https://github.com/digitaljokerman/bevy_qoi>, licensed under MIT, and utilizes the best-in-class [`qoi`](https://crates.io/crates/qoi) decoding backend. Supports Bevy 0.14 and requires the latest nightly compiler.
+This asset loader is heavily based on <https://github.com/digitaljokerman/bevy_qoi>, licensed under MIT, and utilizes the best-in-class [`qoi`](https://crates.io/crates/qoi) decoding backend. Supports Bevy 0.15 and requires the latest nightly compiler.
 
 ## Usage
 
