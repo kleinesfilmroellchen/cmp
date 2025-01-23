@@ -23,6 +23,7 @@ impl Plugin for TileManagement {
 				PostUpdate,
 				(update_ground_textures, add_ground_textures, add_world_info).run_if(in_state(GameState::InGame)),
 			)
+			// .add_systems(Update, resize_tiles)
 			.add_systems(
 				FixedUpdate,
 				(add_navigability.after(update_navigability_properties), update_navigability_properties)
@@ -119,6 +120,15 @@ fn sprite_object_for_image(image: &str, asset_server: &AssetServer) -> Sprite {
 		..Default::default()
 	}
 }
+
+// pub const VERTICAL_FIX_EPSILON: f32 = 0.04;
+
+// fn resize_tiles(images: Res<Assets<Image>>, mut tiles: Query<&mut Sprite, With<GroundKind>>) {
+// 	for mut relevant_tile in tiles.iter_mut().filter(|t| t.custom_size.is_none()) {
+// 		relevant_tile.custom_size =
+// 			images.get(&relevant_tile.image).map(|img| img.size_f32() * Vec2::new(1.0, 1.0 + VERTICAL_FIX_EPSILON));
+// 	}
+// }
 
 impl GroundTile {
 	pub fn new(kind: GroundKind, position: GridPosition, asset_server: &AssetServer) -> Self {

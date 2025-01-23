@@ -25,6 +25,8 @@ use bevy::asset::AssetMetaCheck;
 use bevy::ecs::schedule::ScheduleLabel;
 use bevy::log::{Level, LogPlugin};
 use bevy::prelude::*;
+use bevy::render::settings::{Backends, RenderCreation, WgpuSettings};
+use bevy::render::RenderPlugin;
 use bevy::window::{PresentMode, PrimaryWindow};
 use bevy::winit::WinitWindows;
 use config::{CommandLineArguments, ConfigPlugin, GameSettings};
@@ -70,6 +72,12 @@ impl Plugin for CmpPlugin {
 			std::process::exit(0);
 		}
 
+		println!("environment variables:");
+		for (key, value) in std::env::vars() {
+			println!("{key}: {value}");
+		}
+		println!("directory: {:?}", std::env::current_dir());
+
 		let settings = Arc::new(GameSettings::from_arg_path(&args));
 		let log_level = if settings.show_debug { Level::TRACE } else { Level::INFO };
 
@@ -77,7 +85,7 @@ impl Plugin for CmpPlugin {
 			DefaultPlugins
 				.build()
 				.set(AssetPlugin {
-					file_path:       "../assets".into(),
+					file_path:       "assets".into(),
 					processed_file_path: "../processed-assets".into(),
 					#[cfg(debug_assertions)]
         			watch_for_changes_override: Some(true),
@@ -91,6 +99,12 @@ impl Plugin for CmpPlugin {
 					level: log_level,
 					filter: "info,cmp=trace,wgpu=error,bevy=warn".into(),
 					..Default::default()
+				// }).set(RenderPlugin {
+				// 	render_creation: RenderCreation::Automatic(WgpuSettings {
+				// 		// backends: Some(Backends::VULKAN),
+				// 		..default()
+				// 	}),
+				// 	..default()
 				}),
 		)
 		.register_type::<HashSet<GridPosition>>()

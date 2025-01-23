@@ -2,7 +2,7 @@
 
 use bevy::core_pipeline::contrast_adaptive_sharpening::ContrastAdaptiveSharpening;
 use bevy::core_pipeline::tonemapping::DebandDither;
-use bevy::image::ImageSampler;
+use bevy::image::{ImageFilterMode, ImageSampler, ImageSamplerDescriptor};
 use bevy::prelude::*;
 use bevy::render::camera::RenderTarget;
 use bevy::render::render_resource::*;
@@ -45,7 +45,7 @@ pub fn initialize_rendering(
 	// this Image serves as a canvas representing the low-resolution game screen
 	let mut canvas = Image {
 		texture_descriptor: TextureDescriptor {
-			label:           None,
+			label:           Some("Pixel-perfect camera target texture".into()),
 			size:            canvas_size,
 			dimension:       TextureDimension::D2,
 			format:          TextureFormat::Bgra8UnormSrgb,
