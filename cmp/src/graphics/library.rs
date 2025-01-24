@@ -63,7 +63,7 @@ pub fn image_for_border_kind(kind: BorderKind) -> &'static str {
 pub fn anchor_for_image(image: &str) -> Anchor {
 	match image {
 		"grass.qoi" | "gravel.qoi" | "pool.qoi" | "pitch-tile.qoi" => Anchor::Custom((0., -(6. / 7.) / 2.).into()),
-		"cottage.qoi" => Anchor::Custom(((24. - 20.) / 40., -0.5).into()),
+		"cottage.qoi" => Anchor::Custom(((25. - 20.) / 40., -0.5).into()),
 		_ => Anchor::BottomCenter,
 	}
 }
