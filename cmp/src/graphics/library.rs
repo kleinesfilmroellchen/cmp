@@ -62,8 +62,8 @@ pub fn image_for_border_kind(kind: BorderKind) -> &'static str {
 /// order. This needs to be updated to keep in sync with graphics.
 pub fn anchor_for_image(image: &str) -> Anchor {
 	match image {
-		"grass.qoi" | "gravel.qoi" | "pool.qoi" => Anchor::BottomCenter,
-		"cottage.qoi" => Anchor::Custom(((23. - 20.) / 40., -0.5).into()),
+		"grass.qoi" | "gravel.qoi" | "pool.qoi" | "pitch-tile.qoi" => Anchor::Custom((0., -(6. / 7.) / 2.).into()),
+		"cottage.qoi" => Anchor::Custom(((24. - 20.) / 40., -0.5).into()),
 		_ => Anchor::BottomCenter,
 	}
 }

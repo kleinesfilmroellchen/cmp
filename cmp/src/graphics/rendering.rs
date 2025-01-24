@@ -22,6 +22,9 @@ const PIXEL_PERFECT_LAYERS: RenderLayers = RenderLayers::layer(0);
 /// Render layers for high-resolution rendering.
 pub const HIGH_RES_LAYERS: RenderLayers = RenderLayers::layer(1);
 
+/// Extremely large near plane to render overlay sprites correctly.
+pub const NEAR_PLANE: f32 = -10000.;
+
 /// Low-resolution texture that contains the pixel-perfect world.
 /// Canvas itself is rendered to the high-resolution world.
 #[derive(Component)]
@@ -75,6 +78,7 @@ pub fn initialize_rendering(
 			target: RenderTarget::Image(image_handle.clone().into()),
 			..default()
 		},
+		OrthographicProjection { near: NEAR_PLANE, ..OrthographicProjection::default_2d() },
 		DebandDither::Enabled,
 		ContrastAdaptiveSharpening { enabled: false, sharpening_strength: 0.3, denoise: false },
 		Msaa::Off,
@@ -87,7 +91,8 @@ pub fn initialize_rendering(
 
 	// the "outer" camera renders whatever is on `HIGH_RES_LAYERS` to the screen.
 	// here, the canvas and one of the sample sprites will be rendered by this camera
-	let projection = OrthographicProjection { scale: 1. / 4., near: -100000., ..OrthographicProjection::default_2d() };
+	let projection =
+		OrthographicProjection { scale: 1. / 4., near: NEAR_PLANE, ..OrthographicProjection::default_2d() };
 	commands.spawn((
 		projection,
 		Camera2d,
@@ -109,6 +114,6 @@ pub fn fit_canvas(
 	for event in resize_events.read() {
 		let h_scale = event.width / RES_WIDTH as f32;
 		let v_scale = event.height / RES_HEIGHT as f32;
-		projection.scale = 1. / h_scale.max(v_scale).ceil();
+		projection.scale = 1. / h_scale.min(v_scale).ceil();
 	}
 }

@@ -259,7 +259,7 @@ impl ObjectPriority {
 pub static TRANSFORMATION_MATRIX: OnceLock<Mat3> = OnceLock::new();
 
 /// BUG: This should be 12 but that commonly leads to off-by-one seams.
-pub const TILE_HEIGHT: f32 = 11.999;
+pub const TILE_HEIGHT: f32 = 12.;
 pub const TILE_WIDTH: f32 = 16.;
 
 fn position_objects<PositionType: WorldPosition>(

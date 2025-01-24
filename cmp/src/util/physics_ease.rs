@@ -76,7 +76,8 @@ impl MassDamperSystem {
 		// Maximum dt to use
 		let used_dt = Self::MAX_DT.min(dt);
 		let mut simulated_time = 0.;
-		while simulated_time < dt {
+		// make sure to not run into float imprecision infinite loops
+		while (simulated_time - dt).abs() > 0.0001 {
 			// Either run a step with used_dt, or until the end of dt.
 			let step_dt = used_dt.min(dt - simulated_time);
 			self.simulate_single_step(step_dt);
