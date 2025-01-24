@@ -7,8 +7,8 @@ use bevy::sprite::Anchor;
 use bevy::utils::HashMap;
 use moonshine_save::save::Save;
 
-pub use self::rendering::{InGameCamera, RES_HEIGHT, RES_WIDTH, HIGH_RES_LAYERS};
 use self::rendering::*;
+pub use self::rendering::{InGameCamera, HIGH_RES_LAYERS, RES_HEIGHT, RES_WIDTH};
 use crate::model::area::{Area, ImmutableArea};
 use crate::model::{ActorPosition, GridBox, GridPosition, GroundMap, WorldPosition};
 
@@ -35,7 +35,7 @@ impl Plugin for GraphicsPlugin {
 					.before(move_edge_objects_in_front_of_boxes),
 			)
 			.add_systems(PostUpdate, move_edge_objects_in_front_of_boxes)
-			.add_systems(Update, (fit_canvas, update_area_borders, update_immutable_area_borders));
+			.add_systems(Update, (fit_canvas, update_area_borders, update_immutable_area_borders, fix_window_aspect));
 	}
 }
 

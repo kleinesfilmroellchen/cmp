@@ -2,12 +2,12 @@
 
 use bevy::core_pipeline::contrast_adaptive_sharpening::ContrastAdaptiveSharpening;
 use bevy::core_pipeline::tonemapping::DebandDither;
-use bevy::image::{ImageFilterMode, ImageSampler, ImageSamplerDescriptor};
+use bevy::image::ImageSampler;
 use bevy::prelude::*;
 use bevy::render::camera::RenderTarget;
 use bevy::render::render_resource::*;
 use bevy::render::view::RenderLayers;
-use bevy::window::WindowResized;
+use bevy::window::{PrimaryWindow, WindowResized};
 
 /// In-game resolution width.
 pub const RES_WIDTH: u32 = 160 * 2;
@@ -114,6 +114,30 @@ pub fn fit_canvas(
 	for event in resize_events.read() {
 		let h_scale = event.width / RES_WIDTH as f32;
 		let v_scale = event.height / RES_HEIGHT as f32;
-		projection.scale = 1. / h_scale.min(v_scale).ceil();
+		projection.scale = 1. / h_scale.min(v_scale);
+	}
+}
+
+/// Desired window aspect ratio
+pub const DESIRED_RATIO: f32 = RES_WIDTH as f32 / RES_HEIGHT as f32;
+
+/// Mouse positions cannot be properly translated if the window is not 16:9.
+/// “Solve” this by fixing the window to a 16:9 ratio.
+pub fn fix_window_aspect(
+	mut resize_events: EventReader<WindowResized>,
+	mut windows: Query<&mut bevy::prelude::Window, With<PrimaryWindow>>,
+) {
+	let Ok(mut window) = windows.get_single_mut() else {
+		return;
+	};
+
+	for _event in resize_events.read() {
+		let (width, height) = (window.resolution.width(), window.resolution.height());
+		let current_ratio = width / height;
+		if current_ratio != DESIRED_RATIO {
+			// width / (width / height) = height
+			let ideal_height = width / DESIRED_RATIO;
+			window.resolution.set(width, ideal_height);
+		}
 	}
 }

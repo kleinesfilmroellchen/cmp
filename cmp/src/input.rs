@@ -1,6 +1,6 @@
 use bevy::input::mouse::MouseWheel;
 use bevy::prelude::*;
-use bevy::window::PrimaryWindow;
+use bevy::window::{PrimaryWindow, WindowMode};
 
 use crate::gamemode::GameState;
 use crate::graphics::{InGameCamera, RES_HEIGHT, RES_WIDTH};
@@ -26,27 +26,27 @@ pub struct GUIInputPlugin;
 
 impl Plugin for GUIInputPlugin {
 	fn build(&self, app: &mut App) {
-		app.init_state::<InputState>()
-			.init_resource::<DragStartScreenPosition>()
-			.init_resource::<LastScreenPosition>()
-			.add_event::<MouseClick>()
-			.add_systems(
-				Update,
-				(
-					move_camera.run_if(in_state(InputState::Idle)),
-					fix_camera.run_if(not(in_state(InputState::Idle))),
-					zoom_camera,
-				)
-					.in_set(GameState::InGame),
-			);
+		app.init_state::<InputState>().init_resource::<DragStartPosition>().add_event::<MouseClick>().add_systems(
+			Update,
+			(
+				move_camera.run_if(in_state(InputState::Idle)),
+				fix_camera.run_if(not(in_state(InputState::Idle))),
+				zoom_camera,
+				fullscreen,
+			)
+				.in_set(GameState::InGame),
+		);
 	}
 }
 
-/// The last position on the screen where the user held the primary mouse button; used mainly for panning functionality.
-#[derive(Resource, Default)]
-struct LastScreenPosition(Option<Vec2>);
-#[derive(Resource, Default)]
-struct DragStartScreenPosition(Option<Vec2>);
+/// Both a world-space and camera-space position.
+#[derive(Default, Copy, Clone)]
+struct MatchedPosition {
+	screen_pos: Vec2,
+	camera_pos: Vec3,
+}
+#[derive(Resource, Default, Copy, Clone)]
+struct DragStartPosition(Option<MatchedPosition>);
 
 const DRAG_THRESHOLD: f32 = 0.2;
 
@@ -88,8 +88,7 @@ fn move_camera(
 	mouse: Res<ButtonInput<MouseButton>>,
 	window: Query<&Window, With<PrimaryWindow>>,
 	mut camera_q: Query<(&Camera, &mut Transform, &GlobalTransform), With<InGameCamera>>,
-	mut last_screen_position: ResMut<LastScreenPosition>,
-	mut drag_start_screen_position: ResMut<DragStartScreenPosition>,
+	mut drag_start_position: ResMut<DragStartPosition>,
 	mut click_event: EventWriter<MouseClick>,
 ) {
 	let window = window.single();
@@ -103,29 +102,34 @@ fn move_camera(
 		};
 
 		'pos: {
-			if let Some(last_screen_position) = last_screen_position.0
+			if let Some(drag_start_screen_position) = drag_start_position.0
 				&& mouse.pressed(MouseButton::Left)
 			{
-				let Some(last_engine_position) =
-					camera_to_world(last_screen_position, window, camera, camera_global_transform)
+				let Some(drag_start_engine_position) =
+					camera_to_world(drag_start_screen_position.screen_pos, window, camera, camera_global_transform)
 				else {
 					break 'pos;
 				};
-				let delta = last_engine_position - current_engine_position;
-				camera_transform.translation += Vec3::from((delta, 0.));
+				// Snap camera to pixel grid. This masks all issues with slightly misaligned objects that wouldn’t move
+				// in sync when dragging the camera. The steppy movement is only really noticeable at large zoom
+				// levels, and not too jarring since it works correctly no matter the drag speed.
+				let delta = (drag_start_engine_position - current_engine_position).round();
+				camera_transform.translation =
+					(drag_start_screen_position.camera_pos + Vec3::from((delta, 0.))).round();
 			}
 		}
 
 		if mouse.just_pressed(MouseButton::Left) {
-			drag_start_screen_position.0 = Some(current_screen_position);
+			drag_start_position.0 =
+				Some(MatchedPosition { screen_pos: current_screen_position, camera_pos: camera_transform.translation });
 		}
 
 		'drag: {
-			if let Some(drag_start_screen_position) = drag_start_screen_position.0
+			if let Some(drag_start_screen_position) = drag_start_position.0
 				&& mouse.just_released(MouseButton::Left)
 			{
 				let Some(drag_start_world_position) =
-					camera_to_world(drag_start_screen_position, window, camera, camera_global_transform)
+					camera_to_world(drag_start_screen_position.screen_pos, window, camera, camera_global_transform)
 				else {
 					break 'drag;
 				};
@@ -141,16 +145,14 @@ fn move_camera(
 		}
 
 		if mouse.just_released(MouseButton::Left) {
-			drag_start_screen_position.0 = None;
+			drag_start_position.0 = None;
 		}
-
-		last_screen_position.0 = if mouse.pressed(MouseButton::Left) { Some(current_screen_position) } else { None };
 	}
 }
 
-fn fix_camera(mut last_screen_position: ResMut<LastScreenPosition>) {
+fn fix_camera(mut drag_start_position: ResMut<DragStartPosition>) {
 	// Prevents large screen jumps due to a press registering "across" the input mode change.
-	last_screen_position.0 = None;
+	drag_start_position.0 = None;
 }
 
 /// `accumulated_scroll` takes care of small-increment smooth scrolling devices like trackpads.
@@ -189,4 +191,16 @@ fn zoom_camera(
 
 	// Since we just scrolled, reset the accumulator.
 	*accumulated_scroll = 0.;
+}
+
+fn fullscreen(keys: Res<ButtonInput<KeyCode>>, mut windows: Query<&mut bevy::prelude::Window, With<PrimaryWindow>>) {
+	let Ok(mut window) = windows.get_single_mut() else { return };
+
+	if keys.just_pressed(KeyCode::F11) {
+		window.mode = match window.mode {
+			// FIXME: only use borderless fullscreen on Wayland?
+			WindowMode::Windowed => WindowMode::BorderlessFullscreen(MonitorSelection::Current),
+			_ => WindowMode::Windowed,
+		};
+	}
 }

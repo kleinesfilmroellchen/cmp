@@ -27,7 +27,7 @@ use bevy::log::{Level, LogPlugin};
 use bevy::prelude::*;
 use bevy::render::settings::{Backends, RenderCreation, WgpuSettings};
 use bevy::render::RenderPlugin;
-use bevy::window::{PresentMode, PrimaryWindow};
+use bevy::window::{EnabledButtons, PresentMode, PrimaryWindow, WindowResolution};
 use bevy::winit::WinitWindows;
 use config::{CommandLineArguments, ConfigPlugin, GameSettings};
 use gamemode::{pause_fixed_timer, GameState};
@@ -105,6 +105,16 @@ impl Plugin for CmpPlugin {
 				// 		..default()
 				// 	}),
 				// 	..default()
+				}).set(WindowPlugin {
+					primary_window: Some(Window {
+						resolution: WindowResolution::new(1920.0, 1080.0),
+						enabled_buttons: EnabledButtons {
+							maximize: false,
+							..Default::default()
+						},
+						..Default::default()
+					}),
+					..Default::default()
 				}),
 		)
 		.register_type::<HashSet<GridPosition>>()
