@@ -53,6 +53,8 @@ pub(crate) mod ui;
 pub mod util;
 
 pub use graphics::GraphicsPlugin;
+// re-export bevy symbols needed by the client and server, so that they don’t have to depend on bevy themselves
+pub use bevy::prelude::{App, PostStartup, info};
 
 /// Hash set wrapper, because bevy doesn't have a serialization implementation for HashSet.
 pub type HashSet<T> = bevy::utils::HashMap<T, ()>;

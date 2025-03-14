@@ -6,6 +6,9 @@ version.workspace = true
 rust-version.workspace = true
 repository.workspace = true
 
+[lib]
+crate-type = ["dylib"]
+
 [lints.rust]
 missing_docs = "deny"
 incomplete_features = "allow"
