@@ -2,14 +2,12 @@
 #![feature(
 	test,
 	duration_constants,
-	let_chains,
 	gen_blocks,
 	iter_from_coroutine,
 	coroutine_trait,
 	coroutines,
 	try_blocks,
 	iter_intersperse,
-	extract_if,
 	adt_const_params,
 	trivial_bounds,
 	trait_alias
@@ -25,12 +23,14 @@ use bevy::asset::AssetMetaCheck;
 use bevy::ecs::schedule::ScheduleLabel;
 use bevy::log::{Level, LogPlugin};
 use bevy::prelude::*;
-use bevy::render::settings::{Backends, RenderCreation, WgpuSettings};
+#[allow(unused)]
 use bevy::render::RenderPlugin;
+#[allow(unused)]
+use bevy::render::settings::{Backends, RenderCreation, WgpuSettings};
 use bevy::window::{EnabledButtons, PresentMode, PrimaryWindow, WindowResolution};
 use bevy::winit::WinitWindows;
 use config::{CommandLineArguments, ConfigPlugin, GameSettings};
-use gamemode::{pause_fixed_timer, GameState};
+use gamemode::{GameState, pause_fixed_timer};
 use input::GUIInputPlugin;
 use model::area::AreaManagement;
 use model::nav::NavManagement;
@@ -52,9 +52,9 @@ pub(crate) mod save;
 pub(crate) mod ui;
 pub mod util;
 
-pub use graphics::GraphicsPlugin;
 // re-export bevy symbols needed by the client and server, so that they don’t have to depend on bevy themselves
 pub use bevy::prelude::{App, PostStartup, info};
+pub use graphics::GraphicsPlugin;
 
 /// Hash set wrapper, because bevy doesn't have a serialization implementation for HashSet.
 pub type HashSet<T> = bevy::utils::HashMap<T, ()>;

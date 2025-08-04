@@ -4,7 +4,7 @@ use bevy::color::palettes::css::DARK_GRAY;
 use bevy::prelude::*;
 use bevy::text::LineBreak;
 
-use crate::graphics::library::{font_for, FontStyle, FontWeight};
+use crate::graphics::library::{FontStyle, FontWeight, font_for};
 
 pub mod physics_ease;
 

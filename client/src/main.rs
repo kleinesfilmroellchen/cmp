@@ -1,6 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use cmp::{CmpPlugin, GraphicsPlugin, PostStartup, App, info};
+use cmp::{App, CmpPlugin, GraphicsPlugin, PostStartup, info};
 
 fn main() {
 	App::new().add_plugins((CmpPlugin, GraphicsPlugin)).add_systems(PostStartup, print_program_info).run();

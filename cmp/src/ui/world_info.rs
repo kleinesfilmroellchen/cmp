@@ -9,9 +9,9 @@ use bevy::ui::FocusPolicy;
 use bevy::utils::Instant;
 use parking_lot::Mutex;
 
-use crate::graphics::library::{font_for, FontStyle, FontWeight};
+use crate::graphics::library::{FontStyle, FontWeight, font_for};
 use crate::graphics::{InGameCamera, TILE_HEIGHT, TILE_WIDTH};
-use crate::input::{world_to_camera, MouseClick};
+use crate::input::{MouseClick, world_to_camera};
 use crate::model::{Comfort, PitchType};
 
 #[derive(Component, Reflect, Default)]

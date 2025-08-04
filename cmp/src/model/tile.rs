@@ -4,8 +4,8 @@ use bevy::prelude::*;
 use bevy::utils::HashMap;
 use moonshine_save::save::Save;
 
-use super::nav::{NavCategory, NavComponent};
 use super::GridPosition;
+use super::nav::{NavCategory, NavComponent};
 use crate::gamemode::GameState;
 use crate::graphics::library::{anchor_for_image, image_for_ground};
 use crate::graphics::{BorderKind, ObjectPriority, Sides};

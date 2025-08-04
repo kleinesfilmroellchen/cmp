@@ -14,7 +14,7 @@ use petgraph::graphmap::DiGraphMap;
 use super::{GridPosition, WorldPosition};
 use crate::config::GameSettings;
 use crate::gamemode::GameState;
-use crate::graphics::{engine_to_world_space, Sides, TRANSFORMATION_MATRIX};
+use crate::graphics::{Sides, TRANSFORMATION_MATRIX, engine_to_world_space};
 use crate::input::MouseClick;
 
 /// The kinds of navigability, used by different groups of actors.

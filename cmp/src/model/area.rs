@@ -7,11 +7,11 @@ use itertools::Itertools;
 use moonshine_save::save::Save;
 
 use super::{BoundingBox, GridBox, GridPosition, GroundKind, GroundMap, Pitch};
+use crate::HashSet;
 use crate::config::GameSettings;
 use crate::gamemode::GameState;
 use crate::graphics::{BorderSprite, BorderTextures, ObjectPriority, Sides};
 use crate::ui::world_info::WorldInfoProperties;
-use crate::HashSet;
 
 /// A continuous area on the ground, containing various tiles (often of a homogenous type) and demarcating some
 /// important region. For example, pools and pitches are fundamentally areas.

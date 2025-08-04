@@ -1,18 +1,18 @@
 use std::marker::ConstParamTy;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use bevy::prelude::*;
 use moonshine_save::save::Save;
 
 use super::area::{Area, AreaMarker, ImmutableArea, UpdateAreas};
 use super::{BoundingBox, GridBox, GridPosition, GroundKind, GroundMap, Metric};
+use crate::HashSet;
 use crate::gamemode::GameState;
-use crate::graphics::library::{anchor_for_image, image_for_pitch};
 use crate::graphics::ObjectPriority;
+use crate::graphics::library::{anchor_for_image, image_for_pitch};
 use crate::ui::world_info::{WorldInfoProperties, WorldInfoProperty};
 use crate::util::Tooltipable;
-use crate::HashSet;
 
 /// The different available types of pitch.
 #[derive(Reflect, Clone, Copy, Debug, PartialEq, Eq, ConstParamTy)]

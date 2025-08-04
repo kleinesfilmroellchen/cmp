@@ -3,7 +3,7 @@ use bevy::color::palettes::css::{ORANGE, WHITE};
 use bevy::prelude::*;
 
 use super::controls::{DialogBox, DialogContainer, DialogContents, DialogTitle};
-use crate::graphics::library::{font_for, FontStyle, FontWeight};
+use crate::graphics::library::{FontStyle, FontWeight, font_for};
 
 /// A kind of error event that can be displayed in the UI.
 pub trait DisplayableError: std::error::Error {

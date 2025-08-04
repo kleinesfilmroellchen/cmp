@@ -8,7 +8,7 @@ use bevy::utils::HashMap;
 use moonshine_save::save::Save;
 
 use self::rendering::*;
-pub use self::rendering::{InGameCamera, HIGH_RES_LAYERS, RES_HEIGHT, RES_WIDTH};
+pub use self::rendering::{HIGH_RES_LAYERS, InGameCamera, RES_HEIGHT, RES_WIDTH};
 use crate::model::area::{Area, ImmutableArea};
 use crate::model::{ActorPosition, GridBox, GridPosition, GroundMap, WorldPosition};
 

@@ -4,7 +4,7 @@ use std::time::Duration;
 use bevy::prelude::*;
 
 use crate::config::GameSettings;
-use crate::graphics::library::{font_for, FontStyle, FontWeight};
+use crate::graphics::library::{FontStyle, FontWeight, font_for};
 
 // Account for up to 600fps and the 10 second metrics.
 const FRAME_TIMES_COUNT: usize = 600 * 11;
@@ -23,11 +23,7 @@ impl StatUI {
 			.scan((Duration::ZERO, 0), |(total, count), time| {
 				*total += *time;
 				*count += 1;
-				if *total > average_time {
-					None
-				} else {
-					Some((*total, *count))
-				}
+				if *total > average_time { None } else { Some((*total, *count)) }
 			})
 			.last()
 			.unwrap_or((Duration::ZERO, 0));
@@ -40,11 +36,7 @@ impl StatUI {
 			.iter()
 			.scan((Duration::ZERO, Duration::ZERO), |(total, _), new| {
 				*total += *new;
-				if *total > average_time {
-					None
-				} else {
-					Some((*total, *new))
-				}
+				if *total > average_time { None } else { Some((*total, *new)) }
 			})
 			.map(|(_, value)| value)
 			.collect::<Vec<_>>();
@@ -91,11 +83,7 @@ pub fn create_stats(mut commands: Commands, asset_server: Res<AssetServer>) {
 		});
 }
 
-pub fn print_stats(
-	time: Res<Time<Real>>,
-	settings: Res<GameSettings>,
-	mut stat_ui: Query<(&mut Text, &mut StatUI)>,
-) {
+pub fn print_stats(time: Res<Time<Real>>, settings: Res<GameSettings>, mut stat_ui: Query<(&mut Text, &mut StatUI)>) {
 	let (mut ui, mut stats) = stat_ui.single_mut();
 
 	stats.last_frame_times.push_front(time.delta());

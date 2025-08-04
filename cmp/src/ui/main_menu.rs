@@ -2,8 +2,8 @@ use bevy::color::palettes::css::WHITE;
 use bevy::prelude::*;
 
 use super::{BUTTON_SPACING, COLUMN_TEMPLATE};
-use crate::graphics::library::{font_for, FontStyle, FontWeight};
 use crate::graphics::HIGH_RES_LAYERS;
+use crate::graphics::library::{FontStyle, FontWeight, font_for};
 
 pub struct MainMenuPlugin;
 

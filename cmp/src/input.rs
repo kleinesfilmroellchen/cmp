@@ -46,7 +46,7 @@ struct MatchedPosition {
 	camera_pos: Vec3,
 }
 #[derive(Resource, Default, Copy, Clone)]
-struct DragStartPosition(Option<MatchedPosition>);
+pub(crate) struct DragStartPosition(Option<MatchedPosition>);
 
 const DRAG_THRESHOLD: f32 = 0.2;
 
@@ -84,7 +84,7 @@ pub fn world_to_camera(
 	Some(real_position)
 }
 
-fn move_camera(
+pub(crate) fn move_camera(
 	mouse: Res<ButtonInput<MouseButton>>,
 	window: Query<&Window, With<PrimaryWindow>>,
 	mut camera_q: Query<(&Camera, &mut Transform, &GlobalTransform), With<InGameCamera>>,

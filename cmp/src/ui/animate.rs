@@ -5,8 +5,8 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 
-use crate::util::physics_ease::MassDamperSystem;
 use crate::util::Lerpable;
+use crate::util::physics_ease::MassDamperSystem;
 
 /// Any property of a component that is animatable.
 /// Note that one component may have multiple animated properties.

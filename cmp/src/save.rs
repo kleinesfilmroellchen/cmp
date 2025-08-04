@@ -4,10 +4,11 @@ use std::path::PathBuf;
 
 use bevy::prelude::*;
 use bevy::render::primitives::Aabb;
+use bevy::render::sync_world::SyncToRenderWorld;
 use brotli::enc::BrotliEncoderParams;
 use directories::ProjectDirs;
 use moonshine_save::prelude::*;
-use moonshine_save::{stream_from_resource, GetStream};
+use moonshine_save::{GetStream, stream_from_resource};
 
 use crate::config::APP_NAME;
 use crate::gamemode::GameState;
@@ -106,6 +107,7 @@ impl Plugin for Saving {
 					.exclude_component::<Aabb>()
 					.exclude_component::<NavComponent>()
 					.exclude_component::<WorldInfoProperties>()
+					.exclude_component::<SyncToRenderWorld>()
 					.into(stream_from_resource::<StoreSave>()),
 				load(stream_from_resource::<LoadSave>()),
 			),

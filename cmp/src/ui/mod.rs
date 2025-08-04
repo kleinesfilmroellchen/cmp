@@ -9,11 +9,11 @@ use build::BuildPlugin;
 use main_menu::MainMenuPlugin;
 
 use self::animate::{AnimationPlugin, AnimationTargets, UIAnimation};
-use self::controls::{BuildMenuContainer, ALL_BUILD_MENUS};
+use self::controls::{ALL_BUILD_MENUS, BuildMenuContainer};
 use crate::gamemode::GameState;
-use crate::graphics::library::{font_for, logo_for_build_menu, logo_for_buildable, FontStyle, FontWeight};
 use crate::graphics::HIGH_RES_LAYERS;
-use crate::input::InputState;
+use crate::graphics::library::{FontStyle, FontWeight, font_for, logo_for_build_menu, logo_for_buildable};
+use crate::input::{InputState, move_camera};
 use crate::model::ALL_BUILDABLES;
 use crate::ui::animate::{StyleHeight, TransitionTimes};
 use crate::util::{Tooltip, TooltipPlugin};
@@ -46,6 +46,7 @@ impl Plugin for UIPlugin {
 				Update,
 				(world_info::move_world_info, world_info::hide_world_info)
 					.before(world_info::update_world_info)
+					.after(move_camera)
 					.run_if(in_state(GameState::InGame)),
 			)
 			.add_systems(

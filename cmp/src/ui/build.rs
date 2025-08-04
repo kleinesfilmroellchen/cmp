@@ -10,8 +10,8 @@ use super::on_start_build_preview;
 use super::world_info::WorldInfoProperties;
 use crate::gamemode::GameState;
 use crate::graphics::library::{anchor_for_image, preview_image_for_buildable};
-use crate::graphics::{engine_to_world_space, InGameCamera, ObjectPriority};
-use crate::input::{camera_to_world, InputState};
+use crate::graphics::{InGameCamera, ObjectPriority, engine_to_world_space};
+use crate::input::{InputState, camera_to_world};
 use crate::model::area::{Area, ImmutableArea, Pool, UpdateAreas};
 use crate::model::pitch::Pitch;
 use crate::model::{

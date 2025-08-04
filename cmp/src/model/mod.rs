@@ -122,11 +122,7 @@ impl<const MIN: u64, const MAX: u64> TryFrom<u64> for Metric<MIN, MAX> {
 	type Error = ();
 
 	fn try_from(value: u64) -> Result<Self, Self::Error> {
-		if value < MIN || value > MAX {
-			Err(())
-		} else {
-			Ok(Self(value))
-		}
+		if value < MIN || value > MAX { Err(()) } else { Ok(Self(value)) }
 	}
 }
 
