@@ -3,6 +3,7 @@
 use std::marker::PhantomData;
 use std::time::Duration;
 
+use bevy::ecs::component::Mutable;
 use bevy::prelude::*;
 
 use crate::util::Lerpable;
@@ -128,7 +129,12 @@ impl<D: Lerpable + Sync + Send + 'static + Clone, C: Component + Clone, P: Anima
 	}
 }
 
-impl<D: Lerpable + Sync + Send + 'static, C: Component, P: AnimatedProperty<C, D>> UIAnimation<D, C, P> {
+impl<D, C, P> UIAnimation<D, C, P>
+where
+	D: Lerpable + Sync + Send + 'static,
+	C: Component,
+	P: AnimatedProperty<C, D>,
+{
 	pub fn new(
 		start: D,
 		end: D,
@@ -186,26 +192,23 @@ impl<D: Lerpable + Sync + Send + 'static, C: Component, P: AnimatedProperty<C, D
 	// }
 }
 
-pub fn transition_animation<
+pub fn transition_animation<D, C, P>(mut button: Query<(&Interaction, &mut UIAnimation<D, C, P>), Changed<Interaction>>)
+where
 	D: Lerpable + Send + Sync + 'static,
 	C: Component,
 	P: AnimatedProperty<C, D> + Send + Sync + 'static,
->(
-	mut button: Query<(&Interaction, &mut UIAnimation<D, C, P>), Changed<Interaction>>,
-) {
+{
 	for (interaction, mut animations) in &mut button {
 		animations.start_transition_to(*interaction);
 	}
 }
 
-pub fn update_animation<
+pub fn update_animation<D, C, P>(time: Res<Time>, mut buttons: Query<(&mut UIAnimation<D, C, P>, &mut C)>)
+where
 	D: Lerpable + Send + Sync + 'static,
-	C: Component,
+	C: Component<Mutability = Mutable>,
 	P: AnimatedProperty<C, D> + Send + Sync + 'static,
->(
-	time: Res<Time>,
-	mut buttons: Query<(&mut UIAnimation<D, C, P>, &mut C)>,
-) {
+{
 	for (mut animations, mut component) in &mut buttons {
 		animations.update(&time, &mut component);
 	}

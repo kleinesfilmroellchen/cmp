@@ -173,7 +173,7 @@ impl BuildMode {
 						},
 						// Destroy not needed child.
 						EitherOrBoth::Right((child, _)) => {
-							commands.entity(child).despawn_recursive();
+							commands.entity(child).despawn();
 						},
 					}
 				}
@@ -210,7 +210,7 @@ impl BuildMode {
 
 				// Despawn all superfluous old children.
 				for (superfluous_child, _) in current_children {
-					commands.entity(superfluous_child).despawn_recursive();
+					commands.entity(superfluous_child).despawn();
 				}
 			},
 		}
@@ -223,17 +223,17 @@ fn set_building_preview_start(
 	windows: Query<&Window, With<PrimaryWindow>>,
 	camera_q: Query<(&Camera, &GlobalTransform), With<InGameCamera>>,
 	mut preview: Query<&mut PreviewParent>,
-) {
-	let (camera, camera_transform) = camera_q.single();
-	let window = windows.single();
+) -> Result {
+	let (camera, camera_transform) = camera_q.single()?;
+	let window = windows.single()?;
 
 	let cursor_position =
 		window.cursor_position().and_then(|cursor| camera_to_world(cursor, window, camera, camera_transform));
 	if cursor_position.is_none() {
-		return;
+		return Ok(());
 	}
 	// Since the anchors are on the lower left corner of the sprite, we need to offset the cursor half a tile.
-	let cursor_position = cursor_position.unwrap();
+	let cursor_position = cursor_position.ok_or(BevyError::from("no cursor position"))?;
 	// FIXME: Use ray casting + structure data to figure out the elevation under the cursor.
 	let fake_z = 0.;
 	// Since we measure positions from corners, offset the cursor half a tile so we move the preview around its center.
@@ -241,6 +241,7 @@ fn set_building_preview_start(
 	for mut preview_data in &mut preview {
 		preview_data.current_position = world_position;
 	}
+	Ok(())
 }
 
 fn update_building_preview(
@@ -282,7 +283,7 @@ fn create_building_preview(
 ) {
 	if !events.is_empty() {
 		for old_preview in &current_preview {
-			commands.entity(old_preview).despawn_recursive();
+			commands.entity(old_preview).despawn();
 		}
 	}
 	for event in events.read() {
@@ -316,7 +317,7 @@ fn perform_ground_build(
 			ground_map.set(line_element, kind, &mut tile_query, &mut commands, &asset_server);
 		}
 		// Either we or the tiles we overwrote might be part of areas.
-		area_update_event.send_default();
+		area_update_event.write_default();
 	}
 	event.clear();
 }
@@ -339,7 +340,7 @@ fn perform_pitch_build(
 			&asset_server,
 		);
 		commands.spawn(AccommodationBundle::new(event.start_position, event.end_position));
-		area_update_event.send_default();
+		area_update_event.write_default();
 	}
 	event.clear();
 }
@@ -362,7 +363,7 @@ fn perform_pool_area_build(
 			&asset_server,
 		);
 		commands.spawn((Area::from_rect(event.start_position, event.end_position), Pool));
-		area_update_event.send_default();
+		area_update_event.write_default();
 	}
 	event.clear();
 }
@@ -390,17 +391,17 @@ fn perform_pitch_type_build(
 		});
 
 		if pitch.get().is_none() {
-			build_error.send(BuildError::NoAccommodationHere.into());
+			build_error.write(BuildError::NoAccommodationHere.into());
 			return;
 		}
 		let (pitch_entity, area, pitch) = pitch.get_mut().unwrap();
 		let pitch_box = GridBox::around(start_position, kind.size().flat());
 		if !area.fits(&pitch_box) {
-			build_error.send(BuildError::NoSpace.into());
+			build_error.write(BuildError::NoSpace.into());
 			return;
 		}
 		if area.size() < kind.required_area() {
-			build_error.send(BuildError::PitchTooSmall { required: kind.required_area(), actual: area.size() }.into());
+			build_error.write(BuildError::PitchTooSmall { required: kind.required_area(), actual: area.size() }.into());
 			return;
 		}
 
@@ -412,7 +413,7 @@ fn perform_pitch_type_build(
 		}
 
 		commands.entity(*pitch_entity).remove::<Area>().insert(ImmutableArea((*area).clone()));
-		area_update_event.send_default();
+		area_update_event.write_default();
 	}
 	event.clear();
 }
@@ -441,28 +442,28 @@ fn handle_build_interactions(
 			// Transform a "dynamic" PerformBuild instantiation into a static one.
 			match BuildableType::from(preview_data.previewed) {
 				BuildableType::Ground => {
-					ground_build_event.send(PerformBuild {
+					ground_build_event.write(PerformBuild {
 						start_position: preview_data.start_position,
 						end_position:   preview_data.current_position,
 						buildable:      preview_data.previewed,
 					});
 				},
 				BuildableType::PoolArea => {
-					pool_build_event.send(PerformBuild {
+					pool_build_event.write(PerformBuild {
 						start_position: preview_data.start_position,
 						end_position:   preview_data.current_position,
 						buildable:      preview_data.previewed,
 					});
 				},
 				BuildableType::Pitch => {
-					pitch_build_event.send(PerformBuild {
+					pitch_build_event.write(PerformBuild {
 						start_position: preview_data.start_position,
 						end_position:   preview_data.current_position,
 						buildable:      preview_data.previewed,
 					});
 				},
 				BuildableType::PitchType => {
-					pitch_type_build_event.send(PerformBuild {
+					pitch_type_build_event.write(PerformBuild {
 						start_position: preview_data.start_position,
 						end_position:   preview_data.current_position,
 						buildable:      preview_data.previewed,
@@ -480,7 +481,7 @@ fn handle_build_interactions(
 
 fn destroy_building_preview(mut commands: Commands, preview: Query<Entity, With<PreviewParent>>) {
 	for entity in &preview {
-		commands.get_entity(entity).unwrap().despawn_recursive();
+		commands.get_entity(entity).unwrap().despawn();
 	}
 }
 

@@ -1,8 +1,8 @@
 use std::collections::VecDeque;
+use std::time::Instant;
 
 use bevy::color::palettes::css::RED;
 use bevy::prelude::*;
-use bevy::utils::Instant;
 use itertools::Itertools;
 use moonshine_save::save::Save;
 
@@ -129,7 +129,7 @@ impl Area {
 						};
 					}
 					let borders = BorderSprite::new(sides, border_kind, asset_server, texture_atlases, border_textures);
-					commands.entity(entity).despawn_descendants().with_children(|tile_parent| {
+					commands.entity(entity).despawn_related::<Children>().with_children(|tile_parent| {
 						for border in borders {
 							tile_parent.spawn(border);
 						}
@@ -294,13 +294,13 @@ fn update_areas<T: AreaMarker + Default>(
 		match result {
 			itertools::EitherOrBoth::Both(new, (old_entity, mut old_area, _)) => {
 				*old_area = new;
-				commands.entity(old_entity).despawn_descendants();
+				commands.entity(old_entity).despawn_related::<Children>();
 			},
 			itertools::EitherOrBoth::Left(new) => {
 				T::init_new(new, &mut commands);
 			},
 			itertools::EitherOrBoth::Right((old_entity, ..)) => {
-				commands.entity(old_entity).despawn_recursive();
+				commands.entity(old_entity).despawn();
 			},
 		}
 	}

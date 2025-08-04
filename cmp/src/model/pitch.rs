@@ -291,7 +291,7 @@ fn update_built_pitches(
 			} else {
 				// 2.
 				for child in children.iter() {
-					let child_position = pitch_building_children.get(*child).unwrap();
+					let child_position = pitch_building_children.get(child).unwrap();
 					if !area.fits(child_position) {
 						should_destroy = true;
 						break;
@@ -309,7 +309,7 @@ fn update_built_pitches(
 					let mut entity_commands = commands.entity(entity);
 					entity_commands.remove::<ImmutableArea>();
 					entity_commands.insert(inner_area);
-					entity_commands.despawn_descendants();
+					entity_commands.despawn_related::<Children>();
 				});
 				pitch.kind = None;
 				pitch.multiplicity = AccommodationMultiplicity::default();
@@ -352,7 +352,7 @@ fn add_pitch_graphics(
 			});
 		};
 		if result.is_none() {
-			commands.entity(entity).despawn_recursive();
+			commands.entity(entity).despawn();
 		}
 	}
 }

@@ -78,7 +78,7 @@ pub fn initialize_rendering(
 			target: RenderTarget::Image(image_handle.clone().into()),
 			..default()
 		},
-		OrthographicProjection { near: NEAR_PLANE, ..OrthographicProjection::default_2d() },
+		Projection::Orthographic(OrthographicProjection { near: NEAR_PLANE, ..OrthographicProjection::default_2d() }),
 		DebandDither::Enabled,
 		ContrastAdaptiveSharpening { enabled: false, sharpening_strength: 0.3, denoise: false },
 		Msaa::Off,
@@ -94,7 +94,7 @@ pub fn initialize_rendering(
 	let projection =
 		OrthographicProjection { scale: 1. / 4., near: NEAR_PLANE, ..OrthographicProjection::default_2d() };
 	commands.spawn((
-		projection,
+		Projection::Orthographic(projection),
 		Camera2d,
 		Camera { hdr: true, ..Default::default() },
 		Msaa::Off,
@@ -106,9 +106,12 @@ pub fn initialize_rendering(
 /// Scales camera projection to fit the window (integer multiples only).
 pub fn fit_canvas(
 	mut resize_events: EventReader<WindowResized>,
-	mut projection: Query<&mut OrthographicProjection, With<OuterCamera>>,
+	mut projection: Query<&mut Projection, With<OuterCamera>>,
 ) {
-	let Ok(mut projection) = projection.get_single_mut() else {
+	let Ok(mut projection) = projection.single_mut() else {
+		return;
+	};
+	let Projection::Orthographic(projection) = projection.as_mut() else {
 		return;
 	};
 	for event in resize_events.read() {
@@ -127,7 +130,7 @@ pub fn fix_window_aspect(
 	mut resize_events: EventReader<WindowResized>,
 	mut windows: Query<&mut bevy::prelude::Window, With<PrimaryWindow>>,
 ) {
-	let Ok(mut window) = windows.get_single_mut() else {
+	let Ok(mut window) = windows.single_mut() else {
 		return;
 	};
 

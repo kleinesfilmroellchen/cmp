@@ -157,23 +157,24 @@ fn setup_tooltip(mut commands: Commands, asset_server: Res<AssetServer>) {
 fn move_tooltip_to_mouse(
 	windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
 	mut tooltip: Query<&mut Node, With<TooltipUI>>,
-) {
-	let window = windows.single();
-	let mut tooltip_style = tooltip.single_mut();
+) -> Result {
+	let window = windows.single()?;
+	let mut tooltip_style = tooltip.single_mut()?;
 	if let Some(cursor_position) = window.cursor_position() {
 		// Some hacks to translate screen coordinates to UI behavior...
 		tooltip_style.bottom = Val::Px(-cursor_position.y + window.height() + 10.);
 		tooltip_style.left = Val::Px(cursor_position.x + 10.);
 	}
+	Ok(())
 }
 
 fn update_tooltip(
 	mut tooltip_header_text: Query<(&mut Text, &TooltipHeaderText), Without<TooltipBodyText>>,
 	mut tooltip_body_text: Query<(&mut Text, &TooltipBodyText), Without<TooltipHeaderText>>,
 	interacted_tooltipable_node: Query<(&Interaction, &Tooltip), (Changed<Interaction>, With<Node>)>,
-) {
-	let (mut tooltip_header_text, _) = tooltip_header_text.single_mut();
-	let (mut tooltip_body_text, _) = tooltip_body_text.single_mut();
+) -> Result {
+	let (mut tooltip_header_text, _) = tooltip_header_text.single_mut()?;
+	let (mut tooltip_body_text, _) = tooltip_body_text.single_mut()?;
 	for (interaction, tooltip) in &interacted_tooltipable_node {
 		if interaction == &Interaction::None {
 			continue;
@@ -181,16 +182,18 @@ fn update_tooltip(
 		**tooltip_header_text = tooltip.title.clone();
 		**tooltip_body_text = tooltip.body.clone();
 	}
+	Ok(())
 }
 
 fn show_tooltip(
 	mut tooltip: Query<&mut Node, With<TooltipUI>>,
 	any_tooltipable_node: Query<(&Interaction, &Tooltip), With<Node>>,
-) {
+) -> Result {
 	let mut hovers_any = false;
 	for (interaction, _) in &any_tooltipable_node {
 		hovers_any |= interaction != &Interaction::None;
 	}
 
-	tooltip.single_mut().display = if hovers_any { Display::Grid } else { Display::None };
+	tooltip.single_mut()?.display = if hovers_any { Display::Grid } else { Display::None };
+	Ok(())
 }

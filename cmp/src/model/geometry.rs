@@ -22,6 +22,7 @@ pub trait WorldPosition: Component {
 /// An actor’s position is unconstrained in all three axes, and it can have non-grid-aligned values.
 #[derive(Component, Reflect, Default, Clone, Copy, Debug, Deref, PartialEq)]
 #[reflect(Component)]
+#[require(Transform, GlobalTransform, Visibility, InheritedVisibility)]
 pub struct ActorPosition(pub(crate) Vec3A);
 
 impl ActorPosition {

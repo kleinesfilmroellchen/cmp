@@ -36,21 +36,21 @@ pub(super) fn show_errors(
 	mut dialog_contents: Query<Entity, With<DialogContents>>,
 	asset_server: Res<AssetServer>,
 	mut commands: Commands,
-) {
-	let mut dialog_container = dialog_container.single_mut();
+) -> Result {
+	let mut dialog_container = dialog_container.single_mut()?;
 	// Don't show another error while the dialog box is still open.
 	if dialog_container.as_ref() == Visibility::Visible {
-		return;
+		return Ok(());
 	}
 
 	if let Some(ErrorBox(error)) = errors.read().next() {
 		let title = error.name();
 		let text = error.to_string();
 
-		let (mut dialog_title, mut dialog_title_color) = dialog_title.single_mut();
-		let dialog_box = dialog_box.single();
+		let (mut dialog_title, mut dialog_title_color) = dialog_title.single_mut()?;
+		let dialog_box = dialog_box.single()?;
 
-		dialog_contents.iter_mut().for_each(|entity| commands.entity(entity).despawn_recursive());
+		dialog_contents.iter_mut().for_each(|entity| commands.entity(entity).despawn());
 
 		*dialog_title = Text(title.into());
 		*dialog_title_color = TextColor(ORANGE.into());
@@ -70,6 +70,7 @@ pub(super) fn show_errors(
 
 		dialog_container.set_if_neq(Visibility::Visible);
 	}
+	Ok(())
 }
 
 pub(super) fn print_errors(mut errors: EventReader<ErrorBox>) {

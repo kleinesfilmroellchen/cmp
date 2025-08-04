@@ -10,7 +10,7 @@ license.workspace = true
 
 [dependencies]
 anyhow = "1.0.75"
-bevy = { version = "0.15", default-features = false, features = [
+bevy = { version = "0.16", default-features = false, features = [
 	"bevy_asset",
 	"bevy_render",
 ] }

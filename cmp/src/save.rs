@@ -91,7 +91,7 @@ impl Plugin for Saving {
 		app.add_plugins((SavePlugin, LoadPlugin)).add_event::<StoreSave>().add_event::<LoadSave>();
 
 		// TODO: Disable this line when debugging loading.
-		// app.add_systems(Startup, crate::model::spawn_test_tiles);
+		app.add_systems(Startup, crate::model::spawn_test_tiles);
 		// TODO: Enable this line when debugging loading.
 
 		app.add_systems(

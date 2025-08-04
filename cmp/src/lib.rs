@@ -57,7 +57,7 @@ pub use bevy::prelude::{App, PostStartup, info};
 pub use graphics::GraphicsPlugin;
 
 /// Hash set wrapper, because bevy doesn't have a serialization implementation for HashSet.
-pub type HashSet<T> = bevy::utils::HashMap<T, ()>;
+pub type HashSet<T> = bevy::platform::collections::HashMap<T, ()>;
 
 const VERSION: &str =
 	env!("CARGO_PKG_VERSION", "CMP must be built under Cargo, or set the CARGO_PKG_VERSION variable manually.");
@@ -95,6 +95,7 @@ impl Plugin for CmpPlugin {
 					watch_for_changes_override: Some(false),
         			mode: AssetMode::Unprocessed,
 					meta_check: AssetMetaCheck::Always,
+					unapproved_path_mode: bevy::asset::UnapprovedPathMode::Deny,
 				})
 				.set(ImagePlugin::default_nearest()).set(AnimationPlugin)
 				.set(LogPlugin {
@@ -184,21 +185,23 @@ fn setup_window(
 	asset_server: Res<AssetServer>,
 	mut icon: ResMut<WindowIcon>,
 	mut windows: Query<&mut bevy::prelude::Window, With<PrimaryWindow>>,
-) {
+) -> Result {
 	icon.0 = asset_server.load::<Image>("logo-overscaled.png");
 
-	let mut window = windows.single_mut();
+	let mut window = windows.single_mut()?;
 	window.title = "Camping Madness Project".to_string();
+	Ok(())
 }
 
 fn apply_window_settings(
 	mut windows: Query<&mut bevy::prelude::Window, With<PrimaryWindow>>,
 	settings: Res<GameSettings>,
-) {
+) -> Result {
 	if settings.is_changed() {
-		let mut window = windows.single_mut();
+		let mut window = windows.single_mut()?;
 		window.present_mode = if settings.use_vsync { PresentMode::AutoVsync } else { PresentMode::AutoNoVsync };
 	}
+	Ok(())
 }
 
 fn set_window_icon(
@@ -223,7 +226,7 @@ fn set_window_icon(
 							.convert(bevy::render::render_resource::TextureFormat::Rgba8UnormSrgb)
 							.unwrap();
 						let (width, height) = image.size().into();
-						let rgba = image.data;
+						let rgba = image.data.unwrap();
 						(rgba, width, height)
 					};
 

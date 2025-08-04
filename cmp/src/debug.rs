@@ -83,8 +83,12 @@ pub fn create_stats(mut commands: Commands, asset_server: Res<AssetServer>) {
 		});
 }
 
-pub fn print_stats(time: Res<Time<Real>>, settings: Res<GameSettings>, mut stat_ui: Query<(&mut Text, &mut StatUI)>) {
-	let (mut ui, mut stats) = stat_ui.single_mut();
+pub fn print_stats(
+	time: Res<Time<Real>>,
+	settings: Res<GameSettings>,
+	mut stat_ui: Query<(&mut Text, &mut StatUI)>,
+) -> Result {
+	let (mut ui, mut stats) = stat_ui.single_mut()?;
 
 	stats.last_frame_times.push_front(time.delta());
 	if stats.last_frame_times.len() > FRAME_TIMES_COUNT {
@@ -117,4 +121,5 @@ pub fn print_stats(time: Res<Time<Real>>, settings: Res<GameSettings>, mut stat_
 	} else {
 		*ui = Text::default();
 	}
+	Ok(())
 }

@@ -1,12 +1,12 @@
 use std::ops::DerefMut;
 use std::sync::Arc;
+use std::time::Instant;
 
 use bevy::color::palettes::css::{ANTIQUE_WHITE, DARK_GRAY, WHITE};
 use bevy::math::Vec3A;
 use bevy::prelude::*;
 use bevy::text::LineBreak;
 use bevy::ui::FocusPolicy;
-use bevy::utils::Instant;
 use parking_lot::Mutex;
 
 use crate::graphics::library::{FontStyle, FontWeight, font_for};
@@ -161,18 +161,10 @@ pub fn move_world_info(
 	camera_q: Query<(&Camera, &GlobalTransform), With<InGameCamera>>,
 	mut world_info: Query<(&mut Node, &mut Visibility, &WorldInfoUI)>,
 	interactable_world_info_entities: Query<&GlobalTransform>,
-) {
-	let (camera, camera_transform) = camera_q.single();
-	let window = windows.get_single();
-	if window.is_err() {
-		return;
-	}
-	let window = window.unwrap();
-	let cursor_position = window.cursor_position();
-	if cursor_position.is_none() {
-		return;
-	}
-	let (mut world_info_style, mut world_info_visibility, world_info_ui) = world_info.single_mut();
+) -> Result {
+	let (camera, camera_transform) = camera_q.single()?;
+	let window = windows.single()?;
+	let (mut world_info_style, mut world_info_visibility, world_info_ui) = world_info.single_mut()?;
 
 	if let Some(Ok(attached_transform)) =
 		world_info_ui.attached_entity.map(|attached_entity| interactable_world_info_entities.get(attached_entity))
@@ -186,13 +178,15 @@ pub fn move_world_info(
 	} else {
 		world_info_visibility.set_if_neq(Visibility::Hidden);
 	}
+	Ok(())
 }
 
-pub fn hide_world_info(mut world_info: Query<&mut WorldInfoUI>, input: Res<ButtonInput<KeyCode>>) {
-	let mut world_info_ui = world_info.single_mut();
+pub fn hide_world_info(mut world_info: Query<&mut WorldInfoUI>, input: Res<ButtonInput<KeyCode>>) -> Result {
+	let mut world_info_ui = world_info.single_mut()?;
 	if input.just_pressed(KeyCode::Escape) {
 		world_info_ui.attached_entity = None;
 	}
+	Ok(())
 }
 
 pub fn reassign_world_info(
@@ -200,7 +194,7 @@ pub fn reassign_world_info(
 	mut interactable_world_info_entities: Query<(Entity, &GlobalTransform, &mut WorldInfoProperties)>,
 	mut world_info: Query<&mut WorldInfoUI>,
 	mut mouse_click: EventReader<MouseClick>,
-) {
+) -> Result {
 	for MouseClick { engine_position: world_position, .. } in mouse_click.read() {
 		if !blocking_ui_elements
 			.iter()
@@ -208,7 +202,7 @@ pub fn reassign_world_info(
 		{
 			let start = Instant::now();
 
-			let mut world_info_data = world_info.single_mut();
+			let mut world_info_data = world_info.single_mut()?;
 			let cursor_position = Vec3A::from((*world_position, 0.)) - Vec3A::from((0., TILE_HEIGHT / 2., 0.));
 
 			let node_under_cursor: Arc<Mutex<Option<_>>> = Arc::default();
@@ -242,6 +236,7 @@ pub fn reassign_world_info(
 			debug!("Regenerating world info took {:?}", duration);
 		}
 	}
+	Ok(())
 }
 
 pub fn update_world_info(
@@ -255,16 +250,16 @@ pub fn update_world_info(
 		(With<Text>, With<WorldInfoPropertyDisplay>, Without<WorldInfoBody>, Without<WorldInfoTitle>),
 	>,
 	mut commands: Commands,
-) {
-	let (world_info_style, mut world_info_ui) = world_info.single_mut();
+) -> Result {
+	let (world_info_style, mut world_info_ui) = world_info.single_mut()?;
 
-	let mut world_info_header = world_info_header.single_mut();
-	let mut world_info_body = world_info_body.single_mut();
+	let mut world_info_header = world_info_header.single_mut()?;
+	let mut world_info_body = world_info_body.single_mut()?;
 	if let Some(Ok(node_under_cursor)) =
 		world_info_ui.attached_entity.map(|attached_entity| interactable_world_info_entities.get(attached_entity))
 	{
 		for entity in property_displays.into_iter() {
-			commands.entity(entity).despawn_recursive();
+			commands.entity(entity).despawn();
 		}
 
 		**world_info_header = node_under_cursor.name.clone();
@@ -303,4 +298,5 @@ pub fn update_world_info(
 		world_info_header.clear();
 		world_info_body.clear();
 	}
+	Ok(())
 }

@@ -90,15 +90,15 @@ pub(crate) fn move_camera(
 	mut camera_q: Query<(&Camera, &mut Transform, &GlobalTransform), With<InGameCamera>>,
 	mut drag_start_position: ResMut<DragStartPosition>,
 	mut click_event: EventWriter<MouseClick>,
-) {
-	let window = window.single();
-	let (camera, mut camera_transform, camera_global_transform) = camera_q.single_mut();
+) -> Result {
+	let window = window.single()?;
+	let (camera, mut camera_transform, camera_global_transform) = camera_q.single_mut()?;
 
 	if let Some(current_screen_position) = window.cursor_position() {
 		let Some(current_engine_position) =
 			camera_to_world(current_screen_position, window, camera, camera_global_transform)
 		else {
-			return;
+			return Ok(());
 		};
 
 		'pos: {
@@ -136,7 +136,7 @@ pub(crate) fn move_camera(
 				let delta = drag_start_world_position - current_engine_position;
 
 				if delta.length() < DRAG_THRESHOLD {
-					click_event.send(MouseClick {
+					click_event.write(MouseClick {
 						screen_position: current_screen_position,
 						engine_position: current_engine_position,
 					});
@@ -148,6 +148,7 @@ pub(crate) fn move_camera(
 			drag_start_position.0 = None;
 		}
 	}
+	Ok(())
 }
 
 fn fix_camera(mut drag_start_position: ResMut<DragStartPosition>) {
@@ -158,14 +159,17 @@ fn fix_camera(mut drag_start_position: ResMut<DragStartPosition>) {
 /// `accumulated_scroll` takes care of small-increment smooth scrolling devices like trackpads.
 fn zoom_camera(
 	mut scroll_events: EventReader<MouseWheel>,
-	mut camera_q: Query<&mut OrthographicProjection, With<InGameCamera>>,
+	mut camera_q: Query<&mut Projection, With<InGameCamera>>,
 	mut accumulated_scroll: Local<f32>,
-) {
-	let mut camera_projection = camera_q.single_mut();
+) -> Result {
+	let mut camera_projection = camera_q.single_mut()?;
+	let Projection::Orthographic(camera_projection) = camera_projection.as_mut() else {
+		return Ok(());
+	};
 
 	let amount = scroll_events.read().map(|scroll| scroll.y).sum::<f32>();
 	if amount == 0. {
-		return;
+		return Ok(());
 	}
 
 	// If changing scroll direction, snap accumulation to 0 so that it doesn’t take longer to zoom than if you didn’t
@@ -178,7 +182,7 @@ fn zoom_camera(
 	if accumulated_scroll.abs() < 1. {
 		// Below a total scroll of 1, nothing happens due to the zoom math below, so we can skip updating the camera
 		// transform altogether.
-		return;
+		return Ok(());
 	}
 
 	// Only allow power-of-two scales, since those will not cause off-by-one rendering glitches.
@@ -191,10 +195,15 @@ fn zoom_camera(
 
 	// Since we just scrolled, reset the accumulator.
 	*accumulated_scroll = 0.;
+
+	Ok(())
 }
 
-fn fullscreen(keys: Res<ButtonInput<KeyCode>>, mut windows: Query<&mut bevy::prelude::Window, With<PrimaryWindow>>) {
-	let Ok(mut window) = windows.get_single_mut() else { return };
+fn fullscreen(
+	keys: Res<ButtonInput<KeyCode>>,
+	mut windows: Query<&mut bevy::prelude::Window, With<PrimaryWindow>>,
+) -> Result {
+	let mut window = windows.single_mut()?;
 
 	if keys.just_pressed(KeyCode::F11) {
 		window.mode = match window.mode {
@@ -203,4 +212,5 @@ fn fullscreen(keys: Res<ButtonInput<KeyCode>>, mut windows: Query<&mut bevy::pre
 			_ => WindowMode::Windowed,
 		};
 	}
+	Ok(())
 }

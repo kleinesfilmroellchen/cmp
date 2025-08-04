@@ -415,11 +415,12 @@ fn initialize_dialogs(mut commands: Commands, asset_server: Res<AssetServer>) {
 fn close_dialog(
 	mut dialog_container: Query<&mut Visibility, With<controls::DialogContainer>>,
 	interacted_button: Query<&Interaction, (Changed<Interaction>, With<controls::DialogCloseButton>)>,
-) {
-	let mut dialog_container_visibility = dialog_container.single_mut();
-	if matches!(interacted_button.get_single(), Ok(&Interaction::Pressed)) {
+) -> Result {
+	let mut dialog_container_visibility = dialog_container.single_mut()?;
+	if matches!(interacted_button.single(), Ok(&Interaction::Pressed)) {
 		dialog_container_visibility.set_if_neq(Visibility::Hidden);
 	}
+	Ok(())
 }
 
 fn on_build_menu_button_press(
@@ -428,7 +429,7 @@ fn on_build_menu_button_press(
 ) {
 	for (interaction, button_kind) in &mut interacted_button {
 		if interaction == &Interaction::Pressed {
-			open_menu_event.send(controls::OpenBuildMenu(button_kind.0));
+			open_menu_event.write(controls::OpenBuildMenu(button_kind.0));
 		}
 	}
 }
@@ -442,7 +443,7 @@ fn on_start_build_preview(
 	for (interaction, button_kind) in &mut interacted_button {
 		// Only start building if we're doing nothing or already building.
 		if interaction == &Interaction::Pressed && [InputState::Building, InputState::Idle].contains(&current_state) {
-			start_preview_event.send(build::StartBuildPreview { buildable: button_kind.0 });
+			start_preview_event.write(build::StartBuildPreview { buildable: button_kind.0 });
 			state.set(InputState::Building);
 		}
 	}

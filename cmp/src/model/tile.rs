@@ -1,7 +1,7 @@
 use std::marker::ConstParamTy;
 
+use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
-use bevy::utils::HashMap;
 use moonshine_save::save::Save;
 
 use super::GridPosition;
@@ -257,7 +257,7 @@ pub fn update_ground_textures(
 ) {
 	for (entity, kind, mut sprite) in &mut ground_textures {
 		// remove any children of the old tile
-		commands.entity(entity).despawn_descendants();
+		commands.entity(entity).despawn_related::<Children>();
 		let image = image_for_ground(*kind);
 		sprite.image = asset_server.load(image);
 	}

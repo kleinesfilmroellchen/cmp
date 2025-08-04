@@ -2,9 +2,9 @@ use std::ops::{BitAnd, BitXor, BitXorAssign};
 use std::sync::OnceLock;
 
 use bevy::math::Vec3A;
+use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
 use bevy::sprite::Anchor;
-use bevy::utils::HashMap;
 use moonshine_save::save::Save;
 
 use self::rendering::*;
@@ -310,16 +310,17 @@ fn add_transforms<PositionType: WorldPosition>(
 }
 
 fn move_edge_objects_in_front_of_boxes(
-	mut edge_objects: Query<(&mut Transform, &ActorPosition, Option<&Parent>), Changed<Transform>>,
+	mut edge_objects: Query<(&mut Transform, &ActorPosition, Option<&ChildOf>), Changed<Transform>>,
 	possible_parents: Query<&GridPosition, With<Children>>,
 	boxed_entities: Query<&GridBox>,
 ) {
-	edge_objects.par_iter_mut().for_each(|(mut bevy_transform, edge_object_position, parent)| {
-		let own_position = if let Some(parent) = parent.and_then(|parent| possible_parents.get(parent.get()).ok()) {
-			parent.position() + **edge_object_position
-		} else {
-			**edge_object_position
-		};
+	edge_objects.par_iter_mut().for_each(|(mut bevy_transform, edge_object_position, parent_ptr)| {
+		let own_position =
+			if let Some(parent) = parent_ptr.and_then(|parent| possible_parents.get(parent.parent()).ok()) {
+				parent.position() + **edge_object_position
+			} else {
+				**edge_object_position
+			};
 
 		// PERFORMANCE: This is a prime optimization candidate.
 		if let Some(smallest_edge_box) = boxed_entities
