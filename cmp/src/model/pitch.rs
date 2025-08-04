@@ -114,7 +114,7 @@ impl Tooltipable for PitchType {
 type AccommodationMultiplicity = Metric<1, 2>;
 
 /// A proper pitch for guests; essentially an instance of [`PitchType`].
-#[derive(Component, Reflect, Default)]
+#[derive(Component, Reflect, Default, Debug)]
 #[reflect(Component)]
 pub struct Pitch {
 	/// When the kind is [`None`], the pitch type is unassigned and this pitch is not functional.
@@ -265,7 +265,7 @@ fn update_built_pitches(
 	other_areas: Query<&Area>,
 	pitch_building_children: Query<&GridBox, With<AccommodationBuilding>>,
 	ground_map: Res<GroundMap>,
-	mut update: ResMut<Events<UpdateAreas>>,
+	mut update: EventWriter<UpdateAreas>,
 ) {
 	if ground_map.is_changed() {
 		let relevant_tiles = |tile: &'_ _| ground_map.kind_of(tile).is_some_and(|kind| kind == Pitch::GROUND_TYPE);
@@ -318,7 +318,8 @@ fn update_built_pitches(
 		});
 
 		if needs_update.load(Ordering::Acquire) {
-			update.send_default();
+			debug!("destroyed built pitch, running an area update");
+			update.write_default();
 		}
 	}
 }

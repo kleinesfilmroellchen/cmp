@@ -1,4 +1,5 @@
 use std::collections::VecDeque;
+use std::fmt::Debug;
 use std::time::Instant;
 
 use bevy::color::palettes::css::RED;
@@ -55,7 +56,6 @@ impl Area {
 		self.recompute_bounds();
 	}
 
-	#[allow(unused)]
 	#[inline]
 	pub fn is_empty(&self) -> bool {
 		self.tiles.is_empty()
@@ -154,13 +154,13 @@ impl From<ImmutableArea> for Area {
 
 /// A marker component used with the [`Area`] component to mark the area of a specific type and to determine some
 /// type-specific area properties.
-pub trait AreaMarker: Component {
+pub trait AreaMarker: Component + Debug {
 	fn is_allowed_ground_type(&self, kind: GroundKind) -> bool;
 	fn init_new(area: Area, commands: &mut Commands);
 }
 
 /// Marker for pool areas.
-#[derive(Component, Reflect, Default)]
+#[derive(Component, Reflect, Default, Debug)]
 #[reflect(Component)]
 pub struct Pool;
 
@@ -184,14 +184,16 @@ impl Plugin for AreaManagement {
 			.register_type::<DebugAreaText>()
 			.register_type::<Area>()
 			.register_type::<ImmutableArea>()
+			// when an update is requested within FixedUpdate, the area updates will see the changes applied by such a request
 			.add_systems(
-				FixedUpdate,
+				FixedPostUpdate,
 				(update_areas::<Pool>, update_areas::<Pitch>)
-					.before(clean_area_events)
 					.before(update_area_world_info)
+					.before(clean_area_events)
 					.run_if(in_state(GameState::InGame)),
 			)
-			.add_systems(FixedUpdate, (clean_area_events, update_area_world_info).run_if(in_state(GameState::InGame)));
+			.add_systems(FixedPostUpdate, update_area_world_info.run_if(in_state(GameState::InGame)))
+			.add_systems(FixedPostUpdate, clean_area_events.run_if(in_state(GameState::InGame)));
 	}
 }
 
@@ -206,7 +208,7 @@ fn update_areas<T: AreaMarker + Default>(
 	tiles: Res<GroundMap>,
 	mut areas: Query<(Entity, &mut Area, &T)>,
 	mut commands: Commands,
-	update: Res<Events<UpdateAreas>>,
+	update: EventReader<UpdateAreas>,
 	old_area_markers: Query<Entity, With<DebugAreaText>>,
 	// debugging
 	asset_server: Res<AssetServer>,
@@ -218,6 +220,8 @@ fn update_areas<T: AreaMarker + Default>(
 	}
 
 	old_area_markers.iter().for_each(|x| commands.entity(x).despawn());
+
+	debug!("{:?} currently {} areas", T::default(), areas.iter().count());
 
 	// Perform flood fill on the areas to update them.
 	let mut remaining_tiles = HashSet::<GridPosition>::new();
@@ -248,7 +252,7 @@ fn update_areas<T: AreaMarker + Default>(
 
 		let did_remove = remaining_tiles.remove(&next_tile).is_some();
 		if !did_remove {
-			debug!("BUG! {:?} wasn’t a remaining tile, but it was in the queue!", next_tile);
+			debug!("{:?} BUG! {:?} wasn’t a remaining tile, but it was in the queue!", T::default(), next_tile);
 		}
 
 		active_area.tiles.insert(next_tile, ());
@@ -259,11 +263,13 @@ fn update_areas<T: AreaMarker + Default>(
 			}
 		}
 	}
-	active_area.recompute_bounds();
-	new_areas.push(active_area);
+	if !active_area.is_empty() {
+		active_area.recompute_bounds();
+		new_areas.push(active_area);
+	}
 	let computation_time = Instant::now() - start;
 
-	debug!("after unification, {} areas remain (in {:?})", new_areas.len(), computation_time);
+	debug!("{:?} after unification, {} areas remain (in {:?})", T::default(), new_areas.len(), computation_time);
 
 	// debugging
 	if settings.show_debug {
